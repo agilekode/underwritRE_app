@@ -1,0 +1,105 @@
+Table users {
+  id uuid [pk]
+  auth0_user_id varchar [unique, not null] // e.g. auth0|abc123
+  email varchar [unique, not null]
+  created_at timestamp
+  updated_at timestamp
+  is_active boolean [default: true]
+  trial_start_date date
+  stripe_customer_id varchar [unique]
+}
+
+Table stripe_subscriptions {
+  id uuid [pk]
+  user_id uuid [ref: > users.id]
+  stripe_subscription_id varchar [unique, not null]
+  status varchar [not null] // e.g. "active", "trialing", "canceled"
+  current_period_start timestamp
+  current_period_end timestamp
+  cancel_at_period_end boolean
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table model_types {
+  id uuid [pk]
+  name varchar [not null, unique] // e.g., "Single Family", "Multi-Family"
+  description text
+  is_active boolean
+  created_at timestamp
+  updated_at time_stamp
+}
+
+Table model_type_sections {
+  id uuid [pk]
+  model_type_id uuid [ref: > model_types.id]
+  name varchar [not null] // e.g., "Financing", "Income", "Expenses"
+  order int // for layout order
+  created_at timestamp
+}
+
+Table model_type_section_fields {
+  id uuid [pk]
+  section_id uuid [ref: > model_type_sections.id]
+  description varchar
+  field_key varchar [not null] // e.g., "purchase_price"
+  field_type varchar [not null] // e.g., "number", "percent", "text"
+  default_value varchar
+  required boolean [default: false]
+  time_phased boolean [default: false]
+  order int
+  created_at timestamp
+}
+
+Table user_models {
+  id uuid [pk]
+  user_id uuid [ref: > users.id]
+  model_type_id uuid [ref: > model_types.id]
+  name varchar [not null]
+  street_address varchar
+  city varchar
+  state varchar
+  zip_code varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table user_model_versions {
+  id uuid [pk]
+  user_model_id uuid [ref: > user_models.id]
+  version_number int [not null]
+  created_at timestamp
+  updated_at timestamp
+}
+
+
+Table user_model_field_values {
+  id uuid [pk]
+  user_model_version_id uuid [ref: > user_model_versions.id]
+  field_id uuid [ref: > model_type_section_fields.id]
+  value text
+  start_month int
+  end_month int
+}
+
+Table units {
+  id uuid [pk]
+  user_model_version_id uuid [ref: > user_model_versions.id]
+  vacate_flag boolean // 1 = Yes
+  bedrooms numeric
+  bathrooms numeric
+  square_feet int
+  vacate_month int 
+  current_rent int
+  created_at timestamp
+}
+
+Table market_rent_assumptions {
+  id uuid [pk]
+  user_model_version_id uuid [ref: > user_model_versions.id]
+  bedrooms numeric
+  bathrooms numeric
+  pf_rent int // e.g. 2400
+  pf_rent_per_sf numeric // e.g. 2.00
+  created_at timestamp
+}

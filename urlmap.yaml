@@ -1,0 +1,21 @@
+kind: compute#urlMap
+name: uwr-urlmap
+
+# REQUIRED: fallback if no host/path matches
+defaultService: https://www.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/backendServices/${BESVC_NAME}
+
+hostRules:
+  - hosts: ["${APP_HOST}"]
+    pathMatcher: "pm-app"
+  - hosts: ["${WWW_HOST}"]
+    pathMatcher: "pm-www-redirect"
+
+pathMatchers:
+  - name: "pm-app"
+    defaultService: https://www.googleapis.com/compute/v1/projects/${PROJECT_ID}/global/backendServices/${BESVC_NAME}
+
+  - name: "pm-www-redirect"
+    defaultUrlRedirect:
+      redirectResponseCode: MOVED_PERMANENTLY_DEFAULT
+      httpsRedirect: true
+      hostRedirect: "${APP_HOST}"

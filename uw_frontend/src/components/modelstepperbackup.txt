@@ -1,0 +1,932 @@
+import React, { useState } from "react";
+import {
+  Box,
+  Button,
+  Typography,
+  Card,
+  CardContent,
+  CardHeader,
+  IconButton,
+  Collapse,
+  LinearProgress,
+  Chip,
+  Divider,
+  Paper,
+  useTheme,
+  alpha,
+  CircularProgress,
+} from "@mui/material";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ExpandMore,
+  ExpandLess,
+  Check,
+  Circle,
+} from "@mui/icons-material";
+import { createModelSubheaders } from "../utils/modelTypeConstants";
+
+interface StepTree {
+  id: number;
+  title: string;
+  branches: {
+    id: number;
+    title: string;
+    shortTitle: string;
+  }[];
+}
+
+interface ModelStepperProps {
+  steps: string[];
+  activeStep: number;
+  completedSteps: number[];
+  onStepChange: (currentStep: number, nextStep: number) => void;
+  onNext: () => void;
+  onBack: () => void;
+  isStepComplete: (step: number) => boolean;
+  isCreating?: boolean;
+  leveredIrr?: string;
+  leveredMoic?: string;
+  finalMetricsCalculating?: boolean;
+  children?: React.ReactNode;
+  showRetail?: boolean;
+  existingModel?: boolean;
+  handleSaveAndExit?: () => void;
+  modelDetails?: any;
+}
+
+const ModelStepper: React.FC<ModelStepperProps> = ({
+  steps,
+  activeStep,
+  completedSteps,
+  onStepChange,
+  onNext,
+  onBack,
+  isStepComplete,
+  isCreating = false,
+  leveredIrr = "",
+  leveredMoic = "",
+  finalMetricsCalculating = false,
+  showRetail = false,
+  children,
+  existingModel = false,
+  handleSaveAndExit,
+  modelDetails,
+}) => {
+  const theme = useTheme();
+  const [expandedTrees, setExpandedTrees] = useState<number[]>([1]);
+
+  // Create step trees based on the steps array
+  const createStepTrees = (): StepTree[] => {
+    const stepTrees: StepTree[] = [
+      {
+        id: 1,
+        title: "Property Info",
+        branches: [],
+      },
+      {
+        id: 2,
+        title: "Rent Roll and Income / Expenses",
+        branches: [],
+      },
+      {
+        id: 3,
+        title: "Acquisition Financing",
+        branches: [],
+      },
+      {
+        id: 4,
+        title: "Refinancing",
+        branches: [],
+      },
+      {
+        id: 5,
+        title: "Soft and Hard Costs",
+        branches: [],
+      },
+      {
+        id: 6,
+        title: "Sale",
+        branches: [],
+      },
+    ];
+
+    let rentRollSteps: string[] = [];
+
+    if (showRetail) {
+      rentRollSteps = [
+        "Property Units",
+        "Market Rent Assumptions",
+        "Retail Income",
+        "Amenity Income",
+        "Operating Expenses",
+        "Rental Unit Growth Rates",
+      ];
+    } else {
+      rentRollSteps = [
+        "Property Units",
+        "Market Rent Assumptions",
+        "Amenity Income",
+        "Operating Expenses",
+        "Rental Unit Growth Rates",
+      ];
+    }
+
+    // Map steps to appropriate trees
+    steps.forEach((step, index) => {
+      const stepId = index + 1;
+
+      if (
+        step === "Property Address" ||
+        step === "General Property Assumptions"
+      ) {
+        stepTrees[0].branches.push({
+          id: stepId,
+          title: step,
+          shortTitle: step,
+        });
+      } else if (rentRollSteps.includes(step)) {
+        stepTrees[1].branches.push({
+          id: stepId,
+          title: step,
+          shortTitle: step,
+        });
+      } else if (step === "Acquisition Financing") {
+        stepTrees[2].branches.push({
+          id: stepId,
+          title: step,
+          shortTitle: step,
+        });
+      } else if (["Leasing Assumptions", "Refinancing"].includes(step)) {
+        stepTrees[3].branches.push({
+          id: stepId,
+          title: step,
+          shortTitle: step,
+        });
+      } else if (
+        [
+          "Closing Costs",
+          "Legal and Pre-Development Costs",
+          "Reserves",
+          "Hard Costs",
+        ].includes(step)
+      ) {
+        stepTrees[4].branches.push({
+          id: stepId,
+          title: step,
+          shortTitle: step,
+        });
+      } else if (step === "Exit Assumptions") {
+        stepTrees[5].branches.push({
+          id: stepId,
+          title: step,
+          shortTitle: step,
+        });
+      }
+    });
+
+    return stepTrees.filter((tree) => tree.branches.length > 0);
+  };
+
+  const stepTrees = createStepTrees();
+  const branches = stepTrees.flatMap((tree) => tree.branches);
+  const totalBranches = branches.length;
+  const completedCount = completedSteps.length;
+  const progressPercentage = (completedCount / totalBranches) * 100;
+
+  const getTreeBgColor = (treeId: number) => {
+    const colors = {
+      1: theme.palette.grey[600],
+      2: theme.palette.grey[700],
+      3: theme.palette.grey[600],
+      4: theme.palette.grey[700],
+      5: theme.palette.grey[600],
+      6: theme.palette.grey[700],
+    };
+    return colors[treeId as keyof typeof colors] || theme.palette.grey[600];
+  };
+
+  // Returns all branches belonging to a given treeId and whether all are complete
+  const getBranchesAndCompletionForTree = (treeId: number) => {
+    // Find the tree with the given treeId
+    const tree = stepTrees.find((tree, idx) => idx + 1 === treeId);
+    if (!tree) return { branches: [], allComplete: false };
+
+    // Get all branch ids for this tree
+    const branchIds = tree.branches.map((branch) => branch.id);
+
+    // Check if all branches are completed
+    const allComplete = branchIds.every((id) => completedSteps.includes(id));
+
+    return { branches: tree.branches, allComplete };
+  };
+
+  const getBranchTree = (branchId: number) => {
+    return stepTrees.find((tree) =>
+      tree.branches.some((branch) => branch.id === branchId)
+    );
+  };
+
+  const toggleTree = (treeId: number) => {
+    setExpandedTrees((prev) =>
+      prev.includes(treeId)
+        ? prev.filter((id) => id !== treeId)
+        : [...prev, treeId]
+    );
+  };
+
+  const isTreeExpanded = (treeId: number) => expandedTrees.includes(treeId);
+  const isBranchCompleted = (branchId: number) =>
+    completedSteps.includes(branchId);
+  const isCurrentBranch = (branchId: number) => branchId === activeStep + 1;
+
+  const handleOnNext = () => {
+    // Find the tree containing the next step (activeStep + 1)
+    const nextStep = activeStep + 1;
+    const branchTree = getBranchTree(nextStep + 1); // branchId is 1-based
+    if (branchTree) {
+      const treeIdx = stepTrees.findIndex((tree) => tree === branchTree);
+      const treeId = treeIdx + 1;
+      if (!expandedTrees.includes(treeId)) {
+        setExpandedTrees((prev) => [...prev, treeId]);
+      }
+    }
+    onNext();
+  };
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "calc(100vh - 64px)",
+        bgcolor: "#f3f6fb",
+        width: "100%",
+        maxWidth: "100%",
+        overflowX: "scroll",
+      }}
+    >
+      <Box
+        sx={{
+          width: 320,
+          bgcolor: "#e4e7eb",
+          borderRight: 0,
+          borderColor: "grey.200",
+          display: "flex",
+          flexDirection: "column",
+          // boxShadow: 3
+        }}
+      >
+        {/* Header */}
+
+        <Box
+          sx={{
+            borderBottom: 2,
+            borderColor: "grey.200",
+            px: 3,
+            py: 2,
+            background: "#f4f6fa",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 600, color: "grey.900" }}
+              >
+                {existingModel ? "Edit Model" : "Create Model"}
+              </Typography>
+              {(isCreating ||
+                !modelDetails?.google_sheet_url ||
+                modelDetails.google_sheet_url === "") && (
+                <Chip
+                  label={
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+                    >
+                      <CircularProgress
+                        size={14}
+                        color="inherit"
+                        sx={{ mr: 0.5 }}
+                      />
+                      Loading...
+                    </Box>
+                  }
+                  size="small"
+                  color="primary"
+                  sx={{ fontWeight: 500, pl: 0.5, pr: 1 }}
+                />
+              )}
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Navigation Trees - Scrollable Area */}
+        <Box
+          sx={{
+            flex: 1,
+            overflowY: "auto",
+            py: 0,
+            bgcolor: "#f3f6fb",
+            ...(isCreating ||
+            !modelDetails?.google_sheet_url ||
+            modelDetails.google_sheet_url === ""
+              ? {
+                  pointerEvents: "none",
+                  opacity: 0.5,
+                  backgroundColor: (theme) => theme.palette.grey[100],
+                }
+              : {}),
+          }}
+        >
+          {stepTrees.map((tree) => (
+            <Box key={tree.id} sx={{ mb: 0 }}>
+              {/* Tree Header */}
+              <Button
+                onClick={() => toggleTree(tree.id)}
+                sx={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  px: 3,
+                  py: 2,
+                  textAlign: "left",
+                  textTransform: "none",
+                  transition: "all 0.3s",
+                  transform: "scale(1)",
+                  borderRadius: 0,
+                  mb: 0,
+                  background: "#f4f6fa",
+                  "&:hover": {
+                    transform: "scale(1.02)",
+                    // background: `#f4f6fa`,
+                    boxShadow: 0,
+                  },
+                  ...(isTreeExpanded(tree.id) && {
+                    // bgcolor: 'grey.50',
+                    boxShadow: 0,
+                  }),
+                }}
+              >
+                <Box
+                  component="section"
+                  aria-labelledby={`section-header-${tree.id}`}
+                  sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+                >
+                  {/* <Box
+                    sx={{
+                      height: 32,
+                      px: 1.5,
+                      borderRadius: 9999,
+                      bgcolor: getBranchesAndCompletionForTree(tree.id)
+                        .allComplete
+                        ? "#173d65"
+                        : getTreeBgColor(tree.id),
+                      color: "#e4e7eb",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "0.9rem",
+                      fontWeight: 700,
+                      letterSpacing: 0.2,
+                      whiteSpace: "nowrap",
+                      transition: "all 0.2s",
+                      boxShadow: isTreeExpanded(tree.id) ? 2 : 1,
+                      "&:hover": {
+                        transform: "scale(1.02)",
+                        boxShadow: 3,
+                      },
+                    }}
+                    id={`section-header-${tree.id}`}
+                    aria-label={`Section ${tree.id}`}
+                    title={`Section ${tree.id}`}
+                  >
+                    Section {tree.id}
+                  </Box> */}
+                  <Typography
+                    variant="body2"
+                    component="span"
+                    sx={{
+                      fontWeight: 500,
+                      color: "grey.900",
+                      transition: "color 0.2s",
+                      "&:hover": { color: "grey.700" },
+                    }}
+                  >
+                    {tree.title}
+                  </Typography>
+                </Box>
+                <Box sx={{ transition: "all 0.3s" }}>
+                  {isTreeExpanded(tree.id) ? (
+                    <ExpandLess
+                      sx={{
+                        color: "grey.500",
+                        "&:hover": { color: "grey.700" },
+                      }}
+                    />
+                  ) : (
+                    <ExpandMore
+                      sx={{
+                        color: "grey.500",
+                        "&:hover": { color: "grey.700" },
+                      }}
+                    />
+                  )}
+                </Box>
+              </Button>
+
+              {/* Tree Branches - Collapsible */}
+              <Collapse
+                in={isTreeExpanded(tree.id)}
+                timeout={500}
+                sx={{ borderRadius: 0, mb: 0, background: "#f4f6fa" }}
+              >
+                <Box
+                  sx={{
+                    ml: 3,
+                    borderLeft: 0,
+                    borderColor: "grey.100",
+                    borderRadius: 0,
+                    mb: 0,
+                  }}
+                >
+                  {tree.branches.map((branch, index) => (
+                    <Button
+                      key={branch.id}
+                      onClick={() => onStepChange(activeStep, branch.id - 1)}
+                      disabled={
+                        (!isBranchCompleted(branch.id) &&
+                          !isBranchCompleted(branch.id - 1)) ||
+                        !modelDetails?.google_sheet_url ||
+                        modelDetails.google_sheet_url === "" ||
+                        !isStepComplete(activeStep)
+                      }
+                      sx={{
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        px: 3,
+                        py: 1.5,
+                        textAlign: "left",
+                        textTransform: "none",
+                        transition: "all 0.3s",
+                        transform: "scale(1)",
+                        borderRadius: 0,
+                        borderRight: 4,
+                        borderColor: "red",
+                        background: isBranchCompleted(branch.id)
+                          ? `#f4f6fa`
+                          : "transparent",
+                        "&:hover": {
+                          transform: "scale(1.01)",
+                          background: `#f4f6fa`,
+                          borderRight: 10,
+                          borderColor: "green",
+                          // These are not valid sx properties in MUI.
+                          // If you want a right-side box shadow, use the 'boxShadow' property with a custom value, e.g.:
+                        },
+                        ...(isCurrentBranch(branch.id) && {
+                          background: `#f4f6fa`,
+                          borderRight: 4,
+                          borderColor: "blue",
+                          // boxShadow: 1
+                        }),
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: "50%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "0.75rem",
+                          fontWeight: 500,
+                          transition: "all 0.5s",
+                          border: 2,
+                          position: "relative",
+                          overflow: "hidden",
+                          ...(isBranchCompleted(branch.id)
+                            ? {
+                                bgcolor: "#173d65",
+                                color: "#e4e7eb",
+                                borderColor: "#173d65",
+                                // boxShadow: 2
+                              }
+                            : isCurrentBranch(branch.id)
+                            ? {
+                                bgcolor: "grey.900",
+                                color: "#e4e7eb",
+                                borderColor: "grey.900",
+                                // boxShadow: 3,
+                                ring: 2,
+                                ringColor: "grey.400",
+                                ringOffset: 1,
+                              }
+                            : {
+                                bgcolor: "#e4e7eb",
+                                color: "grey.600",
+                                borderColor: "grey.300",
+                                "&:hover": {
+                                  borderColor: "grey.400",
+                                  // boxShadow: 1,
+                                  bgcolor: "grey.50",
+                                },
+                              }),
+                        }}
+                      >
+                        {isBranchCompleted(branch.id) ? (
+                          branch.id
+                        ) : (
+                          branch.id
+                        )}
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            textOverflow: "ellipsis",
+                            overflow: "hidden",
+                            whiteSpace: "nowrap",
+                            transition: "all 0.2s",
+                            ...(isCurrentBranch(branch.id)
+                              ? {
+                                  fontWeight: 600,
+                                  color: "grey.900",
+                                }
+                              : isBranchCompleted(branch.id)
+                              ? {
+                                  fontWeight: 500,
+                                  color: "grey.800",
+                                }
+                              : {
+                                  color: "grey.700",
+                                  "&:hover": { color: "grey.900" },
+                                }),
+                          }}
+                        >
+                          {branch.shortTitle}
+                        </Typography>
+                      </Box>
+                      {isCurrentBranch(branch.id) &&
+                        !isBranchCompleted(branch.id) && (
+                          <Box
+                            sx={{
+                              width: 8,
+                              height: 8,
+                              bgcolor: "grey.900",
+                              borderRadius: "50%",
+                              animation: "pulse 2s infinite",
+                              // boxShadow: 1
+                            }}
+                          />
+                        )}
+                    </Button>
+                  ))}
+                </Box>
+              </Collapse>
+            </Box>
+          ))}
+        </Box>
+
+        {/* Progress Footer - Sticky at bottom */}
+        {/* <Box sx={{
+          borderTop: 1,
+          borderColor: 'grey.200',
+          px: 3,
+          py: 2,
+          background: `#f4f6fa`,
+          backdropFilter: 'blur(8px)'
+        }}>
+          <Typography variant="body2" sx={{ color: 'grey.600', fontWeight: 500 }}>
+            Step {activeStep + 1} of {totalBranches} • {completedCount} completed
+          </Typography>
+          <Box sx={{ width: '100%', bgcolor: 'grey.200', borderRadius: 1, height: 12, mt: 1.5, boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)' }}>
+            <Box sx={{
+              background: `linear-gradient(90deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
+              height: 12,
+              borderRadius: 1,
+              transition: 'width 0.7s ease-out',
+              width: `${progressPercentage}%`,
+              // boxShadow: 1,
+              position: 'relative',
+              overflow: 'hidden',
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                animation: 'pulse 2s infinite'
+              }
+            }} />
+          </Box>
+          <Typography variant="caption" sx={{ color: 'grey.500', textAlign: 'center', display: 'block', mt: 0.5 }}>
+            {Math.round(progressPercentage)}% Complete
+          </Typography>
+        </Box> */}
+      </Box>
+
+      {/* Main Content Area */}
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {/* Top Header */}
+        {/* <Box sx={{ 
+          bgcolor: 'white', 
+          borderBottom: 1, 
+          borderColor: 'grey.200', 
+          px: 3, 
+          py: 2,
+          boxShadow: 1
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="body2" sx={{ color: 'grey.600' }}>
+              1. Property Details View Only
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                             <Button
+                 variant="outlined"
+                 size="small"
+                 sx={{
+                   textTransform: 'none',
+                   borderColor: 'grey.300',
+                   color: 'grey.700',
+                   '&:hover': {
+                     borderColor: 'grey.400',
+                     boxShadow: 1
+                   }
+                 }}
+               >
+                 Fork
+               </Button>
+            </Box>
+          </Box>
+        </Box> */}
+
+        {/* Main Content */}
+        <Box
+          sx={{
+            overflowY: "auto",
+            width: "100%",
+            maxWidth: "calc(100% - 48px)",
+            px: 3,
+            py: 4,
+          }}
+        >
+          <Box sx={{ width: "100%", maxWidth: 1200, mx: "auto" }}>
+            {/* Current Branch Context */}
+            <Box sx={{ mb: 3 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    bgcolor: (() => {
+                      // Check if the current step (activeStep + 1) is completed
+                      const currentStepId = activeStep + 1;
+                      if (isBranchCompleted(currentStepId)) {
+                        return "#173d65";
+                      }
+                      return getTreeBgColor(
+                        getBranchTree(currentStepId)?.id || 1
+                      );
+                    })(),
+                    color: "#e4e7eb",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "1.125rem",
+                    fontWeight: 700,
+                    //  boxShadow: 3,
+                    transition: "all 0.3s",
+                    "&:hover": { transform: "scale(1.1)" },
+                  }}
+                >
+                  {getBranchTree(activeStep + 1)?.id}
+                </Box>
+                <Box>
+                  <Typography
+                    variant="h5"
+                    sx={{ fontWeight: 600, color: "grey.900" }}
+                  >
+                    {getBranchTree(activeStep + 1)?.title}
+                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography variant="body2" sx={{ color: "grey.600" }}>
+                      Step {activeStep + 1} of {totalBranches}
+                    </Typography>
+                    {isBranchCompleted(activeStep + 1) && (
+                      <Chip
+                        icon={<Check />}
+                        label="Completed"
+                        size="small"
+                        color="success"
+                      />
+                    )}
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+
+            {(() => {
+              const stepKey = steps[
+                activeStep
+              ] as keyof typeof createModelSubheaders;
+              const stepDescription = createModelSubheaders[stepKey];
+              return typeof stepDescription === "string" &&
+                stepDescription.trim().length > 0 ? (
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: "grey.600",
+                    mb: 2,
+                    backgroundColor: "#e4e7eb",
+                    p: 2,
+                    borderRadius: 2,
+                  }}
+                >
+                  {stepDescription}
+                </Typography>
+              ) : null;
+            })()}
+
+            {/* Metrics Display */}
+            {/* {(leveredIrr || leveredMoic) && ( */}
+            {[
+              "Acquisition Financing",
+              "Refinancing",
+              "Leasing Assumptions",
+              "Exit Assumptions",
+            ].includes(steps[activeStep]) && (
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 3,
+                  alignItems: "center",
+                  mb: 3,
+                  p: 2,
+                  bgcolor: "grey.50",
+                  borderRadius: 2,
+                  border: 1,
+                  borderColor: "grey.200",
+                }}
+              >
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    fontWeight: 500,
+                    color: finalMetricsCalculating
+                      ? "text.disabled"
+                      : "text.primary",
+                    opacity: finalMetricsCalculating ? 0.6 : 1,
+                  }}
+                >
+                  Levered IRR:&nbsp;
+                  <Box
+                    component="span"
+                    sx={{
+                      color: finalMetricsCalculating
+                        ? "grey.400"
+                        : "primary.main",
+                      fontWeight: 700,
+                      opacity: finalMetricsCalculating ? 0.6 : 1,
+                    }}
+                  >
+                    {leveredIrr || "calculating..."}
+                  </Box>
+                </Typography>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    fontWeight: 500,
+                    color: finalMetricsCalculating
+                      ? "text.disabled"
+                      : "text.primary",
+                    opacity: finalMetricsCalculating ? 0.6 : 1,
+                  }}
+                >
+                  Levered MOIC:&nbsp;
+                  <Box
+                    component="span"
+                    sx={{
+                      color: finalMetricsCalculating
+                        ? "grey.400"
+                        : "primary.main",
+                      fontWeight: 700,
+                      opacity: finalMetricsCalculating ? 0.6 : 1,
+                    }}
+                  >
+                    {leveredMoic || "calculating..."}
+                  </Box>
+                </Typography>
+              </Box>
+            )}
+            {/* )} */}
+
+            {/* Step Content */}
+            <Box sx={{ mb: 4 }}>{children}</Box>
+
+            {/* Navigation Buttons */}
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", mt: 4 }}
+            >
+              <Button
+                variant="outlined"
+                onClick={onBack}
+                disabled={activeStep === 0 || isCreating}
+                startIcon={<ChevronLeft />}
+                sx={{
+                  textTransform: "none",
+                  borderColor: "grey.300",
+                  color: "grey.700",
+                  "&:hover": {
+                    borderColor: "grey.400",
+                    //  boxShadow: 1,
+                    transform: "scale(1.05)",
+                  },
+                }}
+              >
+                Previous
+              </Button>
+
+              <Box sx={{ display: "flex", gap: 1, pr: 2 }}>
+                {/* <Button
+                   variant="outlined"
+                   sx={{
+                     textTransform: 'none',
+                     borderColor: 'grey.300',
+                     color: 'grey.700',
+                     '&:hover': {
+                       borderColor: 'grey.400',
+                       boxShadow: 1,
+                       transform: 'scale(1.05)'
+                     }
+                   }}
+                   disabled={isCreating}
+                 >
+                   Save & Exit
+                 </Button> */}
+                <Button
+                  onClick={handleOnNext}
+                  disabled={
+                    isCreating ||
+                    (!existingModel && !isStepComplete(activeStep)) ||
+                    !isStepComplete(activeStep)
+                  }
+                  endIcon={
+                    activeStep === steps.length - 1 ? undefined : (
+                      <ChevronRight />
+                    )
+                  }
+                  sx={{
+                    textTransform: "none",
+                    bgcolor: "grey.700",
+                    color: "#e4e7eb",
+                    "&:hover": {
+                      bgcolor: "grey.800",
+                      //  boxShadow: 2,
+                      transform: "scale(1.05)",
+                    },
+                    "&:disabled": {
+                      color: "black",
+                      opacity: 0.5,
+                      cursor: "not-allowed",
+                    },
+                  }}
+                >
+                  {activeStep === steps.length - 1
+                    ? isCreating
+                      ? "Creating Model..."
+                      : "Finish"
+                    : existingModel
+                    ? "Next"
+                    : "Continue"}
+                </Button>
+                {existingModel && (
+                  <Button
+                    variant="outlined"
+                    onClick={handleSaveAndExit}
+                    disabled={
+                      !isStepComplete(activeStep) ||
+                      isCreating ||
+                      !modelDetails?.google_sheet_url ||
+                      modelDetails.google_sheet_url === ""
+                    }
+                  >
+                    Save & Exit
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
+
+export default ModelStepper;
