@@ -83,6 +83,15 @@ export default function GrossPotentialRetailIncomeTableIndustrial({
   const money0 = (n: number) => `$${Math.round(n).toLocaleString()}`;
   const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
 
+
+  const space_type =
+  (modelDetails?.user_model_field_values || []).find((f: any) => {
+    const k = String(f.field_key || '');
+    return k === 'space_type' || k.trim() === 'space_type';
+  })?.value ?? 'Retail';
+
+
+
   return (
     <Box sx={{ width: '100%', mt: 0 }}>
       {/* Column headers */}
@@ -93,7 +102,7 @@ export default function GrossPotentialRetailIncomeTableIndustrial({
       </Box>
       {/* Header row */}
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 140px 160px', alignItems: 'center', borderBottom: '2px solid #212121', pb: 0.5 }}>
-        <Typography sx={{ fontWeight: 700 }}>Gross Potential Retail Income</Typography>
+        <Typography sx={{ fontWeight: 700 }}>Gross Potential {space_type} Income</Typography>
         <Typography sx={{ fontWeight: 700, textAlign: 'right' }}>{money0(gpriPerSfBeforeVac)}</Typography>
         <Typography sx={{ fontWeight: 700, textAlign: 'right' }}>{money0(gpriAnnualBeforeVac)}</Typography>
       </Box>
@@ -119,7 +128,7 @@ export default function GrossPotentialRetailIncomeTableIndustrial({
 
       {/* Total row */}
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 140px 160px', alignItems: 'center', background: '#eee', py: 0.75, }}>
-        <Typography sx={{ fontWeight: 700 }}>Gross Potential Retail Income</Typography>
+        <Typography sx={{ fontWeight: 700 }}>Gross Potential {space_type} Income</Typography>
         <Typography sx={{ fontWeight: 700, textAlign: 'right' }}>{money0(gpriPerSfAfterVac)}</Typography>
         <Typography sx={{ fontWeight: 700, textAlign: 'right' }}>{money0(gpriAnnualAfterVac)}</Typography>
       </Box>

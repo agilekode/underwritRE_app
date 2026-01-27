@@ -12,6 +12,7 @@ export const FIELD_TYPE_OPTIONS = [
     { value: 'date', label: 'Date' },
     { value: 'acres', label: 'Acres' },
     { value: 'number_no_commas', label: 'Number (no commas)' },
+    { value: 'select_options', label: 'Select Options' },
   ];
 
 

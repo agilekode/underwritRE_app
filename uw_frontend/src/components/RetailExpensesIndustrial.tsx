@@ -276,17 +276,20 @@ export const RetailExpensesIndustrial = ({
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Button variant="contained" size="small" onClick={addRow} sx={{ whiteSpace: 'nowrap', minWidth: 220 }}>
-            Add Retail Expense
+            Add Expense
           </Button>
         </div>
         <div style={{ display: 'flex', gap: '24px', justifyContent: 'flex-end', width: '100%' }}>
           <div style={{ textAlign: 'right' }}>
-            <strong>Total Retail Expenses:</strong> ${totalAnnual.toLocaleString()}
+            <strong>Total Expenses:</strong> ${totalAnnual.toLocaleString()}
           </div>
         </div>
       </div>
     );
   };
+
+
+  
 
   return (
     <Box sx={{ mt: 2 }}>

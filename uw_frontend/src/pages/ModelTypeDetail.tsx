@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Container, Typography, Switch, CircularProgress, List, ListItem, ListItemText, Divider, Button, TextField, Box, Alert, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, IconButton } from '@mui/material';
+import { Container, Typography, Switch, CircularProgress, List, ListItem, ListItemText, Divider, Button, TextField, Box, Alert, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, IconButton, Chip } from '@mui/material';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import BackButton from '../components/BackButton';
@@ -77,6 +77,7 @@ const ModelTypeDetail: React.FC = () => {
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const [isSavingDescription, setIsSavingDescription] = useState(false);
   const [descSuccessMessage, setDescSuccessMessage] = useState<string | null>(null);
+  const [selectOptionText, setSelectOptionText] = useState('');
 
   const fetchModelType = async () => {
     try {
@@ -339,6 +340,31 @@ const ModelTypeDetail: React.FC = () => {
         [name]: type === 'checkbox' ? checked : value
       }));
     }
+  };
+
+  const addSelectOption = () => {
+    const value = selectOptionText.trim();
+    if (!value || value.includes(',')) return;
+    const current = (newField.description || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (current.includes(value)) {
+      setSelectOptionText('');
+      return;
+    }
+    const next = [...current, value];
+    setNewField(prev => ({ ...prev, description: next.join(',') }));
+    setSelectOptionText('');
+  };
+
+  const removeSelectOption = (index: number) => {
+    const current = (newField.description || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const next = current.filter((_, i) => i !== index);
+    setNewField(prev => ({ ...prev, description: next.join(',') }));
   };
 
   const saveField = async () => {
@@ -1065,6 +1091,40 @@ const ModelTypeDetail: React.FC = () => {
                 </MenuItem>
               ))}
             </TextField>
+            {newField.field_type === 'select_options' ? (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>Select Options</Typography>
+                <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                  <TextField
+                    size="small"
+                    label="Add option"
+                    value={selectOptionText}
+                    onChange={(e) => setSelectOptionText(e.target.value.replace(/,/g, ''))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addSelectOption();
+                      }
+                    }}
+                    sx={{ flex: 1 }}
+                  />
+                  <Button variant="contained" onClick={addSelectOption}>Add</Button>
+                </Box>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {(newField.description || '')
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean)
+                    .map((opt, idx) => (
+                      <Chip key={`${opt}-${idx}`} label={opt} onDelete={() => removeSelectOption(idx)} />
+                    ))
+                  }
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  Stored in Description as a comma-separated list. Commas not allowed in entries.
+                </Typography>
+              </Box>
+            ) : (
             <TextField
               fullWidth
               label="Description"
@@ -1073,6 +1133,7 @@ const ModelTypeDetail: React.FC = () => {
               onChange={handleFieldChange}
               sx={{ mb: 2 }}
             />
+            )}
             <TextField
               fullWidth
               label="Default Value"

@@ -75,6 +75,13 @@ function LeasingCostReserves({
   const money0 = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   const money2 = (n: number) => `$${n.toFixed(2)}`;
 
+  const space_type =
+  (modelDetails?.user_model_field_values || []).find((f: any) => {
+    const k = String(f.field_key || '');
+    return k === 'space_type' || k.trim() === 'space_type';
+  })?.value ?? 'Retail';
+
+
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
       {/* Column 1 - Inputs */}
@@ -114,7 +121,7 @@ function LeasingCostReserves({
         </Box>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
-          <Label>Average Retail Rent</Label>
+          <Label>Average {space_type} Rent</Label>
           <Cell right>
             <TextField
               value={String(getFieldValue('Retail Rent: New Lease', 0) ?? '')}

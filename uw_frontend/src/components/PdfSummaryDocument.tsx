@@ -27,6 +27,8 @@ type PdfSummaryProps = {
   irrTable?: { capRates: (number | string)[]; acquisitionPrices: (number | string)[]; values: (number | string)[][] };
   moicTable?: { capRates: (number | string)[]; acquisitionPrices: (number | string)[]; values: (number | string)[][] };
   notes?: string[];
+  retailMode?: boolean;
+  spaceType?: string;
 };
 
 // Base styles for the PDF document
@@ -105,7 +107,11 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   section: {
-    marginTop: 16,
+    // marginTop: 16,
+    paddingTop: 16,
+    // borderTopWidth: 1,
+    // borderTopColor: "#E5E7EB",
+    // borderTopStyle: "solid"
   },
   sectionTitle: {
     fontSize: 11,
@@ -169,6 +175,8 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
   irrTable,
   moicTable,
   notes = [],
+  retailMode = false,
+  spaceType,
 }) => {
   const addressLine = modelDetails
     ? `${modelDetails?.street_address ?? ""}, ${modelDetails?.city ?? ""}, ${
@@ -388,8 +396,10 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
     const base = colCount > 0 ? 100 / (colCount + 1) : 100;
     const firstPct = (2 * base).toFixed(6);
     const otherPct = base.toFixed(6);
+    const keepTogether = rows.length <= 18;
+    const containerProps: any = keepTogether ? { wrap: false } : {};
     return (
-      <View key={key} style={tableStyles.container} wrap={false}>
+      <View key={key} style={tableStyles.container} {...containerProps}>
         <View style={tableStyles.table}>
           {rows.map((row, ri) => (
             <View key={`sr-${ri}`} style={tableStyles.tableRow}>
@@ -667,6 +677,230 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
       </View>
     );
   };
+
+  // ===== Retail Summary equivalents (read-only) =====
+  const renderRetailBaseIncomeTable = () => {
+    const income: any[] = Array.isArray(modelDetails?.retail_income) ? modelDetails.retail_income : [];
+    if (!income.length) return null;
+    const header = ['Suite','Tenant','Square Ft','Rent PSF/Year','Rent Type','Annual Rent'];
+    let totalAnnual = 0;
+    const dataRows = income.map((r: any) => {
+      const sf = Number(r.square_feet || 0);
+      const psf = Number(r.rent_per_square_foot_per_year || 0);
+      const annual = psf * sf;
+      totalAnnual += annual;
+      return [
+        r.suite ?? '',
+        r.tenant_name ?? '',
+        sf ? Number(sf).toLocaleString() : '',
+        psf ? `$${psf}` : '',
+        r.rent_type ?? 'Gross',
+        `$${Number(annual).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`,
+      ];
+    });
+    const totalsRow = [
+      'Totals', '', '', '', '',
+      `$${Number(totalAnnual).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`,
+    ];
+    const allRows = [header, ...dataRows, totalsRow];
+    const colCount = header.length;
+    const base = 100 / (colCount + 1); // first column 2x
+    const firstPct = (2 * base).toFixed(6);
+    const otherPct = base.toFixed(6);
+    return (
+      <View style={tableStyles.container}>
+        <View style={tableStyles.table}>
+          {allRows.map((row, ri) => {
+            const isHeader = ri === 0;
+            const isTotals = ri === allRows.length - 1;
+            return (
+              <View key={`rb-r-${ri}`} style={tableStyles.tableRow} wrap={false}>
+                {Array.from({ length: colCount }).map((_, ci) => {
+                  const isFirst = ci === 0;
+                  const raw = row[ci] ?? '';
+                  const finalCellStyle = [
+                    tableStyles.tableCell,
+                    isHeader ? tableStyles.tableHeaderCell : undefined,
+                    isTotals ? { backgroundColor: '#F3F4F6' } : undefined,
+                    { width: `${isFirst ? firstPct : otherPct}%` },
+                  ] as any;
+                  const finalTextStyle = [
+                    !isFirst ? tableStyles.right : undefined,
+                    isTotals && isFirst ? { fontWeight: 700 } : undefined,
+                  ] as any;
+                  return (
+                    <View key={`rb-c-${ri}-${ci}`} style={finalCellStyle}>
+                      <Text style={finalTextStyle}>{String(raw)}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
+
+  const renderRetailGrossPotential = () => {
+    const getFV = (k: string) => {
+      try {
+        const f = (modelDetails?.user_model_field_values || []).find((x: any) => x.field_key === k || String(x.field_key || '').trim() === k.trim());
+        return f?.value;
+      } catch { return undefined; }
+    };
+    const vacancy = Number(getFV('Vacancy ') ?? getFV('Vacancy') ?? 5);
+    const vacancyRate = vacancy / 100;
+    const retailIncome: any[] = Array.isArray(modelDetails?.retail_income) ? modelDetails.retail_income : [];
+    const totalSF = retailIncome.reduce((s, r) => s + Number(r.square_feet || 0), 0);
+    const baseAnnual = retailIncome.reduce((s, r) => s + Number(r.square_feet || 0) * Number(r.rent_per_square_foot_per_year || 0), 0);
+    const expenses: any[] = Array.isArray(modelDetails?.expenses) ? modelDetails.expenses.filter((e:any)=>String(e?.type||'').toLowerCase()==='retail') : [];
+    const computeAnnual = (e:any) => {
+      const factor = String(e?.factor || '').toLowerCase();
+      const cost = Number(e?.cost_per || 0);
+      if (factor === 'annual') return cost;
+      if (factor === 'per sf / yr.' || factor === 'per sf') return cost * Number(totalSF || 0);
+      if (factor === 'percent of base rent') return (cost/100) * Number(baseAnnual || 0);
+      return cost;
+    };
+    const annualBoth = expenses.filter((e:any)=>String(e?.rent_type_included || '').toLowerCase()==='both').reduce((s:number,e:any)=>s+computeAnnual(e),0);
+    const annualGross = expenses.filter((e:any)=>String(e?.rent_type_included || '').toLowerCase()==='gross').reduce((s:number,e:any)=>s+computeAnnual(e),0);
+    const annualNNN = expenses.filter((e:any)=>String(e?.rent_type_included || '').toLowerCase()==='nnn').reduce((s:number,e:any)=>s+computeAnnual(e),0);
+    const grossSF = retailIncome.filter((r:any)=>String(r?.rent_type || 'Gross').toLowerCase()==='gross').reduce((s:number,r:any)=>s+Number(r.square_feet||0),0);
+    const nnnSF = retailIncome.filter((r:any)=>String(r?.rent_type || 'Gross').toLowerCase()==='nnn').reduce((s:number,r:any)=>s+Number(r.square_feet||0),0);
+    const shareGross = totalSF ? grossSF/totalSF : 0;
+    const shareNNN = totalSF ? nnnSF/totalSF : 0;
+    const totalAnnualRecoveryIncome = annualBoth + shareGross*annualGross + shareNNN*annualNNN;
+    const beforeAnnual = baseAnnual + totalAnnualRecoveryIncome;
+    const beforePerSf = totalSF ? beforeAnnual/totalSF : 0;
+    const vacAnnual = beforeAnnual * vacancyRate;
+    const vacPerSf = totalSF ? vacAnnual/totalSF : 0;
+    const afterPerSf = beforePerSf - vacPerSf;
+    const afterAnnual = beforeAnnual - vacAnnual;
+    const money0 = (n:number) => `$${Math.round(n).toLocaleString()}`;
+    const money2 = (n:number) => `$${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
+    const rows: (string|number)[][] = [
+      ['', 'Rent / SF / Yr.', 'Annual'],
+      ['Gross Potential Income', money0(beforePerSf), money0(beforeAnnual)],
+      ['Less: Vacancy and Bad Debt', money2(vacPerSf), money0(vacAnnual)],
+      ['Gross Potential Income', money0(afterPerSf), money0(afterAnnual)],
+    ];
+    return renderSimpleTable(rows, 'retail-gpi');
+  };
+
+  const renderRetailExpenses = () => {
+    const list: any[] = Array.isArray(modelDetails?.expenses) ? modelDetails.expenses.filter((e:any)=>String(e?.type||'').toLowerCase()==='retail') : [];
+    if (!list.length) return null;
+    const header = ['Name','Cost per','Expense','Statistic','Monthly','Annual'];
+    const units: any[] = Array.isArray(modelDetails?.units) ? modelDetails.units : [];
+    const retailIncome: any[] = Array.isArray(modelDetails?.retail_income) ? modelDetails.retail_income : [];
+    const getUserField = (key: string) => {
+      try {
+        const f = (modelDetails?.user_model_field_values || []).find((x: any) => x.field_key === key);
+        return f?.value;
+      } catch { return undefined; }
+    };
+    const getRetailIncomeTotal = (arr: any[]) => arr.reduce((sum: number, u: any) => sum + (Number(u.square_feet||0) * Number(u.rent_per_square_foot_per_year || 0)), 0);
+    const totalRetailIncome = getRetailIncomeTotal(retailIncome);
+    const amenityIncome: any[] = Array.isArray(modelDetails?.amenity_income) ? modelDetails.amenity_income : [];
+    const egi = (() => {
+      const current = units.reduce((sum, u:any)=> sum + Number(u.current_rent || 0), 0) * 12;
+      const amenMonthly = amenityIncome.reduce((sum, a:any)=>{
+        const util = Number(a.utilization || 0); const cnt = Number(a.unit_count || 0); const usage = Math.round((util/100)*cnt); return sum + usage*Number(a.monthly_fee||0);
+      },0);
+      return current + amenMonthly*12 + totalRetailIncome;
+    })();
+    let totalMonthly = 0, totalAnnual = 0;
+    const rows = [header, ...list.map((row:any)=>{
+      const byUnit = String(row.cost_per || '').toLowerCase();
+      let statistic: string | number | null = null;
+      if (byUnit === 'per unit') statistic = `${units.length} units`;
+      else if (byUnit === 'per ca square foot' || byUnit === 'per total square feet') {
+        const totalSf = Number(getUserField('Gross Square Feet') || 0);
+        statistic = `${totalSf.toLocaleString()} sf`;
+      }
+      const expenseVal = Number(row.factor || 0);
+      let monthly = 0, annual = 0;
+      if (byUnit === 'per unit') { annual = expenseVal * units.length; monthly = annual/12; }
+      else if (byUnit === 'total') { annual = expenseVal; monthly = annual/12; }
+      else if (byUnit === 'per ca square foot' || byUnit === 'per total square feet') { const totalSf = Number(getUserField('Gross Square Feet') || 0); annual = Math.round(expenseVal * totalSf); monthly = annual/12; }
+      else if (byUnit === 'percent of egi') { annual = (expenseVal * egi)/100; monthly = annual/12; }
+      totalMonthly += monthly; totalAnnual += annual;
+      return [
+        row.name ?? '',
+        row.cost_per ?? '',
+        byUnit === 'percent of egi' ? `${expenseVal}%` : (['per unit','total','per ca square foot','per total square feet'].includes(byUnit) ? `$${Number(expenseVal).toLocaleString()}` : String(expenseVal)),
+        statistic ?? '',
+        `$${Number(monthly).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}`,
+        `$${Number(annual).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}`,
+      ];
+    })];
+    const totalsRow = [
+      'Totals', '', '', '',
+      `$${Number(totalMonthly).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}`,
+      `$${Number(totalAnnual).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}`,
+    ];
+    const allRows = [...rows, totalsRow];
+    return renderSimpleTable(allRows, 'retail-expenses');
+  };
+
+  const renderRetailLeasingCostReserves = () => {
+    const getFV = (k: string, def: number) => {
+      try {
+        const f = (modelDetails?.user_model_field_values || []).find((x: any) => x.field_key === k);
+        const v = f ? Number(f.value) : def;
+        return Number.isFinite(v) ? v : def;
+      } catch { return def; }
+    };
+    const retailIncome: any[] = Array.isArray(modelDetails?.retail_income) ? modelDetails.retail_income : [];
+    const totalSF = retailIncome.reduce((s, r) => s + Number(r.square_feet || 0), 0);
+    const renewalProb = Number(getFV('Renewal Property: Renewal Lease', 1.5) || 0);
+    const newProb = Math.max(0, 100 - renewalProb);
+    const rentNew = Number(getFV('Retail Rent: New Lease', 0) || 0);
+    const rentRen = Number(getFV('Retail Rent: Renewal Lease', 0) || 0);
+    const tiNewPSF = Number(getFV("TI's: New Lease", 0) || 0);
+    const tiRenPSF = Number(getFV("TI's: Renewal Lease", 0) || 0);
+    const commNewPct = Number(getFV('Leasing Commissions: New Lease', 0) || 0) / 100;
+    const commRenPct = Number(getFV('Leasing Commissions: Renewal Lease', 0) || 0) / 100;
+    const termNewYrs = Number(getFV('Lease Term: New Lease', 1) || 1);
+    const termRenYrs = Number(getFV('Lease Term: Renewal Lease', 1) || 1);
+    const tiNewAmt = tiNewPSF * totalSF;
+    const tiRenAmt = tiRenPSF * totalSF;
+    const displayTINewAmt = tiNewAmt * (newProb / 100);
+    const displayTIRenAmt = tiRenAmt * (renewalProb / 100);
+    const commNewAmt = totalSF * (newProb / 100) * rentNew * commNewPct * termNewYrs;
+    const commRenAmt = totalSF * (renewalProb / 100) * rentRen * commRenPct * termRenYrs;
+    const totalLCNew = commNewAmt + displayTINewAmt;
+    const totalLCRen = commRenAmt + displayTIRenAmt;
+    const amortNew = termNewYrs ? totalLCNew / termNewYrs : 0;
+    const amortRen = termRenYrs ? totalLCRen / termRenYrs : 0;
+    const weightedAnnual = amortNew + amortRen;
+    const weightedPerSF = totalSF ? weightedAnnual / totalSF : 0;
+    const money0 = (n:number) => `$${Number(n).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+    const money2 = (n:number) => `$${Number(n).toFixed(2)}`;
+    const rows: (string|number)[][] = [
+      ['', 'New Lease', 'Renewal Lease'],
+      ['Tenant Improvements', money0(displayTINewAmt), money0(displayTIRenAmt)],
+      ['Leasing Commissions', money0(commNewAmt), money0(commRenAmt)],
+      ['Total Leasing Costs', money0(totalLCNew), money0(totalLCRen)],
+      ['Annualized Leasing Costs', money0(amortNew), money0(amortRen)],
+      ['Annual Leasing Cost Reserves', `${money2(weightedPerSF)} / SF`, money0(weightedAnnual)],
+    ];
+    return renderSimpleTable(rows, 'retail-lcr');
+  };
+
+  const resolvedSpaceType = (() => {
+    if (spaceType && typeof spaceType === 'string') return spaceType;
+    try {
+      const f = (modelDetails?.user_model_field_values || []).find((x: any) => {
+        const k = String(x.field_key || '');
+        return k === 'space_type' || k.trim() === 'space_type';
+      });
+      return f?.value ?? 'Retail';
+    } catch {
+      return 'Retail';
+    }
+  })();
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
@@ -701,7 +935,7 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
 
               if (key === "Summary Info" && options["Summary Info"]) {
                 return (
-                  <View key={`sec-${idx}`} style={styles.section} {...(idx > 0 ? { break: true } : {})}>
+                  <View key={`sec-${idx}`} style={styles.section} {...(idx > 0 ? { break: false } : {})}>
               <Text style={styles.sectionTitle}>Key Performance Metrics</Text>
               <View style={styles.grid}>
                 <View style={styles.gridItemThird}>
@@ -751,11 +985,37 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
 
               if (key === "Income and Expenses" && options["Income and Expenses"]) {
                 return (
-                  <View key={`sec-${idx}`} style={styles.section} {...(idx > 0 ? { break: true } : {})}>
+                  <View key={`sec-${idx}`} style={styles.section} {...(idx > 0 ? { break: true} : {})}>
             <Text style={styles.sectionTitle}>Income and Expenses</Text>
-            {renderUnitsTable()}
-            {renderAmenityIncomeTable()}
-            {renderOperatingExpensesTable()}
+            {(
+              retailMode ||
+              (modelDetails?.model_type?.show_rental_units === false && modelDetails?.model_type?.show_retail === true)
+            ) ? (
+              <>
+                <View wrap={false}>
+                  <Text style={{ fontSize: 10, fontWeight: 700, marginTop: 20 }}>Base {resolvedSpaceType} Income</Text>
+                  {renderRetailBaseIncomeTable()}
+                </View>
+                <View wrap={false}>
+                  <Text style={{ fontSize: 10, fontWeight: 700, marginTop: 20 }}>Gross Potential {resolvedSpaceType} Income</Text>
+                  {renderRetailGrossPotential()}
+                </View>
+                <View wrap={false}>
+                  <Text style={{ fontSize: 10, fontWeight: 700, marginTop: 20 }}>Recoverable {resolvedSpaceType} Operating Expenses</Text>
+                  {renderRetailExpenses()}
+                </View>
+                <View wrap={false}>
+                  <Text style={{ fontSize: 10, fontWeight: 700, marginTop: 20 }}>Leasing Cost Reserves</Text>
+                  {renderRetailLeasingCostReserves()}
+                </View>
+              </>
+            ) : (
+              <>
+                {renderUnitsTable()}
+                {renderAmenityIncomeTable()}
+                {renderOperatingExpensesTable()}
+              </>
+            )}
           </View>
                 );
               }

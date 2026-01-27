@@ -16,7 +16,8 @@ import {
   DialogContent,
   DialogActions,
   Divider,
-  Switch
+  Switch,
+  Chip
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -67,6 +68,7 @@ const CreateModelType: React.FC = () => {
     time_phased: false,
     order: 0
   });
+  const [selectOptionText, setSelectOptionText] = useState('');
   const navigate = useNavigate();
   const { getAccessTokenSilently } = useAuth0();
 
@@ -154,6 +156,32 @@ const CreateModelType: React.FC = () => {
     }
     updatedSections[sectionIdx].fields = fields.map((f, i) => ({ ...f, order: i }));
     setSections(updatedSections);
+  };
+
+  // Select options helpers (store in description as comma-separated)
+  const addSelectOption = () => {
+    const value = selectOptionText.trim();
+    if (!value || value.includes(',')) return;
+    const current = (fieldData.description || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (current.includes(value)) {
+      setSelectOptionText('');
+      return;
+    }
+    const next = [...current, value];
+    setFieldData({ ...fieldData, description: next.join(',') });
+    setSelectOptionText('');
+  };
+
+  const removeSelectOption = (index: number) => {
+    const current = (fieldData.description || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const next = current.filter((_, i) => i !== index);
+    setFieldData({ ...fieldData, description: next.join(',') });
   };
 
   const [showRetail, setShowRetail] = useState(true);
@@ -329,13 +357,6 @@ const CreateModelType: React.FC = () => {
               required
             />
             <TextField
-              label="Description"
-              value={fieldData.description}
-              onChange={e => setFieldData({ ...fieldData, description: e.target.value })}
-              fullWidth
-            />
-
-            <TextField
               select
               label="Field Type"
               value={fieldData.field_type}
@@ -349,6 +370,49 @@ const CreateModelType: React.FC = () => {
                 </MenuItem>
               ))}
             </TextField>
+            {fieldData.field_type === 'select_options' ? (
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>Select Options</Typography>
+                <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                  <TextField
+                    size="small"
+                    label="Add option"
+                    value={selectOptionText}
+                    onChange={(e) => setSelectOptionText(e.target.value.replace(/,/g, ''))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addSelectOption();
+                      }
+                    }}
+                    sx={{ flex: 1 }}
+                  />
+                  <Button variant="contained" onClick={addSelectOption}>Add</Button>
+                </Box>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {(fieldData.description || '')
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean)
+                    .map((opt, idx) => (
+                      <Chip key={`${opt}-${idx}`} label={opt} onDelete={() => removeSelectOption(idx)} />
+                    ))
+                  }
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  Stored in Description as a comma-separated list. Commas not allowed in entries.
+                </Typography>
+              </Box>
+            ) : (
+              <TextField
+                label="Description"
+                value={fieldData.description}
+                onChange={e => setFieldData({ ...fieldData, description: e.target.value })}
+                fullWidth
+              />
+            )}
+
+            
             <TextField
               label="Default Value"
               value={fieldData.default_value}

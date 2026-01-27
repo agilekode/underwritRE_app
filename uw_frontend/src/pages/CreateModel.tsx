@@ -220,7 +220,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
             // "Retail Income",
             "Base Income",
             "Recoverable Operating Expenses",
-            "Recovery Income and Gross Potential Income",
+            "Recovery and Gross Potential Income",
             "Leasing Cost Reserves",
             "Income Summary",
             "Amenity Income",
@@ -302,7 +302,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     "Operating Expenses",
     "Base Income",
     "Recoverable Operating Expenses",
-    "Recovery Income and Gross Potential Income",
+    "Recovery and Gross Potential Income",
     "Leasing Cost Reserves",
     "Income Summary",
   ]
@@ -814,7 +814,7 @@ const isStepComplete = (step: number) => {
     else if (activeStep === steps.indexOf("Recoverable Operating Expenses")) {
       return true;
     }
-    else if (activeStep === steps.indexOf("Recovery Income and Gross Potential Income")) {
+    else if (activeStep === steps.indexOf("Recovery and Gross Potential Income")) {
       return true;
     }
     else if (activeStep === steps.indexOf("Leasing Cost Reserves")) {
@@ -1716,7 +1716,7 @@ const isStepComplete = (step: number) => {
               </Box>
             </Box>
           )}
-          {steps[activeStep] === "Recovery Income and Gross Potential Income" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === false && (
+          {steps[activeStep] === "Recovery and Gross Potential Income" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === false && (
             <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
               <RecoveryIncomeTableIndustrial retailIncome={retailIncome as any[]} setRetailIncome={setRetailIncome as any} expenses={expenses} />
               <Divider sx={{ my: 2 }} />

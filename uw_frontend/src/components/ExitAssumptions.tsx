@@ -212,6 +212,12 @@ export default function ExitAssumptions({
     </Box>
   );
 
+  const space_type =
+  (modelDetails?.user_model_field_values || []).find((f: any) => {
+    const k = String(f.field_key || '');
+    return k === 'space_type' || k.trim() === 'space_type';
+  })?.value ?? 'Retail';
+
   return (
     <Box
       sx={{
@@ -309,13 +315,13 @@ export default function ExitAssumptions({
       )}
 
       {showRetail && (
-        <CardShell title="Retail Exit Assumptions">
+        <CardShell title={space_type + " Exit Assumptions"}>
           <ReadonlyRow
             label={`Forward NOI in ${variables?.["Deal Time Horizon"] ?? ""}`}
             value={formatCurrency(parseNumber(variables?.["Retail: Forward NOI in Month"], 0))}
           />
           <Row
-            label="Retail Exit Month"
+            label={space_type + " Exit Month"}
             control={
               <ExitInlineMonthsInput
                 value={rtExitMonth}
@@ -328,7 +334,7 @@ export default function ExitAssumptions({
             }
           />
           <Row
-            label="Retail Applied Exit Cap Rate"
+            label={space_type + " Applied Exit Cap Rate"}
             control={
               <ExitInlinePercentageInput
                 value={rtCapRate}
@@ -354,7 +360,7 @@ export default function ExitAssumptions({
             })()}
           />
           <Row
-            label="Retail Less: Selling Costs"
+            label={space_type + " Less: Selling Costs"}
             control={
               <ExitInlinePercentageInput
                 value={rtSelling}
@@ -383,7 +389,7 @@ export default function ExitAssumptions({
             label="Total Implied Property Valuation at Exit"
             value={(() => {
               const mfNet = parseNumber(variables?.["Implied Valuation at Exit"], 0);
-              const rtNet = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
+              const rtNet = parseNumber(variables?.[space_type + ": Implied Valuation at Exit"], 0);
               return formatCurrency(mfNet + rtNet);
             })()}
             bgColor={THEME_LIGHT_GREEN}

@@ -24,6 +24,7 @@ import {
   FormControlLabel,
   Checkbox,
 } from "@mui/material";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { pdf } from "@react-pdf/renderer";
 import PdfSummaryDocument from "../components/PdfSummaryDocument";
 import { DataGrid, GridPagination } from "@mui/x-data-grid";
@@ -702,6 +703,38 @@ const ModelDetails = () => {
     });
   };
 
+  // Drag & drop reordering for PDF sections
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const handleDragStart = (key: string) => (e: React.DragEvent<HTMLDivElement>) => {
+    setDragKey(key);
+    try {
+      e.dataTransfer.setData('text/plain', key);
+    } catch {}
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+  const handleDropOn = (targetKey: string) => (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const sourceKey = dragKey || (() => {
+      try { return e.dataTransfer.getData('text/plain'); } catch { return ''; }
+    })();
+    if (!sourceKey || sourceKey === targetKey) { setDragKey(null); return; }
+    setPdfOrder((prev) => {
+      const from = prev.indexOf(sourceKey);
+      const to = prev.indexOf(targetKey);
+      if (from === -1 || to === -1) return prev;
+      const next = prev.slice();
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    setDragKey(null);
+  };
+  const handleDragEnd = () => setDragKey(null);
+
   // Fetch company info when opening download options
   useEffect(() => {
     if (!downloadOptionsOpen) return;
@@ -804,6 +837,13 @@ const ModelDetails = () => {
           pictures={pdfPictures}
           order={pdfOrder}
           notes={(Array.isArray(notes) ? notes : []).map((n: any) => String(n?.note_value || '')).filter((s: string) => s && s.trim().length > 0)}
+          retailMode={modelDetails?.model_type?.show_rental_units === false && modelDetails?.model_type?.show_retail === true}
+          spaceType={
+            ((modelDetails?.user_model_field_values || []).find((f: any) => {
+              const k = String(f.field_key || '');
+              return k === 'space_type' || k.trim() === 'space_type';
+            })?.value) ?? 'Retail'
+          }
         />
       ).toBlob();
 
@@ -1270,7 +1310,7 @@ const ModelDetails = () => {
                 </Button>
 
                 <Dialog open={downloadOptionsOpen} onClose={() => setDownloadOptionsOpen(false)} maxWidth="sm" fullWidth>
-                  <DialogTitle>Download Options</DialogTitle>
+                  <DialogTitle sx={{ fontWeight: 800, bgcolor: 'grey.50', borderBottom: '1px solid #e5e7eb' }}>Download Options</DialogTitle>
                   <DialogContent>
                     <FormGroup>
                       {pdfOrder.map((key) => {
@@ -1283,10 +1323,20 @@ const ModelDetails = () => {
                             : key === "Include Notes"
                               ? !(Array.isArray(notes) && notes.length > 1)
                               : false;
-                        const upDisabled = pdfOrder.indexOf(key) === 0;
-                        const downDisabled = pdfOrder.indexOf(key) === pdfOrder.length - 1;
                         return (
-                          <Box key={`opt-${key}`} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Box
+                            key={`opt-${key}`}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              borderBottom: '1px solid #f1f5f9',
+                              py: 0.5,
+                              bgcolor: dragKey === key ? 'rgba(25,118,210,0.06)' : 'transparent'
+                            }}
+                            onDragOver={handleDragOver}
+                            onDrop={handleDropOn(key)}
+                          >
                       <FormControlLabel
                               control={
                                 <Checkbox
@@ -1297,13 +1347,14 @@ const ModelDetails = () => {
                               }
                               label={key}
                       />
-                            <Box sx={{ display: 'flex', alignItems: 'center', pr: 1 }}>
-                              <IconButton size="small" onClick={() => movePdfOrder(key, 'up')} disabled={upDisabled}>
-                                ▲
-                              </IconButton>
-                              <IconButton size="small" onClick={() => movePdfOrder(key, 'down')} disabled={downDisabled}>
-                                ▼
-                              </IconButton>
+                            <Box
+                              sx={{ display: 'flex', alignItems: 'center', pr: 1, color: 'text.secondary', cursor: 'grab' }}
+                              draggable
+                              onDragStart={handleDragStart(key)}
+                              onDragEnd={handleDragEnd}
+                              title="Drag to reorder"
+                            >
+                              <DragIndicatorIcon fontSize="small" />
                             </Box>
                           </Box>
                         );

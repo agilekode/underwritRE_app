@@ -176,7 +176,7 @@ const RetailSummary: React.FC<{
           style={{ display: 'flex', gap: '24px', justifyContent: 'flex-end', width: '100%', alignItems: 'center' }}
         >
           <div style={{ textAlign: 'right' }}>
-            <strong>Total Retail SF:</strong> {totalSquareFeet.toLocaleString()}
+            <strong>Total {space_type} SF:</strong> {totalSquareFeet.toLocaleString()}
           </div>
           {grossSqFtValue !== null && (
             <>
@@ -206,10 +206,18 @@ const RetailSummary: React.FC<{
     );
   };
 
+
+  const space_type =
+    (modelDetails?.user_model_field_values || []).find((f: any) => {
+      const k = String(f.field_key || '');
+      return k === 'space_type' || k.trim() === 'space_type';
+    })?.value ?? 'Retail';
+
+
   return (
     <div>
       <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} />
-      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Base Retail Income</Typography>
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Base {space_type} Income</Typography>
       <DataGrid
         disableColumnMenu
         disableColumnFilter
@@ -344,12 +352,16 @@ const RetailSummary: React.FC<{
         })()}
       </Box>
 
-      {/* Read-only Gross Potential Retail Income */}
+      {/* Read-only Gross Potential {space_type} Income */}
       <Box sx={{ mt: 3 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Gross Potential Retail Income</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Gross Potential {space_type} Income</Typography>
         {(() => {
-          const vacancyField = (modelDetails?.user_model_field_values || []).find((f: any) => String(f.field_key || '').trim() === 'Vacancy');
-          const vacancyPct = Number(vacancyField?.value || 5);
+          // Match vacancy key and rounding behavior with GrossPotentialRetailIncomeTableIndustrial
+          const vf = (modelDetails?.user_model_field_values || []).find((f: any) => {
+            const k = String(f.field_key || '');
+            return k === 'Vacancy ' || k.trim() === 'Vacancy';
+          });
+          const vacancyPct = Number(vf?.value || 5);
           const vacancyRate = vacancyPct / 100;
           const totalSF = retailIncome.reduce((s, r) => s + Number(r.square_feet || 0), 0);
           const baseAnnual = retailIncome.reduce((s, r) => s + Number(r.square_feet || 0) * Number(r.rent_per_square_foot_per_year || 0), 0);
@@ -379,8 +391,12 @@ const RetailSummary: React.FC<{
           const beforePerSf = totalSF ? beforeAnnual / totalSF : 0;
           const vacPerSf = beforePerSf * vacancyRate;
           const vacAnnual = beforeAnnual * vacancyRate;
+          const vacAnnualPerSf = totalSF ? vacAnnual / totalSF : 0;
           const afterPerSf = beforePerSf - vacPerSf;
           const afterAnnual = beforeAnnual - vacAnnual;
+
+          const money = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          const money0 = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
           return (
             <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 1 }}>
@@ -390,14 +406,19 @@ const RetailSummary: React.FC<{
                 <div style={{ textAlign: 'right' }}>Annual</div>
               </Box>
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 160px 180px', p: 1, borderTop: '1px solid #eee' }}>
-                <div style={{ fontWeight: 700 }}>Gross Potential Retail Income</div>
-                <div style={{ textAlign: 'right' }}>${beforePerSf.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                <div style={{ textAlign: 'right' }}>${beforeAnnual.toLocaleString()}</div>
+                <div style={{ fontWeight: 700 }}>Gross Potential {space_type} Income</div>
+                <div style={{ textAlign: 'right' }}>{money0(beforePerSf)}</div>
+                <div style={{ textAlign: 'right' }}>{money0(beforeAnnual)}</div>
+              </Box>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 160px 180px', p: 1, borderTop: '1px solid #eee' }}>
+                <div>Less: Vacancy and Bad Debt</div>
+                <div style={{ textAlign: 'right' }}>{money(vacAnnualPerSf)}</div>
+                <div style={{ textAlign: 'right' }}>{money0(vacAnnual)}</div>
               </Box>
               <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 160px 180px', p: 1, borderTop: '1px solid #eee', bgcolor: '#fafafa' }}>
-                <div style={{ fontWeight: 700 }}>Gross Potential Retail Income</div>
-                <div style={{ textAlign: 'right' }}>${afterPerSf.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
-                <div style={{ textAlign: 'right' }}>${afterAnnual.toLocaleString()}</div>
+                <div style={{ fontWeight: 700 }}>Gross Potential {space_type} Income</div>
+                <div style={{ textAlign: 'right' }}>{money0(afterPerSf)}</div>
+                <div style={{ textAlign: 'right' }}>{money0(afterAnnual)}</div>
               </Box>
             </Box>
           );
@@ -406,13 +427,13 @@ const RetailSummary: React.FC<{
 
       {/* Read-only Recoverable Retail Operating Expenses */}
       <Box sx={{ mt: 3 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Recoverable Retail Operating Expenses</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Recoverable {space_type} Operating Expenses</Typography>
         {(() => {
           const list: any[] = (Array.isArray(expenses) ? expenses : []).filter(
             (e: any) => (e?.type || '').toLowerCase() === 'retail'
           );
           if (!list.length) {
-            return <Typography variant="body2" color="text.secondary">No retail expenses.</Typography>;
+            return <Typography variant="body2" color="text.secondary">No {space_type.toLowerCase()} expenses.</Typography>;
           }
           const totalSF = retailIncome.reduce((s, r) => s + Number(r.square_feet || 0), 0);
           const baseAnnual = retailIncome.reduce(
@@ -516,7 +537,7 @@ const RetailSummary: React.FC<{
                 footer: () => (
                   <div style={{ padding: '16px', borderTop: '1px solid #e0e0e0', display: 'flex', justifyContent: 'flex-end' }}>
                     <div style={{ textAlign: 'right' }}>
-                      <strong>Total Retail Expenses:</strong> ${Number(totalAnnual).toLocaleString()}
+                      <strong>Total {space_type} Expenses:</strong> ${Number(totalAnnual).toLocaleString()}
                     </div>
                   </div>
                 ),
@@ -599,7 +620,7 @@ const RetailSummary: React.FC<{
                   <Box sx={{ p: 1, textAlign: 'right' }}>{renewalProb.toFixed(1)}%</Box>
                 </Box>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', borderBottom: '1px solid #e0e0e0' }}>
-                  <Box sx={{ p: 1, fontWeight: 600, color: 'text.primary' }}>Average Retail Rent</Box>
+                  <Box sx={{ p: 1, fontWeight: 600, color: 'text.primary' }}>Average {space_type} Rent</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>${Number(rentNew).toLocaleString()} / SF</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>${Number(rentRen).toLocaleString()} / SF</Box>
                 </Box>

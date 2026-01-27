@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Tooltip, RadioGroup, FormControlLabel, Radio, TextField, ClickAwayListener } from '@mui/material';
+import { Box, Typography, Tooltip, RadioGroup, FormControlLabel, Radio, TextField, ClickAwayListener, Select, MenuItem } from '@mui/material';
 import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
 // Removed external date pickers/adapters per request
 
@@ -33,6 +33,10 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
       </ClickAwayListener>
     );
   };
+  const selectOptions = React.useMemo(() => {
+    const raw = typeof field?.description === 'string' ? field.description : '';
+    return raw.split(',').map((s: string) => s.trim()).filter(Boolean);
+  }, [field?.description]);
   // Compute a stable initial value for the uncontrolled date input
   const initialDateValue = React.useMemo(() => {
     if (typeof fieldValue !== 'string') return '';
@@ -73,7 +77,7 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
         <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: { xs: '1rem', sm: '1.125rem' }, whiteSpace: { xs: 'normal', sm: 'nowrap' }, position: 'relative', zIndex: 1 }}>
           {field.field_title}
         </Typography>
-        {field.description && (
+        {field.description && field.field_type !== 'select_options' && (
           <InfoHint title={<Typography sx={{ fontSize: "0.95rem", lineHeight: 1.4 }}>{field.description}</Typography>} />
         )}
       </Box>
@@ -111,7 +115,7 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
         <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: { xs: '1rem', sm: '1.125rem' }, whiteSpace: { xs: 'normal', sm: 'nowrap' }, position: 'relative', zIndex: 1 }}>
           {field.field_title}
         </Typography>
-        {field.description && (
+        {field.description && field.field_type !== 'select_options' && (
           <InfoHint title={<Typography sx={{ fontSize: "0.95rem", lineHeight: 1.4 }}>{field.description}</Typography>} />
         )}
       </Box>
@@ -127,7 +131,26 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
           pl: { xs: 0, sm: 2 },
         }}
       >
-        {field.field_type === 'acres' ? (
+        {field.field_type === 'select_options' ? (
+          <Select
+            size="small"
+            value={fieldValue ?? ''}
+            onChange={(e) => handleFieldChange(field.id, field.field_key, e.target.value)}
+            displayEmpty
+            renderValue={(selected: any) =>
+              selected && String(selected).length > 0 ? String(selected) : (
+                <span style={{ color: '#9CA3AF' }}>Select an option</span>
+              )
+            }
+            variant="standard"
+            disableUnderline
+            sx={{ minWidth: 200 }}
+          >
+            {selectOptions.map((opt: string, idx: number) => (
+              <MenuItem key={`${opt}-${idx}`} value={opt}>{opt}</MenuItem>
+            ))}
+          </Select>
+        ) : field.field_type === 'acres' ? (
           <>
             <TextField
               value={
@@ -393,7 +416,7 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
         <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: { xs: '1rem', sm: '1.125rem' }, whiteSpace: 'nowrap', position: 'relative', zIndex: 1 }}>
           {field.field_title}
         </Typography>
-        {field.description && (
+        {field.description && field.field_type !== 'select_options' && (
           <InfoHint title={<Typography sx={{ fontSize: "0.95rem", lineHeight: 1.4 }}>{field.description}</Typography>} />
         )}
       </Box>
@@ -408,7 +431,26 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
           pl: { xs: 0, sm: 2 },
         }}
       >
-        {field.field_type === 'acres' ? (
+        {field.field_type === 'select_options' ? (
+          <Select
+            size="small"
+            value={fieldValue ?? ''}
+            onChange={(e) => handleFieldChange(field.id, field.field_key, e.target.value)}
+            displayEmpty
+            renderValue={(selected: any) =>
+              selected && String(selected).length > 0 ? String(selected) : (
+                <span style={{ color: '#9CA3AF' }}>Select an option</span>
+              )
+            }
+            variant="standard"
+            disableUnderline
+            sx={{ width: { xs: '100%', sm: 260 } }}
+          >
+            {selectOptions.map((opt: string, idx: number) => (
+              <MenuItem key={`${opt}-${idx}`} value={opt}>{opt}</MenuItem>
+            ))}
+          </Select>
+        ) : field.field_type === 'acres' ? (
           <Box sx={{ display: 'flex', gap: 2, justifyContent: { xs: 'flex-start', sm: 'flex-end' } }}>
             <TextField
               value={
@@ -526,68 +568,68 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
             />
           </Box>
         ) : (
-          <TextField
-            value={
-              ['number', 'year', 'month', 'dollars', 'acres'].includes(field.field_type) && fieldValue
-                ? Number(fieldValue).toLocaleString()
-                : String(fieldValue ?? '')
-            }
+        <TextField
+          value={
+            ['number', 'year', 'month', 'dollars', 'acres'].includes(field.field_type) && fieldValue
+              ? Number(fieldValue).toLocaleString()
+              : String(fieldValue ?? '')
+          }
 
-            className="no-spinner"
-            onChange={(e) => {
-              const rawValue = e.target.value.replace(/,/g, ''); // Remove commas for processing
-              const cursorPosition = e.target.selectionStart ?? 0; // Handle null case
-              const originalValue = e.target.value;
-              
-              handleFieldChange(field.id, field.field_key, rawValue);
-              
-              // Restore cursor position after state update
+          className="no-spinner"
+          onChange={(e) => {
+            const rawValue = e.target.value.replace(/,/g, ''); // Remove commas for processing
+            const cursorPosition = e.target.selectionStart ?? 0; // Handle null case
+            const originalValue = e.target.value;
+            
+            handleFieldChange(field.id, field.field_key, rawValue);
+            
+            // Restore cursor position after state update
               if (field.field_type !== 'number_no_commas') {
-                setTimeout(() => {
-                  if (e.target) {
-                    const newValue = ['number', 'year', 'month', 'dollars', 'acres'].includes(field.field_type) && rawValue
-                      ? Number(rawValue).toLocaleString()
-                      : rawValue;
-                    
-                    // Calculate new cursor position accounting for added/removed commas
-                    const commasBefore = (originalValue.substring(0, cursorPosition).match(/,/g) || []).length;
-                    const commasAfter = (newValue.substring(0, cursorPosition).match(/,/g) || []).length;
-                    const newCursorPosition = cursorPosition + (commasAfter - commasBefore);
-                    
-                    e.target.setSelectionRange(newCursorPosition, newCursorPosition);
-                  }
-                }, 0);
+            setTimeout(() => {
+              if (e.target) {
+                const newValue = ['number', 'year', 'month', 'dollars', 'acres'].includes(field.field_type) && rawValue
+                  ? Number(rawValue).toLocaleString()
+                  : rawValue;
+                
+                // Calculate new cursor position accounting for added/removed commas
+                const commasBefore = (originalValue.substring(0, cursorPosition).match(/,/g) || []).length;
+                const commasAfter = (newValue.substring(0, cursorPosition).match(/,/g) || []).length;
+                const newCursorPosition = cursorPosition + (commasAfter - commasBefore);
+                
+                e.target.setSelectionRange(newCursorPosition, newCursorPosition);
               }
-            }}
-            onKeyDown={(e) => {
-              const numericTypes = ['number', 'number_no_commas', 'percent', 'year', 'month', 'months', 'dollars', 'dollars_per_sf', 'acres'];
-              if (!numericTypes.includes(field.field_type)) return;
-              const allowDecimal = ['number', 'percent', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type);
-              const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'];
-              if (e.ctrlKey || e.metaKey) return; // allow shortcuts
-              if (allowedKeys.includes(e.key)) return;
-              if (allowDecimal && e.key === '.') {
-                const raw = ((e.target as HTMLInputElement).value || '').replace(/,/g, '');
-                if (raw.includes('.')) e.preventDefault();
-                return;
+            }, 0);
               }
-              if (!/^[0-9]$/.test(e.key)) e.preventDefault();
-            }}
-            onPaste={(e) => {
+          }}
+          onKeyDown={(e) => {
               const numericTypes = ['number', 'number_no_commas', 'percent', 'year', 'month', 'months', 'dollars', 'dollars_per_sf', 'acres'];
-              if (!numericTypes.includes(field.field_type)) return;
-              const allowDecimal = ['number', 'percent', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type);
-              const text = e.clipboardData.getData('text');
-              const raw = text.replace(/,/g, '');
-              const ok = allowDecimal ? /^\d*(?:\.\d*)?$/.test(raw) : /^\d*$/.test(raw);
-              if (!ok) e.preventDefault();
-            }}
-            required={field.required}
-            type={
-              ['number', 'percent', 'year', 'month', 'dollars', 'acres'].includes(field.field_type)
-                ? 'text'
-                : 'text'
+            if (!numericTypes.includes(field.field_type)) return;
+            const allowDecimal = ['number', 'percent', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type);
+            const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'];
+            if (e.ctrlKey || e.metaKey) return; // allow shortcuts
+            if (allowedKeys.includes(e.key)) return;
+            if (allowDecimal && e.key === '.') {
+              const raw = ((e.target as HTMLInputElement).value || '').replace(/,/g, '');
+              if (raw.includes('.')) e.preventDefault();
+              return;
             }
+            if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+          }}
+          onPaste={(e) => {
+              const numericTypes = ['number', 'number_no_commas', 'percent', 'year', 'month', 'months', 'dollars', 'dollars_per_sf', 'acres'];
+            if (!numericTypes.includes(field.field_type)) return;
+            const allowDecimal = ['number', 'percent', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type);
+            const text = e.clipboardData.getData('text');
+            const raw = text.replace(/,/g, '');
+            const ok = allowDecimal ? /^\d*(?:\.\d*)?$/.test(raw) : /^\d*$/.test(raw);
+            if (!ok) e.preventDefault();
+          }}
+          required={field.required}
+          type={
+            ['number', 'percent', 'year', 'month', 'dollars', 'acres'].includes(field.field_type)
+              ? 'text'
+              : 'text'
+          }
           placeholder={
             field.field_type === 'dollars'
               ? 'Enter dollar amount'
@@ -595,39 +637,39 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
                 ? `Enter ${(field.field_title ?? field.field_key ?? 'value').toLowerCase()}`
                 : `Enter a ${field.field_type}`
           }
-            sx={{ width: { xs: '100%', sm: 260 }, textAlign: 'right' }}
-            variant="standard"
-            InputProps={{
-              disableUnderline: true,
-              sx: { textAlign: 'right' }, // Aligns input text to the right
-              inputProps: { 
-                style: { textAlign: 'right' }, // For native input alignment
+          sx={{ width: { xs: '100%', sm: 260 }, textAlign: 'right' }}
+          variant="standard"
+          InputProps={{
+            disableUnderline: true,
+            sx: { textAlign: 'right' }, // Aligns input text to the right
+            inputProps: { 
+              style: { textAlign: 'right' }, // For native input alignment
                 ...( ['number', 'number_no_commas', 'percent', 'year', 'month', 'months', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type) ? { min: 0 } : {} ),
                 inputMode: ['number', 'percent', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type) ? 'decimal'
                   : (['year', 'month', 'months', 'number_no_commas'].includes(field.field_type) ? 'numeric' : undefined),
                 pattern: ['number', 'percent', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type) ? '[0-9]*\\.?[0-9]*'
                   : (['year', 'month', 'months', 'number_no_commas'].includes(field.field_type) ? '[0-9]*' : undefined)
-              },
-              startAdornment: field.field_type === 'dollars' ? (
-                <span style={{ marginRight: 4 }}>$</span>
-              ) : field.field_type === 'month' ? (
-                <span style={{ marginRight: 4 }}>Month</span>
-              ) : field.field_type === 'dollars_per_sf' ? (
-                <span style={{ marginRight: 4 }}>$</span>
-              ) : undefined,
-              endAdornment: field.field_type === 'percent' ? (
-                <span style={{ marginLeft: 4 }}>%</span>
-              ) : field.field_type === 'year' ? (
-                <span style={{ marginLeft: 4 }}>years</span>
-              ) : field.field_type === 'months' ? (
-                <span style={{ marginLeft: 4 }}>months</span>
-              ) : field.field_type === 'dollars_per_sf' ? (
-                <span style={{ marginLeft: 4 }}>$\/sf</span>
-              ) : field.field_type === 'acres' ? (
-                <span style={{ marginLeft: 4 }}>acres</span>
-              ) : undefined,
-            }}
-          />
+            },
+            startAdornment: field.field_type === 'dollars' ? (
+              <span style={{ marginRight: 4 }}>$</span>
+            ) : field.field_type === 'month' ? (
+              <span style={{ marginRight: 4 }}>Month</span>
+            ) : field.field_type === 'dollars_per_sf' ? (
+              <span style={{ marginRight: 4 }}>$</span>
+            ) : undefined,
+            endAdornment: field.field_type === 'percent' ? (
+              <span style={{ marginLeft: 4 }}>%</span>
+            ) : field.field_type === 'year' ? (
+              <span style={{ marginLeft: 4 }}>years</span>
+            ) : field.field_type === 'months' ? (
+              <span style={{ marginLeft: 4 }}>months</span>
+            ) : field.field_type === 'dollars_per_sf' ? (
+              <span style={{ marginLeft: 4 }}>$\/sf</span>
+            ) : field.field_type === 'acres' ? (
+              <span style={{ marginLeft: 4 }}>acres</span>
+            ) : undefined,
+          }}
+        />
         )}
       </Box>
     </Box>
