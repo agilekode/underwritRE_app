@@ -618,13 +618,21 @@ def export_google_sheet(sheet_id: str, filename: str = "exported_model.xlsx"):
     # Open and clean XLSX using openpyxl
     workbook = load_workbook(tmp_in_path)
     sheets_to_remove = {"Variable Mapping", "Table Mapping", "Model Variable Mapping"}
+    sheets_to_hide = {"Underwriting Assumptions"}
     removed = []
+    hidden = []
 
     # Remove specified sheets
     for sheet_name in sheets_to_remove:
         if sheet_name in workbook.sheetnames:
             del workbook[sheet_name]
             removed.append(sheet_name)
+    
+    # Hide specified sheets
+    for sheet_name in sheets_to_hide:
+        if sheet_name in workbook.sheetnames:
+            workbook[sheet_name].sheet_state = 'hidden'
+            hidden.append(sheet_name)
 
     # Save cleaned XLSX to temp file
     with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_out:
@@ -638,7 +646,7 @@ def export_google_sheet(sheet_id: str, filename: str = "exported_model.xlsx"):
     os.remove(tmp_in_path)
     os.remove(tmp_out_path)
 
-    print(f"✅ XLSX file ready to send: {filename}. Removed sheets: {removed}")
+    print(f"✅ XLSX file ready to send: {filename}. Removed sheets: {removed}, Hidden sheets: {hidden}")
     return send_file(
         xlsx_io,
         mimetype=XLSX_MIME,
@@ -2676,7 +2684,9 @@ def get_address_update_payload(address, model_variable_mapping, sheet_name="Assu
     cell = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Address')
     if not cell:
         raise ValueError("Address location not found in model variable mapping")
-    range_str = f"{cell}"
+    
+    range_str = f"'{sheet_name}'!{cell}" if "!" not in str(cell) else cell
+    
     return {
         "range": range_str,
         "values": [[address]]
@@ -2685,10 +2695,10 @@ def get_address_update_payload(address, model_variable_mapping, sheet_name="Assu
 def get_property_name_update_payload(property_name, model_variable_mapping, sheet_name="Cover"):
     cell = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Property Name')
     if not cell:
-        return []
-        raise ValueError("Property Name location not found in model variable mapping")
+        range_str = f"'{sheet_name}'!A1"
+    else:
+        range_str = f"'{sheet_name}'!{cell}" if "!" not in str(cell) else cell
         
-    range_str = f"{cell}"
     return {
         "range": range_str,
         "values": [[property_name]]
