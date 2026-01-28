@@ -848,7 +848,7 @@ def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service):
     return variables
 
 def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, sheet_name="Market Rent Assumptions", rental_sheet_name="Rental Assumptions"):
-    market_start_row = 2
+    market_start_row = 5
     market_num_rows = len(market_json)
     market_end_row = market_start_row + market_num_rows - 1
 
@@ -862,19 +862,33 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
     rental_c_range = f"'{rental_sheet_name}'!$C${rental_start_row}:$C${rental_end_row}"
     rental_f_range = f"'{rental_sheet_name}'!$F${rental_start_row}:$F${rental_end_row}"
 
+    clear_request = {
+        "updateCells": {
+            "range": {
+                "sheetId": market_ws._properties["sheetId"]
+            },
+            "fields": "userEnteredValue,userEnteredFormat"
+        }
+    }
+
     insert_request = {
         "insertDimension": {
             "range": {
                 "sheetId": market_ws._properties["sheetId"],
                 "dimension": "ROWS",
-                "startIndex": market_start_row - 1,
-                "endIndex": market_start_row - 1 + market_num_rows
+                "startIndex": 1,
+                "endIndex": 1 + market_num_rows + 3
             },
             "inheritFromBefore": False
         }
     }
 
-    values = []
+    values = [
+        ["MARKET RENT ASSUMPTIONS"] + [""] * 6,
+        [""] * 7,
+        ["", "", "Pro Forma $Rent", "Avg. Current Rent", "Avg. Current $/ SF", "Avg. Pro Forma $Rent", "Avg. Pro Forma $/ SF"]
+    ]
+
     for i, entry in enumerate(market_json):
         row_num = market_start_row + i
         # Average of current rents (H) for matching layout (D == A{row_num}),
@@ -882,43 +896,194 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
         # Using FILTER with boolean arithmetic for OR/AND logic
         formula = (
             f"=IFERROR("
-            f"SUMPRODUCT({rental_h_range}*--({rental_d_range}=A{row_num})*("
+            f"SUMPRODUCT({rental_h_range}*--({rental_d_range}=B{row_num})*("
             f"--({rental_c_range}=0)+((--({rental_c_range}=1)+--({rental_c_range}=2))*--({rental_f_range}>0))"
             f"))/"
-            f"SUMPRODUCT(--({rental_d_range}=A{row_num})*("
+            f"SUMPRODUCT(--({rental_d_range}=B{row_num})*("
             f"--({rental_c_range}=0)+((--({rental_c_range}=1)+--({rental_c_range}=2))*--({rental_f_range}>0))"
             f")),0)"
         )
-        values.append([entry["layout"], "", entry["pf_rent"], formula])
+        values.append([entry["layout"], "", entry["pf_rent"], formula, "", "", ""])
 
     value_data = {
-        "range": f"'{sheet_name}'!A{market_start_row}:D{market_end_row}",
+        "range": f"'{sheet_name}'!B2:H{market_end_row}",
         "values": values
     }
 
-    # Format request: color Column C text blue for the inserted rows
-    # Column C is 0-based index 2, end index is non-inclusive 3
-    format_request = {
+    format_requests = []
+
+    # 1. Section Title Styling
+    format_requests.append({
         "repeatCell": {
             "range": {
                 "sheetId": market_ws._properties["sheetId"],
-                "startRowIndex": market_start_row - 1,
-                "endRowIndex": market_start_row - 1 + market_num_rows,
-                "startColumnIndex": 2,
-                "endColumnIndex": 3
+                "startRowIndex": 1,
+                "endRowIndex": 2,
+                "startColumnIndex": 1,
+                "endColumnIndex": 8
             },
             "cell": {
                 "userEnteredFormat": {
                     "textFormat": {
-                        "foregroundColor": {"red": 0, "green": 0, "blue": 1}
+                        "foregroundColor": {
+                            "red": 1.0,
+                            "green": 1.0,
+                            "blue": 1.0
+                        },
+                        "bold": True,
+                        "fontSize": 12
+                    },
+                    "backgroundColor": {
+                        "red": 0.0,
+                        "green": 0.45,
+                        "blue": 0.60
                     }
                 }
             },
-            "fields": "userEnteredFormat.textFormat.foregroundColor"
+            "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.fontSize,userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.foregroundColor"
         }
-    }
+    })
 
-    return insert_request, value_data, format_request
+    # 2. Header Bar Styling
+    format_requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": market_ws._properties["sheetId"],
+                "startRowIndex": 3,
+                "endRowIndex": 4,
+                "startColumnIndex": 1,
+                "endColumnIndex": 8
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "textFormat": {
+                        "bold": True,
+                        "fontSize": 11
+                    },
+                    "horizontalAlignment": "LEFT",
+                    "verticalAlignment": "MIDDLE",
+                    "wrapStrategy": "WRAP",
+                    "borders": {
+                        "bottom": {
+                            "style": "SOLID",
+                            "width": 1,
+                            "color": {
+                                "red": 0,
+                                "green": 0,
+                                "blue": 0
+                            }
+                        }
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.fontSize,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment,userEnteredFormat.wrapStrategy,userEnteredFormat.borders"
+        }
+    })
+
+    # 3. Row Heights
+    format_requests.append({
+        "updateDimensionProperties": {
+            "range": {
+                "sheetId": market_ws._properties["sheetId"],
+                "dimension": "ROWS",
+                "startIndex": 3,
+                "endIndex": 4
+            },
+            "properties": {
+                "pixelSize": 60
+            },
+            "fields": "pixelSize"
+        }
+    })
+
+    if market_num_rows > 0:
+        format_requests.append({
+            "updateDimensionProperties": {
+                "range": {
+                    "sheetId": market_ws._properties["sheetId"],
+                    "dimension": "ROWS",
+                    "startIndex": 4,
+                    "endIndex": 4 + market_num_rows
+                },
+                "properties": {
+                    "pixelSize": 40
+                },
+                "fields": "pixelSize"
+            }
+        })
+
+    # 4. Number Formatting (Zero to dashes)
+    if market_num_rows > 0:
+        format_requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": market_ws._properties["sheetId"],
+                    "startRowIndex": 4,
+                    "endRowIndex": 4 + market_num_rows,
+                    "startColumnIndex": 3,
+                    "endColumnIndex": 8
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "NUMBER",
+                            "pattern": "#,##0;(#,##0);\"-\""
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        })
+
+    # 4b. Bottom Border for the whole Table (Last Row)
+    if market_num_rows > 0:
+        format_requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": market_ws._properties["sheetId"],
+                    "startRowIndex": 4 + market_num_rows - 1,
+                    "endRowIndex": 4 + market_num_rows,
+                    "startColumnIndex": 1,
+                    "endColumnIndex": 8
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "borders": {
+                            "bottom": {
+                                "style": "SOLID",
+                                "width": 1,
+                                "color": {"red": 0, "green": 0, "blue": 0}
+                            }
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.borders"
+            }
+        })
+
+    # 5. Blue text for Column C (Manual Input) for data rows
+    if market_num_rows > 0:
+        format_requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": market_ws._properties["sheetId"],
+                    "startRowIndex": 4,
+                    "endRowIndex": 4 + market_num_rows,
+                    "startColumnIndex": 3,
+                    "endColumnIndex": 4
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {
+                            "foregroundColor": {"red": 0, "green": 0, "blue": 1}
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.textFormat.foregroundColor"
+            }
+        })
+
+    return [clear_request, insert_request], value_data, format_requests
 
 def get_rental_assumptions_insert_ops(rental_ws, rental_assumptions_json, market_start_row, market_end_row, sheet_name="Rental Assumptions"):
     rental_start_row = 2
@@ -1008,8 +1173,8 @@ def get_rental_assumptions_insert_ops(rental_ws, rental_assumptions_json, market
         pf_rent_formula = (
             f"=IFERROR("
             f"IF(OR(C{row_num}=1,C{row_num}=2),"
-            f"INDEX('Market Rent Assumptions'!$C${market_start_row}:$C${market_end_row}, "
-            f"MATCH(D{row_num}, 'Market Rent Assumptions'!$A${market_start_row}:$A${market_end_row}, 0)),"
+            f"INDEX('Market Rent Assumptions'!$D${market_start_row}:$D${market_end_row}, "
+            f"MATCH(D{row_num}, 'Market Rent Assumptions'!$B${market_start_row}:$B${market_end_row}, 0)),"
             f"H{row_num}),"
             f"H{row_num})"
         )
@@ -1058,7 +1223,7 @@ def get_market_rent_formula_updates(market_json, rental_start_row, rental_end_ro
     rental_c_range = f"'{rental_sheet_name}'!$C${rental_start_row}:$C${rental_end_row}"
     rental_f_range = f"'{rental_sheet_name}'!$F${rental_start_row}:$F${rental_end_row}"
 
-    # Build formulas row by row for columns D–G
+    # Build formulas row by row for columns E–H
     avg_current_rent = []
     for i in range(len(market_json)):
         row_index = market_start_row + i
@@ -1066,21 +1231,21 @@ def get_market_rent_formula_updates(market_json, rental_start_row, rental_end_ro
             # Average current rent (H) for matching layout (D==A{row_index}) including only rows where:
             # C = 0 OR ((C = 1 OR C = 2) AND F > 0)
             f"=IFERROR("
-            f"SUMPRODUCT({rental_h_range}*--({rental_d_range}=A{row_index})*("
+            f"SUMPRODUCT({rental_h_range}*--({rental_d_range}=B{row_index})*("
             f"--({rental_c_range}=0)+((--({rental_c_range}=1)+--({rental_c_range}=2))*--({rental_f_range}>0))"
             f"))/"
-            f"SUMPRODUCT(--({rental_d_range}=A{row_index})*("
+            f"SUMPRODUCT(--({rental_d_range}=B{row_index})*("
             f"--({rental_c_range}=0)+((--({rental_c_range}=1)+--({rental_c_range}=2))*--({rental_f_range}>0))"
-            f")),0)",  # D
-            f"=IFERROR(SUMIF({rental_d_range},A{row_index},{rental_h_range})/SUMIF({rental_d_range},A{row_index},{rental_e_range}),0)",  # E
-            f"=IFERROR(AVERAGEIF({rental_d_range},A{row_index},{rental_i_range}),0)",  # F
-            f"=IFERROR(SUMIF({rental_d_range},A{row_index},{rental_i_range})/SUMIF({rental_d_range},A{row_index},{rental_e_range}),0)"   # G
+            f")),0)",  # E
+            f"=IFERROR(SUMIF({rental_d_range},B{row_index},{rental_h_range})/SUMIF({rental_d_range},B{row_index},{rental_e_range}),0)",  # F
+            f"=IFERROR(AVERAGEIF({rental_d_range},B{row_index},{rental_i_range}),0)",  # G
+            f"=IFERROR(SUMIF({rental_d_range},B{row_index},{rental_i_range})/SUMIF({rental_d_range},B{row_index},{rental_e_range}),0)"   # H
         ]
         avg_current_rent.append(row_formulas)
 
     # Return batch update payload
     return {
-        "range": f"'{sheet_name}'!D{market_start_row}:G{market_start_row + len(market_json) - 1}",
+        "range": f"'{sheet_name}'!E{market_start_row}:H{market_start_row + len(market_json) - 1}",
         "values": avg_current_rent
     }
 
@@ -4785,11 +4950,11 @@ def run_full_sheet_update(
     if (len(market_json) > 0 and len(rental_assumptions_json) > 0):
 
         print(f"[run_full_sheet_update] Preparing market insert ops with market:{len(market_json)}, rentals:{len(rental_assumptions_json)}")
-        market_insert_request, market_value_data, market_format_request = get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json)
-        print(f"[run_full_sheet_update] market_insert_request:{len(market_insert_request)} value_data:{len(market_value_data)} format_reqs:{len(market_format_request)}")
+        market_insert_requests, market_value_data, market_format_requests = get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json)
+        print(f"[run_full_sheet_update] market_insert_requests:{len(market_insert_requests)} value_data:{len(market_value_data)} format_reqs:{len(market_format_requests)}")
 
         rental_requests, rental_value_data, rental_total_row = get_rental_assumptions_insert_ops(
-        rental_ws, rental_assumptions_json, market_start_row=2, market_end_row=2 + len(market_json) - 1
+        rental_ws, rental_assumptions_json, market_start_row=5, market_end_row=5 + len(market_json) - 1
         )
         print(f"[run_full_sheet_update] rental_requests:{len(rental_requests)} rental_value_data:{len(rental_value_data)} rental_total_row:{len(rental_total_row)}")
 
@@ -4805,9 +4970,9 @@ def run_full_sheet_update(
     else: 
 
         print("[run_full_sheet_update] No market/rental data; initializing empty requests for those sections")
-        market_insert_request = []
+        market_insert_requests = []
         market_value_data = []
-        market_format_request = []
+        market_format_requests = []
         rental_requests = []
         rental_value_data = []
         rental_total_row = []
@@ -4907,7 +5072,10 @@ def run_full_sheet_update(
 
         # === Update Payloads ===
         market_formula_update = get_market_rent_formula_updates(
-            market_json, rental_start_row=2, rental_end_row=2 + len(rental_assumptions_json) - 1, market_start_row=2
+            market_json, 
+            rental_start_row=2, 
+            rental_end_row=2 + len(rental_assumptions_json) - 1, 
+            market_start_row=5
         )
         print(f"[run_full_sheet_update] market_formula_update ops:{len(market_formula_update)}")
         noi_growth_formula_update = get_noi_growth_factor_formula_update(
@@ -5115,8 +5283,8 @@ def run_full_sheet_update(
     reserves_insert_request, reserves_update_payloads, reserves_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Reserves', reserves_filtered, model_variable_mapping)
     # === Combine Insert & Format Requests ===
     insert_requests = [
-        market_insert_request,
-        market_format_request,
+        *market_insert_requests,
+        *market_format_requests,
         *rental_requests,
         assumptions_format,
         amenity_income_insert_request,
