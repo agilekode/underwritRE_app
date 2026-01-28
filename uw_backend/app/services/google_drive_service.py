@@ -5744,8 +5744,7 @@ def update_google_sheet_and_get_values_final(
                                                      "Legal and Pre-Development Costs", 
                                                      "Reserves",
                                                      "Hard Costs",
-                                                     "Rental Assumptions",
-                                                     "Market Rent Assumptions"])
+                                                     "Rental Assumptions",])
 
     print("📊 Fetching mapping sheets...")
     result = sheets_service.spreadsheets().values().batchGet(
@@ -5769,7 +5768,7 @@ def update_google_sheet_and_get_values_final(
     t5 = time.time()
     timings['extract_tables'] = t5 - t4
     print(f"✅ Extracted {len(tables)} tables in {timings['extract_tables']:.3f}s")
-
+    
     # Step 4: Extract variables
     t6 = time.time()
     variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service)
