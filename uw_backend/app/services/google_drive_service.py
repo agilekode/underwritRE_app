@@ -886,7 +886,7 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
     values = [
         ["MARKET RENT ASSUMPTIONS"] + [""] * 6,
         [""] * 7,
-        ["", "", "Pro Forma $Rent", "Avg. Current Rent", "Avg. Current $/ SF", "Avg. Pro Forma $Rent", "Avg. Pro Forma $/ SF"]
+        ["", "", "Pro Forma $ Rent", "Avg. Current Rent", "Avg. Current $ / SF", "Avg. Pro Forma $ Rent", "Avg. Pro Forma $ / SF"]
     ]
 
     for i, entry in enumerate(market_json):
@@ -958,9 +958,10 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
                 "userEnteredFormat": {
                     "textFormat": {
                         "bold": True,
-                        "fontSize": 11
+                        "fontSize": 12,
+                        "fontFamily": "Calibri"
                     },
-                    "horizontalAlignment": "LEFT",
+                    "horizontalAlignment": "RIGHT",
                     "verticalAlignment": "MIDDLE",
                     "wrapStrategy": "WRAP",
                     "borders": {
@@ -976,7 +977,7 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
                     }
                 }
             },
-            "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.fontSize,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment,userEnteredFormat.wrapStrategy,userEnteredFormat.borders"
+            "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.fontSize,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment,userEnteredFormat.wrapStrategy,userEnteredFormat.borders,userEnteredFormat.textFormat.fontFamily"
         }
     })
 
@@ -991,6 +992,36 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
             },
             "properties": {
                 "pixelSize": 60
+            },
+            "fields": "pixelSize"
+        }
+    })
+
+    format_requests.append({
+        "updateDimensionProperties": {
+            "range": {
+                "sheetId": market_ws._properties["sheetId"],
+                "dimension": "COLUMNS",
+                "startIndex": 5,
+                "endIndex": 8
+            },
+            "properties": {
+                "pixelSize": 125
+            },
+            "fields": "pixelSize"
+        }
+    })
+
+    format_requests.append({
+        "updateDimensionProperties": {
+            "range": {
+                "sheetId": market_ws._properties["sheetId"],
+                "dimension": "COLUMNS",
+                "startIndex": 2,  # C
+                "endIndex": 3     # endIndex is exclusive
+            },
+            "properties": {
+                "pixelSize": 35
             },
             "fields": "pixelSize"
         }
@@ -1075,7 +1106,11 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
                 "cell": {
                     "userEnteredFormat": {
                         "textFormat": {
-                            "foregroundColor": {"red": 0, "green": 0, "blue": 1}
+                            "foregroundColor": {
+                                "red": 0.0588,
+                                "green": 0.6196,
+                                "blue": 0.8353
+                            }
                         }
                     }
                 },
