@@ -4985,8 +4985,8 @@ def run_full_sheet_update(
     if (len(market_json) > 0 and len(rental_assumptions_json) > 0):
 
         print(f"[run_full_sheet_update] Preparing market insert ops with market:{len(market_json)}, rentals:{len(rental_assumptions_json)}")
-        market_insert_requests, market_value_data, market_format_requests = get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json)
-        print(f"[run_full_sheet_update] market_insert_requests:{len(market_insert_requests)} value_data:{len(market_value_data)} format_reqs:{len(market_format_requests)}")
+        market_insert_request, market_value_data, market_format_request = get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json)
+        print(f"[run_full_sheet_update] market_insert_request:{len(market_insert_request)} value_data:{len(market_value_data)} format_reqs:{len(market_format_request)}")
 
         rental_requests, rental_value_data, rental_total_row = get_rental_assumptions_insert_ops(
         rental_ws, rental_assumptions_json, market_start_row=5, market_end_row=5 + len(market_json) - 1
@@ -5005,9 +5005,9 @@ def run_full_sheet_update(
     else: 
 
         print("[run_full_sheet_update] No market/rental data; initializing empty requests for those sections")
-        market_insert_requests = []
+        market_insert_request = []
         market_value_data = []
-        market_format_requests = []
+        market_format_request = []
         rental_requests = []
         rental_value_data = []
         rental_total_row = []
@@ -5318,8 +5318,8 @@ def run_full_sheet_update(
     reserves_insert_request, reserves_update_payloads, reserves_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Reserves', reserves_filtered, model_variable_mapping)
     # === Combine Insert & Format Requests ===
     insert_requests = [
-        *market_insert_requests,
-        *market_format_requests,
+        market_insert_request,
+        market_format_request,
         *rental_requests,
         assumptions_format,
         amenity_income_insert_request,
