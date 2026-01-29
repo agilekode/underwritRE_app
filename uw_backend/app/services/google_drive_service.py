@@ -2107,23 +2107,44 @@ def get_noi_summary_row_insert_request(spreadsheet, sheet_name, insert_start_row
         }
     }
 
-def get_operating_expenses_insert_request(spreadsheet, expenses_json, start_row=2, sheet_name="Operating Expenses"):
+def get_operating_expenses_clear_request(spreadsheet, sheet_name="Operating Expenses"):
     sheet_id = get_sheet_id(spreadsheet, sheet_name)
-    num_rows = len(expenses_json)
-
     return {
-        "insertRange": {
+        "updateCells": {
             "range": {
-                "sheetId": sheet_id,
-                "startRowIndex": start_row - 1,
-                "endRowIndex": start_row - 1 + num_rows
+                "sheetId": sheet_id
             },
-            "shiftDimension": "ROWS"
+            "fields": "userEnteredValue,userEnteredFormat"
         }
     }
 
+def get_operating_expenses_header_payload(sheet_name="Operating Expenses"):
+    header_row_2 = ["", "OPERATING EXPENSES"] + [""] * 8
+    col_headers = [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "Factor",
+        "Expense",
+        "Statistic",
+        "Monthly",
+        "Annual"
+    ]
+    
+    return [
+        {
+            "range": f"'{sheet_name}'!A2:J2",
+            "values": [header_row_2]
+        },
+        {
+            "range": f"'{sheet_name}'!A4:J4",
+            "values": [col_headers]
+        }
+    ]
 
-def get_operating_expenses_insert_request(spreadsheet, expenses_json, start_row=2, sheet_name="Operating Expenses"):
+def get_operating_expenses_insert_request(spreadsheet, expenses_json, start_row=5, sheet_name="Operating Expenses"):
     sheet_id = get_sheet_id(spreadsheet, sheet_name)
     num_rows = len(expenses_json)
 
@@ -2154,7 +2175,7 @@ def get_operating_expenses_update_payload(
     amenity_income_json,
     model_variable_mapping,
     sheet_name="Operating Expenses",
-    start_row=2
+    start_row=5
 ):
 
     expenses_json = sorted(
@@ -2175,51 +2196,38 @@ def get_operating_expenses_update_payload(
     for i, expense in enumerate(expenses_json):
         row_num = start_row + i
         row = [""] * 10  # Columns A–J
-        row[0] = expense["name"]       # Column A
-        row[4] = expense["cost_per"]
-        row[5] = expense["factor"]     # Expense column - factor is now cost per
-        # row[9] = expense["broker"]     # Column J
+        row[1] = expense["name"]
+        row[5] = expense["cost_per"]
+        row[6] = expense["factor"]
 
         name = expense["name"]
 
-        # Column G formula
-        col_g_formula = ""
+        col_h_formula = ""
 
         if expense["cost_per"].lower() == "per unit":
-            col_g_formula = f"='Rental Assumptions'!$D${rental_row}"
+            col_h_formula = f"='Rental Assumptions'!$D${rental_row}"
 
-        #### FIX THESE
         elif expense["cost_per"].lower() == "per ca square foot":
-            col_g_formula = f"={gross_sf_location}-{net_rentable_sf_location}"
+            col_h_formula = f"={gross_sf_location}-{net_rentable_sf_location}"
 
         elif expense["cost_per"].lower() == "per total square feet":
-            col_g_formula = f"={gross_sf_location}"
+            col_h_formula = f"={gross_sf_location}"
 
         elif expense["cost_per"].lower() == "percent of egi":
-            col_g_formula = f'={egi_location}'
+            col_h_formula = f'={egi_location}'
             try:
-                row[5] = float(expense.get("factor") or 0) / 100
+                row[6] = float(expense.get("factor") or 0) / 100
             except Exception:
-                row[5] = 0
+                row[6] = 0
 
-        # elif expense["cost_per"].lower() == "percent of purchase price":
-        #     col_g_formula = f'={purchase_price_location}'
-        #     row[5] = str(expense["factor"]) + "%"
+        row[7] = col_h_formula
 
-        # elif expense["cost_per"].lower() == "percent of acquisition loan":
-        #     col_g_formula = f'={acquisition_loan_location}'
-        #     row[5] = str(expense["factor"]) + "%"
-
-        row[6] = col_g_formula  # Column G
-
-        # Column I (depends on G)
-        if col_g_formula:
-            row[8] = f"=F{row_num}*G{row_num}"
+        if col_h_formula:
+            row[9] = f"=G{row_num}*H{row_num}"
         else:
-            row[8] = f"=F{row_num}"
+            row[9] = f"=G{row_num}"
 
-        # Column H (depends on I)
-        row[7] = f"=I{row_num}/12"
+        row[8] = f"=J{row_num}/12"
 
         rows_to_insert.append(row)
 
@@ -2237,7 +2245,7 @@ def get_operating_expenses_format_payload(
     expenses_json,
     spreadsheet,
     sheet_name="Operating Expenses",
-    start_row=2
+    start_row=5
 ):
     """
     Returns a list of format payloads for the operating expenses table.
@@ -2246,14 +2254,64 @@ def get_operating_expenses_format_payload(
     """
     format_payloads = []
     sheet_id = get_sheet_id(spreadsheet, sheet_name)
+    num_expenses = len(expenses_json)
 
+    # 1. Row 2: Styled Section Header
+    format_payloads.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 1,
+                "endRowIndex": 2,
+                "startColumnIndex": 1,
+                "endColumnIndex": 10,
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "backgroundColor": {"red": 0.0, "green": 0.45, "blue": 0.60},
+                    "textFormat": {
+                        "foregroundColor": {"red": 1, "green": 1, "blue": 1},
+                        "bold": True,
+                        "fontSize": 12,
+                        "fontFamily": "Calibri"
+                    },
+                    "horizontalAlignment": "LEFT"
+                }
+            },
+            "fields": "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)"
+        }
+    })
+
+    # 2. Row 4: Column Headers
+    format_payloads.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 3,
+                "endRowIndex": 4,
+                "startColumnIndex": 1,
+                "endColumnIndex": 10,
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "textFormat": {"bold": True, "fontFamily": "Calibri"},
+                    "horizontalAlignment": "RIGHT",
+                    "borders": {
+                        "bottom": {"style": "SOLID"}
+                    }
+                }
+            },
+            "fields": "userEnteredFormat(textFormat,horizontalAlignment,borders)"
+        }
+    })
+
+    # 3. Data Rows
     for i, expense in enumerate(expenses_json):
         row_num = start_row + i
         cost_per = str(expense.get("cost_per", "")).lower()
 
         # Column F (factor/cost value)
         if cost_per == "per unit":
-            # No decimal places for per unit
             cost_number_format = {"type": "NUMBER", "pattern": "$#,##0\"/unit\""}
         elif cost_per in ["per ca square foot", "per total square feet"]:
             cost_number_format = {"type": "NUMBER", "pattern": "$#,##0.00\"/sf\""}
@@ -2262,36 +2320,17 @@ def get_operating_expenses_format_payload(
         elif cost_per == "percent of egi":
             cost_number_format = {"type": "PERCENT", "pattern": "0.00%"}
         else:
-            cost_number_format = {"type": "NUMBER", "pattern": "$#,##0.00"}
-
-        format_payloads.append({
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": row_num - 1,
-                    "endRowIndex": row_num,
-                    "startColumnIndex": 5,  # Column F (0-based)
-                    "endColumnIndex": 6,
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": cost_number_format,
-                        "backgroundColor": {"red": 1, "green": 1, "blue": 1}
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.backgroundColor"
-            }
-        })
+            cost_number_format = {"type": "NUMBER", "pattern": '[=0]"-";"$"#,##0'}
 
         # Column G (statistic)
         if cost_per == "per unit":
-            stat_number_format = {"type": "NUMBER", "pattern": "#,##0\" units\""}
+            stat_number_format = {"type": "NUMBER", "pattern": '#,##0" units"'}
         elif cost_per in ["per ca square foot", "per total square feet"]:
-            stat_number_format = {"type": "NUMBER", "pattern": "#,##0\" sf\""}
+            stat_number_format = {"type": "NUMBER", "pattern": '#,##0" sf"'}
         elif cost_per == "per month":
-            stat_number_format = {"type": "NUMBER", "pattern": "#,##0\" months\""}
+            stat_number_format = {"type": "NUMBER", "pattern": '#,##0" months"'}
         else:
-            stat_number_format = {"type": "NUMBER", "pattern": "#,##0"}
+            stat_number_format = {"type": "NUMBER", "pattern": '#,##0'}
 
         format_payloads.append({
             "repeatCell": {
@@ -2299,57 +2338,110 @@ def get_operating_expenses_format_payload(
                     "sheetId": sheet_id,
                     "startRowIndex": row_num - 1,
                     "endRowIndex": row_num,
-                    "startColumnIndex": 6,  # Column G (0-based)
+                    "startColumnIndex": 6,
                     "endColumnIndex": 7,
                 },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": stat_number_format,
-                        "backgroundColor": {"red": 1, "green": 1, "blue": 1}
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.backgroundColor"
+                "cell": {"userEnteredFormat": {"numberFormat": cost_number_format, "horizontalAlignment": "RIGHT", "backgroundColor": {"red": 1, "green": 1, "blue": 1}, "textFormat": {"fontFamily": "Calibri"}}},
+                "fields": "userEnteredFormat(numberFormat,horizontalAlignment,backgroundColor,textFormat)"
             }
         })
 
-        # Columns E and F text colored blue for inserted rows
         format_payloads.append({
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
                     "startRowIndex": row_num - 1,
                     "endRowIndex": row_num,
-                    "startColumnIndex": 4,  # Column E
-                    "endColumnIndex": 6     # up to F (non-inclusive end)
+                    "startColumnIndex": 7,
+                    "endColumnIndex": 8,
                 },
-                "cell": {
-                    "userEnteredFormat": {
-                        "textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}},
-                        "backgroundColor": {"red": 1, "green": 1, "blue": 1}
-                    }
-                },
-                "fields": "userEnteredFormat.textFormat.foregroundColor,userEnteredFormat.backgroundColor"
+                "cell": {"userEnteredFormat": {"numberFormat": stat_number_format, "horizontalAlignment": "RIGHT", "backgroundColor": {"red": 1, "green": 1, "blue": 1}, "textFormat": {"fontFamily": "Calibri"}}},
+                "fields": "userEnteredFormat(numberFormat,horizontalAlignment,backgroundColor,textFormat)"
             }
         })
 
-    # Ensure all inserted rows are not bold (regular text) across a wide column range
+        format_payloads.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": row_num - 1,
+                    "endRowIndex": row_num,
+                    "startColumnIndex": 8,
+                    "endColumnIndex": 10,
+                },
+                "cell": {"userEnteredFormat": {"numberFormat": {"type": "NUMBER", "pattern": '[=0]"-";#,##0'}, "horizontalAlignment": "RIGHT", "textFormat": {"fontFamily": "Calibri"}}},
+                "fields": "userEnteredFormat(numberFormat,horizontalAlignment,textFormat)"
+            }
+        })
+
+        format_payloads.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": row_num - 1,
+                    "endRowIndex": row_num,
+                    "startColumnIndex": 5,
+                    "endColumnIndex": 7,
+                },
+                "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}, "fontFamily": "Calibri"}, "horizontalAlignment": "RIGHT"}},
+                "fields": "userEnteredFormat.textFormat,userEnteredFormat.horizontalAlignment"
+            }
+        })
+
+    total_row_idx = start_row + num_expenses - 1
     format_payloads.append({
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
-                "startRowIndex": start_row - 1,
-                "endRowIndex": start_row - 1 + len(expenses_json),
-                "startColumnIndex": 0,    # from column A
-                "endColumnIndex": 200     # up to a wide bound (covers used columns)
+                "startRowIndex": total_row_idx,
+                "endRowIndex": total_row_idx + 1,
+                "startColumnIndex": 1,
+                "endColumnIndex": 10,
             },
             "cell": {
                 "userEnteredFormat": {
-                    "textFormat": {
-                        "bold": False
+                    "textFormat": {"bold": True, "fontFamily": "Calibri"},
+                    "numberFormat": {"type": "NUMBER", "pattern": '[=0]"-";#,##0'},
+                    "borders": {
+                        "top": {"style": "SOLID"}
                     }
                 }
             },
-            "fields": "userEnteredFormat.textFormat.bold"
+            "fields": "userEnteredFormat(textFormat,numberFormat,borders)"
+        }
+    })
+
+    format_payloads.append({
+        "updateDimensionProperties": {
+            "range": {
+                "sheetId": sheet_id,
+                "dimension": "ROWS",
+                "startIndex": 3,
+                "endIndex": 11
+            },
+            "properties": {
+                "pixelSize": 30
+            },
+            "fields": "pixelSize"
+        }
+    })
+
+    format_payloads.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 3,
+                "endRowIndex": 11,
+                "startColumnIndex": 1,
+                "endColumnIndex": 10,
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "verticalAlignment": "MIDDLE",
+                    "textFormat": {"fontFamily": "Calibri"}
+                }
+            },
+            "fields": "userEnteredFormat(verticalAlignment,textFormat.fontFamily)"
         }
     })
 
@@ -2361,21 +2453,24 @@ def get_operating_expenses_format_payload(
 def get_operating_expenses_sum_row_payload(
     expenses_json,
     sheet_name="Operating Expenses",
-    start_row=2
+    start_row=5
 ):
     num_expenses = len(expenses_json)
     sum_row = start_row + num_expenses  # One row after the last inserted expense
 
-    h_sum_formula = f"=SUM(H{start_row}:H{sum_row - 1})"
     i_sum_formula = f"=SUM(I{start_row}:I{sum_row - 1})"
-    # j_sum_formula = f"=SUM(J{start_row}:J{sum_row - 1})"
+    j_sum_formula = f"=SUM(J{start_row}:J{sum_row - 1})"
 
-    range_str = f"'{sheet_name}'!H{sum_row}:I{sum_row}"
-
-    return {
-        "range": range_str,
-        "values": [[h_sum_formula, i_sum_formula]]
-    }
+    return [
+        {
+            "range": f"'{sheet_name}'!B{sum_row}",
+            "values": [["Total Operating Expenses"]]
+        },
+        {
+            "range": f"'{sheet_name}'!I{sum_row}:J{sum_row}",
+            "values": [[i_sum_formula, j_sum_formula]]
+        }
+    ]
 
 def get_operating_expense_row_insert_request(
     spreadsheet,
@@ -2471,14 +2566,14 @@ def get_operating_expense_formula_update_payloads(
     end_col_index = start_col + num_months - 1
 
     # Column B (labels from OpEx)
-    b_values = [[f"='{op_exp_sheet}'!A{2 + i}"] for i in range(num_expenses)]
+    b_values = [[f"='{op_exp_sheet}'!B{5 + i}"] for i in range(num_expenses)]
     b_range = f"'{noi_sheet}'!B{start_row}:B{end_row}"
 
     # Monthly formulas
     formula_rows = []
     egi_row = 27 + len(amenity_income_json)
     for i in range(num_expenses):
-        op_row = 2 + i
+        op_row = 5 + i
         formula_row = []
         for j in range(num_months):
             col_index = start_col + j
@@ -4839,10 +4934,10 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
             statistic = f"={acquisition_loan_location}"
             cost_per = cost_per/100
         elif factor.lower() == "Percent of Property Taxes".lower():
-            statistic = f"='Operating Expenses'!I2"
+            statistic = f"='Operating Expenses'!I5"
             cost_per = cost_per/100
         elif factor.lower() == "Percent of Insurance Cost".lower():
-            statistic = f"='Operating Expenses'!I3"
+            statistic = f"='Operating Expenses'!I6"
             cost_per = cost_per/100
         else:
             statistic = float(exp.get("statistic") or 0)
@@ -4954,6 +5049,22 @@ def run_full_sheet_update(
     if len(operating_expenses_json) == 0:
         industrial_model = True
 
+    if operating_expenses_json:
+        allowed_expenses = [
+            'property taxes', 
+            'insurance', 
+            'water / sewer', 
+            'repairs & maintenance', 
+            'landscaping / snow removel', 
+            'property managment',
+            'landscaping / snow removal',
+            'property management'
+        ]
+        operating_expenses_json = [
+            exp for exp in operating_expenses_json 
+            if exp.get('name', '').lower().strip() in allowed_expenses
+        ]
+
     retail_expenses = [expense for expense in expenses_json if expense.get('type') == 'Retail']
     
     print("[run_full_sheet_update] START")
@@ -5047,10 +5158,10 @@ def run_full_sheet_update(
     print(f"[run_full_sheet_update] amenity_noi_summary_insert_request ops:{len(amenity_noi_summary_insert_request)}")
 
     if len(operating_expenses_json) > 0:
-
+        operating_expenses_clear = get_operating_expenses_clear_request(spreadsheet, sheet_name="Operating Expenses")
         print(f"[run_full_sheet_update] Preparing operating expenses inserts: items:{len(operating_expenses_json)}")
         operating_expenses_insert = get_operating_expenses_insert_request(
-            spreadsheet, operating_expenses_json, start_row=2, sheet_name="Operating Expenses"
+            spreadsheet, operating_expenses_json, start_row=5, sheet_name="Operating Expenses"
         )
         print(f"[run_full_sheet_update] operating_expenses_insert ops:{len(operating_expenses_insert)}")
 
@@ -5059,6 +5170,7 @@ def run_full_sheet_update(
         )
         print(f"[run_full_sheet_update] operating_expense_rows_insert ops:{len(operating_expense_rows_insert)}")
     else: 
+        operating_expenses_clear = []
         print(f"[run_full_sheet_update] Preparing operating expenses inserts: items:{len(operating_expenses_json)}")
         operating_expenses_insert = []
 
@@ -5181,16 +5293,18 @@ def run_full_sheet_update(
     
 
     if len(operating_expenses_json) > 0:
+        operating_expenses_header = get_operating_expenses_header_payload(sheet_name="Operating Expenses")
+
         operating_expenses_update = get_operating_expenses_update_payload(
-            operating_expenses_json, rental_assumptions_json, amenity_income_json, model_variable_mapping, sheet_name="Operating Expenses", start_row=2
+            operating_expenses_json, rental_assumptions_json, amenity_income_json, model_variable_mapping, sheet_name="Operating Expenses", start_row=5
         )
 
         operating_expenses_format = get_operating_expenses_format_payload(
-            operating_expenses_json, spreadsheet, sheet_name="Operating Expenses", start_row=2
+            operating_expenses_json, spreadsheet, sheet_name="Operating Expenses", start_row=5
         )
 
         operating_expenses_sum_row_update = get_operating_expenses_sum_row_payload(
-            operating_expenses_json, sheet_name="Operating Expenses", start_row=2
+            operating_expenses_json, sheet_name="Operating Expenses", start_row=5
         )
 
         operating_expense_formula_updates = get_operating_expense_formula_update_payloads(
@@ -5208,6 +5322,8 @@ def run_full_sheet_update(
         print(f"[run_full_sheet_update] expense_sum_row_to_noi_walk ops:{len(expense_sum_row_to_noi_walk)}")
 
     else: 
+        operating_expenses_clear = []
+        operating_expenses_header = []
         operating_expenses_update = []
         operating_expenses_format = []
         operating_expenses_sum_row_update = []
@@ -5327,6 +5443,7 @@ def run_full_sheet_update(
         rent_roll_inserts,
         amenity_income_insert_request_noi,
         amenity_noi_summary_insert_request,
+        operating_expenses_clear,
         operating_expenses_insert,
         operating_expense_rows_insert,
         noi_expense_insert,
@@ -5370,6 +5487,7 @@ def run_full_sheet_update(
         amenity_income_formula_update,
         noi_summary_update,
         noi_egi_update,
+        *operating_expenses_header,
         operating_expenses_update,
         operating_expenses_sum_row_update,
         *operating_expense_formula_updates,
@@ -5739,7 +5857,6 @@ def update_google_sheet_and_get_values_final(
 
     spreadsheet = gs_client.open_by_key(copied_sheet_id)
     add_blank_row_and_column_to_sheets(spreadsheet, ["Amenity Income", 
-                                                     "Operating Expenses", 
                                                      "Closing Costs", 
                                                      "Legal and Pre-Development Costs", 
                                                      "Reserves",
