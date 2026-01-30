@@ -852,15 +852,13 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
     market_num_rows = len(market_json)
     market_end_row = market_start_row + market_num_rows - 1
 
-    rental_start_row = 2
+    rental_start_row = 5
     rental_end_row = rental_start_row + len(rental_assumptions_json) - 1
 
-    rental_d_range = f"'{rental_sheet_name}'!$D${rental_start_row}:$D${rental_end_row}"
-    rental_h_range = f"'{rental_sheet_name}'!$H${rental_start_row}:$H${rental_end_row}"
-    # Additional ranges for filters:
-    # C: vacate_flag; F: vacate_month
-    rental_c_range = f"'{rental_sheet_name}'!$C${rental_start_row}:$C${rental_end_row}"
-    rental_f_range = f"'{rental_sheet_name}'!$F${rental_start_row}:$F${rental_end_row}"
+    rental_d_range = f"'{rental_sheet_name}'!$E${rental_start_row}:$E${rental_end_row}"
+    rental_h_range = f"'{rental_sheet_name}'!$I${rental_start_row}:$I${rental_end_row}"
+    rental_c_range = f"'{rental_sheet_name}'!$D${rental_start_row}:$D${rental_end_row}"
+    rental_f_range = f"'{rental_sheet_name}'!$G${rental_start_row}:$G${rental_end_row}"
 
     clear_request = {
         "updateCells": {
@@ -1017,8 +1015,8 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
             "range": {
                 "sheetId": market_ws._properties["sheetId"],
                 "dimension": "COLUMNS",
-                "startIndex": 2,  # C
-                "endIndex": 3     # endIndex is exclusive
+                "startIndex": 2,
+                "endIndex": 3
             },
             "properties": {
                 "pixelSize": 35
@@ -1107,9 +1105,9 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
                     "userEnteredFormat": {
                         "textFormat": {
                             "foregroundColor": {
-                                "red": 0.0588,
-                                "green": 0.6196,
-                                "blue": 0.8353
+                                "red": 0,
+                                "green": 0,
+                                "blue": 1
                             }
                         }
                     }
@@ -1120,16 +1118,28 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
 
     return [clear_request, insert_request], value_data, format_requests
 
+def get_rental_assumptions_clear_request(spreadsheet, sheet_name="Rental Assumptions"):
+    sheet_id = get_sheet_id(spreadsheet, sheet_name)
+    return {
+        "updateCells": {
+            "range": {
+                "sheetId": sheet_id
+            },
+            "fields": "userEnteredValue,userEnteredFormat"
+        }
+    }
+
 def get_rental_assumptions_insert_ops(rental_ws, rental_assumptions_json, market_start_row, market_end_row, sheet_name="Rental Assumptions"):
-    rental_start_row = 2
+    rental_start_row = 5
     rental_num_rows = len(rental_assumptions_json)
     rental_end_row = rental_start_row + rental_num_rows - 1
     total_row_index = rental_end_row + 1
+    sheet_id = rental_ws._properties["sheetId"]
 
     insert_request = {
         "insertDimension": {
             "range": {
-                "sheetId": rental_ws._properties["sheetId"],
+                "sheetId": sheet_id,
                 "dimension": "ROWS",
                 "startIndex": rental_start_row - 1,
                 "endIndex": rental_start_row - 1 + rental_num_rows
@@ -1138,82 +1148,363 @@ def get_rental_assumptions_insert_ops(rental_ws, rental_assumptions_json, market
         }
     }
 
-  
-    format_request = [
-        # Blue text for columns A–F (0-based: 0–6)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": rental_ws._properties["sheetId"],
-                    "startRowIndex": rental_start_row - 1,
-                    "endRowIndex": rental_start_row - 1 + rental_num_rows,
-                    "startColumnIndex": 0,
-                    "endColumnIndex": 6  # A=0, B=1, C=2, D=3, E=4, F=5
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "textFormat": {
-                            "foregroundColor": {"red": 0, "green": 0, "blue": 1}
-                        }
+    format_request = []
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 1,
+                "endRowIndex": 2,
+                "startColumnIndex": 1,
+                "endColumnIndex": 11
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "backgroundColor": {"red": 0, "green": 0.45, "blue": 0.60},
+                    "textFormat": {
+                        "foregroundColor": {"red": 1, "green": 1, "blue": 1},
+                        "bold": True,
+                        "fontFamily": "Calibri",
+                        "fontSize": 12
                     }
-                },
-                "fields": "userEnteredFormat.textFormat.foregroundColor"
-            }
-        },
-                {
-            "repeatCell": {
-                "range": {
-                    "sheetId": rental_ws._properties["sheetId"],
-                    "startRowIndex": rental_start_row - 1,
-                    "endRowIndex": rental_start_row - 1 + rental_num_rows,
-                    "startColumnIndex": 7,
-                    "endColumnIndex": 8  # G=6, H=7, I=8
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "textFormat": {
-                            "foregroundColor": {"red": 0, "green": 0, "blue": 1}
-                        }
-                    }
-                },
-                "fields": "userEnteredFormat.textFormat.foregroundColor"
-            }
-        },
-        # Date format for column G (vacate_month, 0-based index 6)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": rental_ws._properties["sheetId"],
-                    "startRowIndex": rental_start_row - 1,
-                    "endRowIndex": rental_start_row - 1 + rental_num_rows,
-                    "startColumnIndex": 6,
-                    "endColumnIndex": 7
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "DATE",
-                            "pattern": "m/dd/yy"
-                        }
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat"
-            }
+                }
+            },
+            "fields": (
+                "userEnteredFormat.backgroundColor,"
+                "userEnteredFormat.textFormat.foregroundColor,"
+                "userEnteredFormat.textFormat.bold,"
+                "userEnteredFormat.textFormat.fontFamily,"
+                "userEnteredFormat.textFormat.fontSize"
+            )
         }
-    ]
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 3,
+                "endRowIndex": 4,
+                "startColumnIndex": 1,
+                "endColumnIndex": 11
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "textFormat": {
+                        "bold": True,
+                        "fontFamily": "Calibri",
+                        "fontSize": 11
+                    },
+                    "borders": {
+                        "bottom": {"style": "SOLID"}
+                    },
+                    "wrapStrategy": "WRAP"
+                }
+            },
+            "fields": (
+                "userEnteredFormat.textFormat.bold,"
+                "userEnteredFormat.textFormat.fontFamily,"
+                "userEnteredFormat.textFormat.fontSize,"
+                "userEnteredFormat.borders,"
+                "userEnteredFormat.wrapStrategy"
+            )
+        }
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 3,
+                "endRowIndex": 4,
+                "startColumnIndex": 3,
+                "endColumnIndex": 8
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "horizontalAlignment": "CENTER",
+                }
+            },
+            "fields": (
+                "userEnteredFormat.horizontalAlignment"
+            )
+        }
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 3,
+                "endRowIndex": 4,
+                "startColumnIndex": 8,
+                "endColumnIndex": 11
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "horizontalAlignment": "RIGHT",
+                }
+            },
+            "fields": (
+                "userEnteredFormat.horizontalAlignment"
+            )
+        }
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": rental_start_row - 1,
+                "endRowIndex": rental_end_row,
+                "startColumnIndex": 1,
+                "endColumnIndex": 3
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "horizontalAlignment": "LEFT",
+                    "textFormat": {
+                        "foregroundColor": {"red": 0, "green": 0, "blue": 1}
+                    }
+                }
+            },
+            "fields": (
+                "userEnteredFormat.horizontalAlignment,"
+                "userEnteredFormat.textFormat.foregroundColor"
+            )
+        }
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": rental_start_row - 1,
+                "endRowIndex": rental_end_row,
+                "startColumnIndex": 3,
+                "endColumnIndex": 7
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "horizontalAlignment": "CENTER",
+                    "textFormat": {
+                        "foregroundColor": {"red": 0, "green": 0, "blue": 1}
+                    }
+                }
+            },
+            "fields": (
+                "userEnteredFormat.horizontalAlignment,"
+                "userEnteredFormat.textFormat.foregroundColor"
+            )
+        }
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": rental_start_row - 1,
+                "endRowIndex": rental_end_row,
+                "startColumnIndex": 7,
+                "endColumnIndex": 8
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "horizontalAlignment": "CENTER",
+                }
+            },
+            "fields": (
+                "userEnteredFormat.horizontalAlignment,"
+            )
+        }
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": rental_start_row - 1,
+                "endRowIndex": rental_end_row,
+                "startColumnIndex": 6,
+                "endColumnIndex": 7
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "numberFormat": {
+                        "type": "NUMBER",
+                        "pattern": "\"Month \"0"
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.numberFormat"
+        }
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": rental_start_row - 1,
+                "endRowIndex": rental_end_row,
+                "startColumnIndex": 7,
+                "endColumnIndex": 8
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "numberFormat": {
+                        "type": "DATE",
+                        "pattern": "m/dd/yy"
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.numberFormat"
+        }
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": rental_start_row - 1,
+                "endRowIndex": total_row_index,
+                "startColumnIndex": 8,
+                "endColumnIndex": 11
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "numberFormat": {
+                        "type": "NUMBER",
+                        "pattern": '#,##0'
+                    },
+                    "horizontalAlignment": "RIGHT"
+                }
+            },
+            "fields": "userEnteredFormat.horizontalAlignment,userEnteredFormat.numberFormat"
+        }
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": total_row_index - 1,
+                "endRowIndex": total_row_index,
+                "startColumnIndex": 1,
+                "endColumnIndex": 11
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "textFormat": {"bold": True},
+                    "borders": {
+                        "top": {"style": "SOLID"}
+                    }
+                }
+            },
+            "fields": (
+                "userEnteredFormat.textFormat.bold,"
+                "userEnteredFormat.borders"
+            )
+        }
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": total_row_index - 1,
+                "endRowIndex": total_row_index,
+                "startColumnIndex": 2,
+                "endColumnIndex": 8
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "horizontalAlignment": "CENTER",
+                }
+            },
+            "fields": (
+                "userEnteredFormat.horizontalAlignment"
+            )
+        }
+    })
+
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": total_row_index - 1,
+                "endRowIndex": total_row_index,
+                "startColumnIndex": 8,
+                "endColumnIndex": 11
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "horizontalAlignment": "RIGHT",
+                }
+            },
+            "fields": (
+                "userEnteredFormat.horizontalAlignment"
+            )
+        }
+    })
+
+    format_request.append({
+        "updateDimensionProperties": {
+            "range": {
+                "sheetId": sheet_id,
+                "dimension": "ROWS",
+                "startIndex": 4,
+                "endIndex": total_row_index
+            },
+            "properties": {
+                "pixelSize": 30
+            },
+            "fields": "pixelSize"
+        }
+    })
+
+    format_request.append({
+        "updateDimensionProperties": {
+            "range": {
+                "sheetId": sheet_id,
+                "dimension": "COLUMNS",
+                "startIndex": 2,
+                "endIndex": 3
+            },
+            "properties": {
+                "pixelSize": 130
+            },
+            "fields": "pixelSize"
+        }
+    })
+    
+    # Header Section
+    header_section_values = [["RENT ROLL ASSUMPTIONS"]]
+    header_section_payload = {
+        "range": f"'{sheet_name}'!B2",
+        "values": header_section_values
+    }
+
+    # Column Headers
+    column_headers = [["Units", "Rent Type", "Vacate = 1 Step-up = 2", "Layout", "Sq. Ft.", "Vacated", "Vacated", "Current Rent", "Pro Forma Rent", "Annual PF Rent"]]
+    column_headers_payload = {
+        "range": f"'{sheet_name}'!B4:K4",
+        "values": column_headers
+    }
 
     values = []
     for i, item in enumerate(rental_assumptions_json):
         row_num = rental_start_row + i
         pf_rent_formula = (
             f"=IFERROR("
-            f"IF(OR(C{row_num}=1,C{row_num}=2),"
+            f"IF(OR(D{row_num}=1,D{row_num}=2),"
             f"INDEX('Market Rent Assumptions'!$D${market_start_row}:$D${market_end_row}, "
-            f"MATCH(D{row_num}, 'Market Rent Assumptions'!$B${market_start_row}:$B${market_end_row}, 0)),"
-            f"H{row_num}),"
-            f"H{row_num})"
+            f"MATCH(E{row_num}, 'Market Rent Assumptions'!$B${market_start_row}:$B${market_end_row}, 0)),"
+            f"I{row_num}),"
+            f"I{row_num})"
         )
-        annual_pf_rent_formula = f"=I{row_num}*12"
+        annual_pf_rent_formula = f"=J{row_num}*12"
+        
         values.append([
             i + 1,
             item["rent_type"],
@@ -1221,42 +1512,39 @@ def get_rental_assumptions_insert_ops(rental_ws, rental_assumptions_json, market
             item["layout"],
             item["square_feet"],
             item["vacate_month"],
-            f"=EOMONTH(Assumptions!$F$2,F{row_num})",
+            f"=EOMONTH(Assumptions!$F$2,G{row_num})",
             item["current_rent"],
             pf_rent_formula,
             annual_pf_rent_formula
         ])
 
     value_data = {
-        "range": f"'{sheet_name}'!A{rental_start_row}:J{rental_end_row}",
+        "range": f"'{sheet_name}'!B{rental_start_row}:K{rental_end_row}",
         "values": values
     }
 
     total_row_data = {
-        "range": f"'{sheet_name}'!A{total_row_index}:J{total_row_index}",
+        "range": f"'{sheet_name}'!B{total_row_index}:K{total_row_index}",
         "values": [[
-            "", "", "", 
-            f"=COUNTA(A{rental_start_row}:A{rental_end_row})",
-            f"=SUM(E{rental_start_row}:E{rental_end_row})/D{total_row_index}",
+            "", "", "",
+            f"=COUNTA(B{rental_start_row}:B{rental_end_row})",
+            f"=SUM(F{rental_start_row}:F{rental_end_row})/E{total_row_index}",
             "", "",
-            f"=SUM(H{rental_start_row}:H{rental_end_row})",
             f"=SUM(I{rental_start_row}:I{rental_end_row})",
-            f"=SUM(J{rental_start_row}:J{rental_end_row})"
+            f"=SUM(J{rental_start_row}:J{rental_end_row})",
+            f"=SUM(K{rental_start_row}:K{rental_end_row})"
         ]]
     }
 
-    return [insert_request, *format_request], value_data, total_row_data
+    return [insert_request, *format_request], [header_section_payload, column_headers_payload, value_data, total_row_data], None
 
 def get_market_rent_formula_updates(market_json, rental_start_row, rental_end_row, market_start_row, sheet_name="Market Rent Assumptions", rental_sheet_name="Rental Assumptions"):
-    # Define ranges used in formulas
-    rental_d_range = f"'{rental_sheet_name}'!$D${rental_start_row}:$D${rental_end_row}"
-    rental_e_range = f"'{rental_sheet_name}'!$E${rental_start_row}:$E${rental_end_row}"
-    rental_h_range = f"'{rental_sheet_name}'!$H${rental_start_row}:$H${rental_end_row}"
-    rental_i_range = f"'{rental_sheet_name}'!$I${rental_start_row}:$I${rental_end_row}"
-    # Additional filter ranges for eligibility:
-    # C: vacate_flag; F: vacate_month
-    rental_c_range = f"'{rental_sheet_name}'!$C${rental_start_row}:$C${rental_end_row}"
-    rental_f_range = f"'{rental_sheet_name}'!$F${rental_start_row}:$F${rental_end_row}"
+    rental_d_range = f"'{rental_sheet_name}'!$E${rental_start_row}:$E${rental_end_row}"
+    rental_e_range = f"'{rental_sheet_name}'!$F${rental_start_row}:$F${rental_end_row}"
+    rental_h_range = f"'{rental_sheet_name}'!$I${rental_start_row}:$I${rental_end_row}"
+    rental_i_range = f"'{rental_sheet_name}'!$J${rental_start_row}:$J${rental_end_row}"
+    rental_c_range = f"'{rental_sheet_name}'!$D${rental_start_row}:$D${rental_end_row}"
+    rental_f_range = f"'{rental_sheet_name}'!$G${rental_start_row}:$G${rental_end_row}"
 
     # Build formulas row by row for columns E–H
     avg_current_rent = []
@@ -1666,26 +1954,64 @@ def get_total_summary_row_updates(rent_roll_ws, sheet_name, start_row, num_rows,
 
     return update_payload, format_payload
 
-def get_amenity_income_update_payload(sheet_name, amenity_income_json, start_row=2):
+def get_amenity_income_clear_request(spreadsheet, sheet_name="Amenity Income"):
+    sheet_id = get_sheet_id(spreadsheet, sheet_name)
+    return {
+        "updateCells": {
+            "range": {
+                "sheetId": sheet_id
+            },
+            "fields": "userEnteredValue,userEnteredFormat"
+        }
+    }
+
+
+def get_amenity_income_header_payload(sheet_name="Amenity Income"):
+    header_row_2 = ["AMENITY INCOME"] + [""] * 8
+    col_headers = [
+        "",
+        "",
+        "Start Month",
+        "Utilization x",
+        "Units =",
+        "Usage",
+        "Monthly Fee",
+        "Monthly",
+        "Annual"
+    ]
+    
+    return [
+        {
+            "range": f"'{sheet_name}'!B2:J2",
+            "values": [header_row_2]
+        },
+        {
+            "range": f"'{sheet_name}'!B4:J4",
+            "values": [col_headers]
+        }
+    ]
+
+
+def get_amenity_income_update_payload(sheet_name, amenity_income_json, start_row=5):
     num_rows = len(amenity_income_json)
     rows_to_insert = []
 
     for i, item in enumerate(amenity_income_json):
         row_num = start_row + i
         row = [
-            item["name"],                            # A
-            "",                                      # B
-            item["start_month"],                     # C
-            f"{item['utilization']}%",                 # D
-            item["unit_count"],                      # E
-            f"=ROUND(E{row_num}*D{row_num},0)",      # F
-            item["monthly_fee"],                     # G
-            f"=G{row_num}*F{row_num}",               # H
-            f"=H{row_num}*12"                         # I
+            item["name"],
+            "",
+            item["start_month"],
+            f"{item['utilization']}%",
+            item["unit_count"],
+            f"=ROUND(F{row_num}*E{row_num},0)",
+            item["monthly_fee"],
+            f"=H{row_num}*G{row_num}",
+            f"=I{row_num}*12"
         ]
         rows_to_insert.append(row)
 
-    range_str = f"'{sheet_name}'!A{start_row}:I{start_row + num_rows - 1}"
+    range_str = f"'{sheet_name}'!B{start_row}:J{start_row + num_rows - 1}"
 
     return {
         "range": range_str,
@@ -1693,7 +2019,7 @@ def get_amenity_income_update_payload(sheet_name, amenity_income_json, start_row
     }
 
 
-def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=2, num_amenities=4):
+def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=5, num_amenities=4):
     """
     Returns a list of format requests for the Amenity Income sheet:
     - Columns E and F: "<value> units" (unless 0, then '-')
@@ -1702,18 +2028,15 @@ def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=2, num
 
     ws = spreadsheet.worksheet(sheet_name)
     sheet_id = ws._properties["sheetId"]
-    # Google Sheets column indices are 0-based
-    # E = 4, F = 5, G = 6, H = 7, I = 8
     end_row = start_row + num_amenities
 
-    # Format for "units" columns (E, F)
     units_format = {
         "numberFormat": {
             "type": "NUMBER",
             "pattern": '[=0]"-";[=1]#,##0" unit";#,##0" units"'
         }
     }
-    # Format for "$" columns (G, H, I)
+
     dollar_format = {
         "numberFormat": {
             "type": "NUMBER",
@@ -1721,27 +2044,58 @@ def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=2, num
         }
     }
 
-    # Get sheetId from the worksheet name (must be provided by caller)
-    # Here, we assume the caller will replace <SHEET_ID> with the actual id
-    # or you can pass the worksheet object instead of name
     format_requests = [
-        # E (units)
+        # 1. Section Title Styling
         {
             "repeatCell": {
                 "range": {
-                    "sheetId": sheet_id,  # To be filled in by caller if needed
-                    "startRowIndex": start_row - 1,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": 4,
-                    "endColumnIndex": 5
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": 2,
+                    "startColumnIndex": 1,
+                    "endColumnIndex": 10
                 },
                 "cell": {
-                    "userEnteredFormat": units_format
+                    "userEnteredFormat": {
+                        "textFormat": {
+                            "foregroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0},
+                            "bold": True,
+                            "fontSize": 12,
+                            "fontFamily": "Calibri"
+                        },
+                        "backgroundColor": {"red": 0.0, "green": 0.45, "blue": 0.60}
+                    }
                 },
-                "fields": "userEnteredFormat.numberFormat"
+                "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.fontSize,userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.foregroundColor,userEnteredFormat.textFormat.fontFamily"
             }
         },
-        # F (units)
+        # 2. Column Header Styling
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 3,
+                    "endRowIndex": 4,
+                    "startColumnIndex": 1,
+                    "endColumnIndex": 10
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {
+                            "bold": True,
+                            "fontSize": 11
+                        },
+                        "borders": {
+                            "bottom": {
+                                "style": "SOLID"
+                            }
+                        },
+                        "horizontalAlignment": "RIGHT"
+                    }
+                },
+                "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.fontSize,userEnteredFormat.borders,userEnteredFormat.horizontalAlignment"
+            }
+        },
         {
             "repeatCell": {
                 "range": {
@@ -1749,7 +2103,7 @@ def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=2, num
                     "startRowIndex": start_row - 1,
                     "endRowIndex": end_row,
                     "startColumnIndex": 5,
-                    "endColumnIndex": 6
+                    "endColumnIndex": 7
                 },
                 "cell": {
                     "userEnteredFormat": units_format
@@ -1757,23 +2111,6 @@ def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=2, num
                 "fields": "userEnteredFormat.numberFormat"
             }
         },
-        # G (dollar)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": start_row - 1,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": 6,
-                    "endColumnIndex": 7
-                },
-                "cell": {
-                    "userEnteredFormat": dollar_format
-                },
-                "fields": "userEnteredFormat.numberFormat"
-            }
-        },
-        # H (dollar)
         {
             "repeatCell": {
                 "range": {
@@ -1781,23 +2118,7 @@ def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=2, num
                     "startRowIndex": start_row - 1,
                     "endRowIndex": end_row,
                     "startColumnIndex": 7,
-                    "endColumnIndex": 8
-                },
-                "cell": {
-                    "userEnteredFormat": dollar_format
-                },
-                "fields": "userEnteredFormat.numberFormat"
-            }
-        },
-        # I (dollar)
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": start_row - 1,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": 8,
-                    "endColumnIndex": 9
+                    "endColumnIndex": 10
                 },
                 "cell": {
                     "userEnteredFormat": dollar_format
@@ -1811,8 +2132,8 @@ def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=2, num
                     "sheetId": sheet_id,
                     "startRowIndex": start_row - 1,
                     "endRowIndex": start_row - 1 + num_amenities,
-                    "startColumnIndex": 2,
-                    "endColumnIndex": 5  # C, D, E (2, 3, 4)
+                    "startColumnIndex": 3,
+                    "endColumnIndex": 6
                 },
                 "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
                 "fields": "userEnteredFormat.textFormat.foregroundColor"
@@ -1824,8 +2145,8 @@ def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=2, num
                     "sheetId": sheet_id,
                     "startRowIndex": start_row - 1,
                     "endRowIndex": start_row - 1 + num_amenities,
-                    "startColumnIndex": 6,
-                    "endColumnIndex": 7
+                    "startColumnIndex": 7,
+                    "endColumnIndex": 8
                 },
                 "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
                 "fields": "userEnteredFormat.textFormat.foregroundColor"
@@ -1833,15 +2154,28 @@ def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=2, num
         }
     ]
 
-    # Ensure all amenity rows are not bold (regular text)
+    for i in range(10):
+        format_requests.append({
+            "updateDimensionProperties": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "dimension": "COLUMNS",
+                    "startIndex": i,
+                    "endIndex": i + 1
+                },
+                "properties": {"pixelSize": 100},
+                "fields": "pixelSize"
+            }
+        })
+
     format_requests.append({
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
                 "startRowIndex": start_row - 1,
                 "endRowIndex": end_row,
-                "startColumnIndex": 0,   # from column A
-                "endColumnIndex": 200    # up to a wide column bound
+                "startColumnIndex": 1,
+                "endColumnIndex": 10
             },
             "cell": {
                 "userEnteredFormat": {
@@ -1854,44 +2188,75 @@ def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=2, num
         }
     })
 
-    # Keep the totals row bold (it's the row immediately after the amenity rows)
-    # With one amenity and start_row=2, total row is 3 → 0-based index = end_row - 1
     format_requests.append({
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
                 "startRowIndex": max((end_row - 1), 0),
                 "endRowIndex": end_row,
-                "startColumnIndex": 0,
-                "endColumnIndex": 200
+                "startColumnIndex": 1,
+                "endColumnIndex": 10
             },
             "cell": {
                 "userEnteredFormat": {
                     "textFormat": {
                         "bold": True
+                    },
+                    "borders": {
+                        "top": {"style": "SOLID"}
                     }
                 }
             },
-            "fields": "userEnteredFormat.textFormat.bold"
+            "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.borders"
         }
     })
 
-    return format_requests 
+    format_requests.append({
+        "updateDimensionProperties": {
+            "range": {
+                "sheetId": sheet_id,
+                "dimension": "ROWS",
+                "startIndex": start_row - 2,
+                "endIndex": start_row + num_amenities
+            },
+            "properties": {
+                "pixelSize": 30
+            },
+            "fields": "pixelSize"
+        }
+    })
+
+    format_requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": start_row - 2,
+                "endRowIndex": start_row + num_amenities,
+                "startColumnIndex": 1,
+                "endColumnIndex": 10,
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "verticalAlignment": "MIDDLE",
+                    "textFormat": {"fontFamily": "Calibri"}
+                }
+            },
+            "fields": "userEnteredFormat(verticalAlignment,textFormat.fontFamily)"
+        }
+    })
+
+    return format_requests
 
 
+def get_amenity_income_totals_update_payload(sheet_name, start_row=5, num_amenities=4):
+    total_row = start_row + num_amenities
 
-
-def get_amenity_income_totals_update_payload(sheet_name, start_row=2, num_amenities=4):
-    total_row = start_row + num_amenities  # One row below last amenity row
-
-    h_sum_formula = f"=SUM(H{start_row}:H{total_row - 1})"
     i_sum_formula = f"=SUM(I{start_row}:I{total_row - 1})"
+    j_sum_formula = f"=SUM(J{start_row}:J{total_row - 1})"
 
-    # Build row with blank columns up to G (index 6), then formulas for H and I
-    total_row_values = ["Total Amenity Income"] + [""] * 6 + [h_sum_formula, i_sum_formula]
+    total_row_values = ["Total Amenity Income"] + [""] * 6 + [i_sum_formula, j_sum_formula]
 
-    # A1 range for entire row A–I
-    range_str = f"'{sheet_name}'!A{total_row}:I{total_row}"
+    range_str = f"'{sheet_name}'!B{total_row}:J{total_row}"
 
     return {
         "range": range_str,
@@ -1900,7 +2265,7 @@ def get_amenity_income_totals_update_payload(sheet_name, start_row=2, num_amenit
 
 
 def get_amenity_income_insert_request(
-    spreadsheet, amenity_income_json, start_row=2, sheet_name="Amenity Income"
+    spreadsheet, amenity_income_json, start_row=5, sheet_name="Amenity Income"
 ):
     ws = spreadsheet.worksheet(sheet_name)
     sheet_id = ws._properties["sheetId"]
@@ -1953,20 +2318,20 @@ def get_amenity_income_formula_update(
     all_rows = []
 
     for i in range(num_amenities):
-        amenity_row = 2 + i
+        amenity_row = 5 + i
         noi_row = start_row + i
 
         row = [""]  # A
-        row.append(f"='{amenity_sheet}'!A{amenity_row}")  # B
+        row.append(f"='{amenity_sheet}'!B{amenity_row}")
         row += ["", ""]  # C, D, E padding up to start_col=4
 
         for j in range(num_months):
             col_index = start_col + j
             col_letter = rowcol_to_a1(1, col_index).replace("1", "")
             formula = (
-                f"=IF({col_letter}$15<'{amenity_sheet}'!$C{amenity_row},"
+                f"=IF({col_letter}15<'{amenity_sheet}'!$D{amenity_row},"
                 f"0,"
-                f"'{amenity_sheet}'!G{amenity_row}*{col_letter}$16*{col_letter}$10*'{amenity_sheet}'!D{amenity_row})"
+                f"'{amenity_sheet}'!H{amenity_row}*{col_letter}16*{col_letter}10*'{amenity_sheet}'!E{amenity_row})"
             )
             row.append(formula)
 
@@ -1998,20 +2363,20 @@ def get_amenity_income_formula_update_industrial(
     all_rows = []
 
     for i in range(num_amenities):
-        amenity_row = 2 + i
+        amenity_row = 5 + i
         noi_row = start_row + i
 
         row = [""]  # A
-        row.append(f"='{amenity_sheet}'!A{amenity_row}")  # B
+        row.append(f"='{amenity_sheet}'!B{amenity_row}")
         row += ["", ""]  # C, D, E padding up to start_col=4
 
         for j in range(num_months):
             col_index = start_col + j
             col_letter = rowcol_to_a1(1, col_index).replace("1", "")
             formula = (
-                f"=IF({col_letter}$15<'{amenity_sheet}'!$C{amenity_row},"
+                f"=IF({col_letter}15<'{amenity_sheet}'!$D{amenity_row},"
                 f"0,"
-                f"'{amenity_sheet}'!G{amenity_row}*{col_letter}$10*'{amenity_sheet}'!D{amenity_row})"
+                f"'{amenity_sheet}'!H{amenity_row}*{col_letter}10*'{amenity_sheet}'!E{amenity_row})"
             )
             row.append(formula)
 
@@ -2416,8 +2781,8 @@ def get_operating_expenses_format_payload(
             "range": {
                 "sheetId": sheet_id,
                 "dimension": "ROWS",
-                "startIndex": 3,
-                "endIndex": 11
+                "startIndex": start_row - 2,
+                "endIndex": start_row + num_expenses + 1
             },
             "properties": {
                 "pixelSize": 30
@@ -2430,8 +2795,8 @@ def get_operating_expenses_format_payload(
         "repeatCell": {
             "range": {
                 "sheetId": sheet_id,
-                "startRowIndex": 3,
-                "endRowIndex": 11,
+                "startRowIndex": start_row - 2,
+                "endRowIndex": start_row + num_expenses + 1,
                 "startColumnIndex": 1,
                 "endColumnIndex": 10,
             },
@@ -5049,22 +5414,6 @@ def run_full_sheet_update(
     if len(operating_expenses_json) == 0:
         industrial_model = True
 
-    if operating_expenses_json:
-        allowed_expenses = [
-            'property taxes', 
-            'insurance', 
-            'water / sewer', 
-            'repairs & maintenance', 
-            'landscaping / snow removel', 
-            'property managment',
-            'landscaping / snow removal',
-            'property management'
-        ]
-        operating_expenses_json = [
-            exp for exp in operating_expenses_json 
-            if exp.get('name', '').lower().strip() in allowed_expenses
-        ]
-
     retail_expenses = [expense for expense in expenses_json if expense.get('type') == 'Retail']
     
     print("[run_full_sheet_update] START")
@@ -5099,10 +5448,13 @@ def run_full_sheet_update(
         market_insert_request, market_value_data, market_format_request = get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json)
         print(f"[run_full_sheet_update] market_insert_request:{len(market_insert_request)} value_data:{len(market_value_data)} format_reqs:{len(market_format_request)}")
 
-        rental_requests, rental_value_data, rental_total_row = get_rental_assumptions_insert_ops(
-        rental_ws, rental_assumptions_json, market_start_row=5, market_end_row=5 + len(market_json) - 1
+        rental_clear_req = get_rental_assumptions_clear_request(spreadsheet, "Rental Assumptions")
+        rental_requests, rental_value_payloads, _ = get_rental_assumptions_insert_ops(
+            rental_ws, rental_assumptions_json, market_start_row=5, market_end_row=5 + len(market_json) - 1
         )
-        print(f"[run_full_sheet_update] rental_requests:{len(rental_requests)} rental_value_data:{len(rental_value_data)} rental_total_row:{len(rental_total_row)}")
+        rental_requests.insert(0, rental_clear_req)
+        result = f"[run_full_sheet_update] rental_requests:{len(rental_requests)} rental_value_payloads:{len(rental_value_payloads)}"
+        print(result)
 
         assumptions_values, assumptions_format, assumption_row_mapping = get_rental_growth_assumptions_inserts(
             assumptions_ws, rental_growth_json, model_variable_mapping
@@ -5120,8 +5472,7 @@ def run_full_sheet_update(
         market_value_data = []
         market_format_request = []
         rental_requests = []
-        rental_value_data = []
-        rental_total_row = []
+        rental_value_payloads = []
         assumptions_values = []
         assumptions_format = []
         assumption_row_mapping = []
@@ -5131,7 +5482,7 @@ def run_full_sheet_update(
 
     print(f"[run_full_sheet_update] Preparing amenity income inserts: items:{len(amenity_income_json)}")
     amenity_income_insert_request = get_amenity_income_insert_request(
-        spreadsheet, amenity_income_json, start_row=2, sheet_name="Amenity Income"
+        spreadsheet, amenity_income_json, start_row=5, sheet_name="Amenity Income"
     )
     print(f"[run_full_sheet_update] amenity_income_insert_request ops:{len(amenity_income_insert_request)}")
 
@@ -5220,8 +5571,8 @@ def run_full_sheet_update(
         # === Update Payloads ===
         market_formula_update = get_market_rent_formula_updates(
             market_json, 
-            rental_start_row=2, 
-            rental_end_row=2 + len(rental_assumptions_json) - 1, 
+            rental_start_row=5,
+            rental_end_row=5 + len(rental_assumptions_json) - 1, 
             market_start_row=5
         )
         print(f"[run_full_sheet_update] market_formula_update ops:{len(market_formula_update)}")
@@ -5257,16 +5608,18 @@ def run_full_sheet_update(
 
 
 
+    amenity_income_clear = get_amenity_income_clear_request(spreadsheet, sheet_name="Amenity Income")
 
     if len(amenity_income_json) > 0:
+        amenity_income_header = get_amenity_income_header_payload(sheet_name="Amenity Income")
         amenity_income_update = get_amenity_income_update_payload(
-            sheet_name="Amenity Income", amenity_income_json=amenity_income_json, start_row=2
+            sheet_name="Amenity Income", amenity_income_json=amenity_income_json, start_row=5
         )
         amenity_income_totals_update = get_amenity_income_totals_update_payload(
-            sheet_name="Amenity Income", start_row=2, num_amenities=len(amenity_income_json)
+            sheet_name="Amenity Income", start_row=5, num_amenities=len(amenity_income_json)
         )
         amenity_income_format = get_amenity_income_format_requests(
-            spreadsheet, sheet_name="Amenity Income", start_row=2, num_amenities=len(amenity_income_json)
+            spreadsheet, sheet_name="Amenity Income", start_row=5, num_amenities=len(amenity_income_json)
         )
         if industrial_model:
             amenity_income_formula_update = get_amenity_income_formula_update_industrial(
@@ -5284,6 +5637,7 @@ def run_full_sheet_update(
               f"noi_summary_update ops:{len(noi_summary_update)}")
 
     else:
+        amenity_income_header = []
         amenity_income_update = []
         amenity_income_totals_update = []
         amenity_income_format = []
@@ -5438,6 +5792,7 @@ def run_full_sheet_update(
         market_format_request,
         *rental_requests,
         assumptions_format,
+        amenity_income_clear,
         amenity_income_insert_request,
         *amenity_income_format,
         rent_roll_inserts,
@@ -5469,8 +5824,7 @@ def run_full_sheet_update(
     # === Combine Update Payloads ===
     update_payloads = [
         market_value_data,
-        rental_value_data,
-        rental_total_row,
+        rental_value_payloads,
         assumptions_values,
         rent_roll_values,
         rent_roll_output_values,
@@ -5484,6 +5838,7 @@ def run_full_sheet_update(
         total_summary_update,
         amenity_income_update,
         amenity_income_totals_update,
+        *amenity_income_header,
         amenity_income_formula_update,
         noi_summary_update,
         noi_egi_update,
@@ -5856,12 +6211,10 @@ def update_google_sheet_and_get_values_final(
     sheets_service = build("sheets", "v4", credentials=creds)
 
     spreadsheet = gs_client.open_by_key(copied_sheet_id)
-    add_blank_row_and_column_to_sheets(spreadsheet, ["Amenity Income", 
-                                                     "Closing Costs", 
+    add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs", 
                                                      "Legal and Pre-Development Costs", 
                                                      "Reserves",
-                                                     "Hard Costs",
-                                                     "Rental Assumptions",])
+                                                     "Hard Costs"])
 
     print("📊 Fetching mapping sheets...")
     result = sheets_service.spreadsheets().values().batchGet(
