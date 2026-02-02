@@ -627,7 +627,7 @@ def export_google_sheet(sheet_id: str, filename: str = "exported_model.xlsx"):
         if sheet_name in workbook.sheetnames:
             del workbook[sheet_name]
             removed.append(sheet_name)
-    
+
     # Hide specified sheets
     for sheet_name in sheets_to_hide:
         if sheet_name in workbook.sheetnames:
@@ -1525,7 +1525,7 @@ def get_rental_assumptions_insert_ops(rental_ws, rental_assumptions_json, market
             "fields": "pixelSize"
         }
     })
-    
+
     # Header Section
     header_section_values = [["RENT ROLL ASSUMPTIONS"]]
     header_section_payload = {
@@ -1552,7 +1552,7 @@ def get_rental_assumptions_insert_ops(rental_ws, rental_assumptions_json, market
             f"I{row_num})"
         )
         annual_pf_rent_formula = f"=J{row_num}*12"
-        
+
         values.append([
             i + 1,
             item["rent_type"],
@@ -2027,7 +2027,7 @@ def get_amenity_income_header_payload(sheet_name="Amenity Income"):
         "Monthly",
         "Annual"
     ]
-    
+
     return [
         {
             "range": f"'{sheet_name}'!B2:J2",
@@ -2564,7 +2564,7 @@ def get_operating_expenses_header_payload(sheet_name="Operating Expenses"):
         "Monthly",
         "Annual"
     ]
-    
+
     return [
         {
             "range": f"'{sheet_name}'!A2:J2",
@@ -3432,9 +3432,9 @@ def get_address_update_payload(address, model_variable_mapping, sheet_name="Assu
     cell = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Address')
     if not cell:
         raise ValueError("Address location not found in model variable mapping")
-    
+
     range_str = f"'{sheet_name}'!{cell}" if "!" not in str(cell) else cell
-    
+
     return {
         "range": range_str,
         "values": [[address]]
@@ -5658,9 +5658,9 @@ def run_full_sheet_update(
 
         # === Update Payloads ===
         market_formula_update = get_market_rent_formula_updates(
-            market_json, 
+            market_json,
             rental_start_row=5,
-            rental_end_row=5 + len(rental_assumptions_json) - 1, 
+            rental_end_row=5 + len(rental_assumptions_json) - 1,
             market_start_row=5
         )
         print(f"[run_full_sheet_update] market_formula_update ops:{len(market_formula_update)}")
@@ -6299,7 +6299,7 @@ def update_google_sheet_and_get_values_final(
     sheets_service = build("sheets", "v4", credentials=creds)
 
     spreadsheet = gs_client.open_by_key(copied_sheet_id)
-    add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs", 
+    add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs",
                                                      "Legal and Pre-Development Costs", 
                                                      "Reserves",
                                                      "Hard Costs"])
@@ -6326,7 +6326,7 @@ def update_google_sheet_and_get_values_final(
     t5 = time.time()
     timings['extract_tables'] = t5 - t4
     print(f"✅ Extracted {len(tables)} tables in {timings['extract_tables']:.3f}s")
-    
+
     # Step 4: Extract variables
     t6 = time.time()
     variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service)
