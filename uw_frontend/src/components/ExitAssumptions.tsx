@@ -25,15 +25,15 @@ export default function ExitAssumptions({
 }) {
 
 
-  // Exact field_key strings (must match backend)
-  const K = {
-    mfExitMonth: "Multifamily Exit Month",
-    mfCapRate: "Multifamily Applied Exit Cap Rate",
-    mfSellingCosts: "Multifamily Less: Selling Costs",
-    rtExitMonth: "Retail Exit Month",
-    rtCapRate: "Retail Applied Exit Cap Rate",
-    rtSellingCosts: "Retail Less: Selling Costs",
-  };
+// Exact field_key strings (must match backend)
+const K = {
+  mfExitMonth: "Multifamily Exit Month",
+  mfCapRate: "Multifamily Applied Exit Cap Rate",
+  mfSellingCosts: "Multifamily Less: Selling Costs",
+  rtExitMonth: "Retail Exit Month",
+  rtCapRate: "Retail Applied Exit Cap Rate",
+  rtSellingCosts: "Retail Less: Selling Costs",
+};
 
   const getFieldValue = (field_key: string, def: any) => {
     const f = modelDetails?.user_model_field_values?.find(
@@ -230,10 +230,10 @@ export default function ExitAssumptions({
   );
 
   const space_type =
-  (modelDetails?.user_model_field_values || []).find((f: any) => {
-    const k = String(f.field_key || '');
-    return k === 'space_type' || k.trim() === 'space_type';
-  })?.value ?? 'Retail';
+    (modelDetails?.user_model_field_values || []).find((f: any) => {
+      const k = String(f.field_key || '');
+      return k === 'space_type' || k.trim() === 'space_type';
+    })?.value ?? 'Retail';
 
   return (
     <Box
@@ -250,85 +250,85 @@ export default function ExitAssumptions({
 
     >
       {showRentalUnits && (
-      <CardShell title="Multifamily Exit Assumptions">
-        {/* Read-only rows fed from variables */}
-        <ReadonlyRow
-          label={`Forward NOI in ${variables?.["Deal Time Horizon"] ?? ""}`}
-          value={formatCurrency(
-            parseNumber(variables?.["Forward NOI in Month"], 0)
-          )}
-          bgColor="#fafbff"
-          valueColor="#000000"
-        />
-        <Row
-          label="Multifamily Exit Month"
-          control={
-            <ExitInlineMonthsInput
-              value={mfExitMonth}
-              onChange={onNum(K.mfExitMonth)}
-              onCommit={commit(K.mfExitMonth)}
-              min={1}
-              max={130}
-              step={1}
-              sx={{ width: '100%' }}
-            />
-          }
-        />
-        <Row
-          label="Multifamily Applied Exit Cap Rate"
-          control={
-            <ExitInlinePercentageInput
-              value={mfCapRate}
-              onChange={onNum(K.mfCapRate)}
-              onCommit={commit(K.mfCapRate)}
-              min={0}
-              max={100}
-              step={0.01}
-              sx={{ width: '100%' }}
-            />
-          }
-        />
-        <ReadonlyRow
-          label="Implied Valuation at Exit"
-          value={formatCurrency(
-            parseNumber(variables?.["Implied Valuation at Exit"], 0)
-          )}
-        />
-        <ReadonlyRow
-          label="Implied Valuation per Unit"
-          value={(() => {
-            const totalVal = parseNumber(variables?.["Implied Valuation at Exit"], 0);
-            const perUnit = numUnits > 0 ? Math.round(totalVal / numUnits) : 0;
-            return formatCurrency(perUnit);
-          })()}
-        />
-        <Row
-          label="Multifamily Less: Selling Costs"
-          control={
-            <ExitInlinePercentageInput
-              value={mfSelling}
-              onChange={onNum(K.mfSellingCosts)}
-              onCommit={commit(K.mfSellingCosts)}
-              min={0}
-              max={100}
-              step={0.01}
-              sx={{ width: '100%' }}
-            />
-          }
-        />
-        <ReadonlyRow
-          label="Selling Costs"
-          value={formatCurrencyParens(
-            parseNumber(variables?.["Selling Costs"], 0)
-          )}
-        />
-        <ReadonlyRow
-          label="Net Reversion Proceeds"
-          value={formatCurrency(
-            parseNumber(variables?.["Net Reversion Proceeds"], 0)
-          )}
-        />
-      </CardShell>
+        <CardShell title="Multifamily Exit Assumptions">
+          {/* Read-only rows fed from variables */}
+          <ReadonlyRow
+            label={`Forward NOI in ${variables?.["Deal Time Horizon"] ?? ""}`}
+            value={formatCurrency(
+              parseNumber(variables?.["Forward NOI in Month"], 0)
+            )}
+            bgColor="#fafbff"
+            valueColor="#000000"
+          />
+          <Row
+            label="Multifamily Exit Month"
+            control={
+              <ExitInlineMonthsInput
+                value={mfExitMonth}
+                onChange={onNum(K.mfExitMonth)}
+                onCommit={commit(K.mfExitMonth)}
+                min={1}
+                max={130}
+                step={1}
+                sx={{ width: '100%' }}
+              />
+            }
+          />
+          <Row
+            label="Multifamily Applied Exit Cap Rate"
+            control={
+              <ExitInlinePercentageInput
+                value={mfCapRate}
+                onChange={onNum(K.mfCapRate)}
+                onCommit={commit(K.mfCapRate)}
+                min={0}
+                max={100}
+                step={0.01}
+                sx={{ width: '100%' }}
+              />
+            }
+          />
+          <ReadonlyRow
+            label="Implied Valuation at Exit"
+            value={formatCurrency(
+              parseNumber(variables?.["Implied Valuation at Exit"], 0)
+            )}
+          />
+          <ReadonlyRow
+            label="Implied Valuation per Unit"
+            value={(() => {
+              const totalVal = parseNumber(variables?.["Implied Valuation at Exit"], 0);
+              const perUnit = numUnits > 0 ? Math.round(totalVal / numUnits) : 0;
+              return formatCurrency(perUnit);
+            })()}
+          />
+          <Row
+            label="Multifamily Less: Selling Costs"
+            control={
+              <ExitInlinePercentageInput
+                value={mfSelling}
+                onChange={onNum(K.mfSellingCosts)}
+                onCommit={commit(K.mfSellingCosts)}
+                min={0}
+                max={100}
+                step={0.01}
+                sx={{ width: '100%' }}
+              />
+            }
+          />
+          <ReadonlyRow
+            label="Selling Costs"
+            value={formatCurrencyParens(
+              parseNumber(variables?.["Selling Costs"], 0)
+            )}
+          />
+          <ReadonlyRow
+            label="Net Reversion Proceeds"
+            value={formatCurrency(
+              parseNumber(variables?.["Net Reversion Proceeds"], 0)
+            )}
+          />
+        </CardShell>
       )}
 
       {showRetail && (
@@ -417,22 +417,22 @@ export default function ExitAssumptions({
             label="Total NOI at Exit"
             value={formatCurrency(parseNumber(variables?.["Forward NOI in Month"], 0) + parseNumber(variables?.["Retail: Forward NOI in Month"], 0))}
             bgColor="#fafbff"
-          valueColor="#000000"
+            valueColor="#000000"
           />
-                    <ReadonlyRow
+          <ReadonlyRow
             label="Blended Cap Rate"
-           value={(() => {
-             const mfNOI = parseNumber(variables?.["Forward NOI in Month"], 0);
-             const rtNOI = parseNumber(variables?.["Retail: Forward NOI in Month"], 0);
-             const totalNOI = mfNOI + rtNOI;
-             if (totalNOI <= 0) return "-";
-             const mfCap = parseNumber(mfCapRate, 0); // percent value (e.g., 6.25)
-             const rtCap = parseNumber(rtCapRate, 0);
-             const blended = (mfCap * mfNOI + rtCap * rtNOI) / totalNOI;
-             return `${blended.toFixed(2)}%`;
-           })()}
+            value={(() => {
+              const mfNOI = parseNumber(variables?.["Forward NOI in Month"], 0);
+              const rtNOI = parseNumber(variables?.["Retail: Forward NOI in Month"], 0);
+              const totalNOI = mfNOI + rtNOI;
+              if (totalNOI <= 0) return "-";
+              const mfCap = parseNumber(mfCapRate, 0); // percent value (e.g., 6.25)
+              const rtCap = parseNumber(rtCapRate, 0);
+              const blended = (mfCap * mfNOI + rtCap * rtNOI) / totalNOI;
+              return `${blended.toFixed(2)}%`;
+            })()}
             bgColor="#fafbff"
-          valueColor="#000000"
+            valueColor="#000000"
           />
         </CardShell>
       )}
