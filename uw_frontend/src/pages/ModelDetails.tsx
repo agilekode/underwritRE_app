@@ -1190,7 +1190,20 @@ const ModelDetails = () => {
       }
     };
 
-    return keptRowIndices.map((ri) => (
+    const filteredRowIndices = keptRowIndices.filter((ri, idx) => {
+      const row = data[ri] || [];
+      const prevRowIndex = idx > 0 ? keptRowIndices[idx - 1] : -1;
+      const prevRow = prevRowIndex >= 0 ? data[prevRowIndex] : null;
+      const isPrevTotalSources = prevRow && prevRow.some(c => typeof c === 'string' && c.trim() === 'Total Sources');
+      if (isPrevTotalSources && row.every(cell => isBlank(cell))) return false;
+      return true;
+    });
+
+    return filteredRowIndices.map((ri) => {
+      const row = data[ri] || [];
+      const isTotalRow = row.some(c => typeof c === 'string' && (c.trim() === 'Total Sources' || c.trim() === 'Total Uses'));
+
+      return (
       <tr key={ri}>
         {keptColIndices.map((ci) => {
           const cell = (data[ri] || [])[ci];
@@ -1206,21 +1219,24 @@ const ModelDetails = () => {
                 verticalAlign: "middle",
             // fontSize: '1.2rem',
             textAlign: ci === keptColIndices[0] ? 'left' : 'right',
+                  ...(isTotalRow ? { borderTop: "2px solid #333", fontWeight: 'bold' } : {}),
             ...(inlineStyle as any),
                 maxWidth: maxWidth,
-              }}
-            >
-              {(() => {
-                const val = cell;
-                if (val === null || val === undefined) return "\u00A0";
-                const str = typeof val === "string" ? val : String(val);
-                return str.trim() === "" ? "\u00A0" : val;
-              })()}
-            </td>
-          );
-        })}
-      </tr>
-    ));
+                }}
+              >
+                {(() => {
+                  const val = cell;
+                  if (val === null || val === undefined) return "\u00A0";
+                  if (val === 0 || val === "0") return "-";
+                  const str = typeof val === "string" ? val : String(val);
+                  return str.trim() === "" ? "\u00A0" : val;
+                })()}
+              </td>
+            );
+          })}
+        </tr>
+      );
+    });
   };
 
   return (
