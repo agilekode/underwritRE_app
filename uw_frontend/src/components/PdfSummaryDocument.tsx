@@ -301,8 +301,21 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
   };
 
   const renderPdfTable = (mapping: any, key: string) => {
-    const { rows, styles } = buildTrimmedTable(mapping);
-    if (!rows || rows.length === 0) return null;
+    const { rows: rawRows, styles: rawStyles } = buildTrimmedTable(mapping);
+    if (!rawRows || rawRows.length === 0) return null;
+
+    // Filter out extra blank row after "Total Sources"
+    const rows: any[][] = [];
+    const styles: any[][] = [];
+    rawRows.forEach((row, ri) => {
+      const prevRow = ri > 0 ? rawRows[ri - 1] : null;
+      const isPrevTotalSources = prevRow && prevRow.some(c => typeof c === 'string' && c.trim() === 'Total Sources');
+      const isBlankRow = row.every(isBlank);
+      if (isPrevTotalSources && isBlankRow) return;
+      rows.push(row);
+      styles.push(rawStyles[ri]);
+    });
+
     const colCount = rows.reduce((m, r) => Math.max(m, r.length), 0);
     const base = colCount > 0 ? 100 / (colCount + 1) : 100; // first column counts as 2x
     const firstPct = (2 * base).toFixed(6);
@@ -313,33 +326,42 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
     return (
       <View key={key} style={tableStyles.container} {...containerProps}>
         <View style={tableStyles.table}>
-          {rows.map((row, ri) => (
-            <View key={`r-${ri}`} style={tableStyles.tableRow} wrap={false}>
-            {Array.from({ length: colCount }).map((_, ci) => {
-              const raw = row[ci];
-              const cellStyleStr = (styles[ri] && styles[ri][ci]) || "";
-              const mapped = mapCssToPdfStyle(cellStyleStr);
-              const isFirst = ci === 0;
-              const finalCellStyle = [
-                tableStyles.tableCell,
-                ri === 0 ? tableStyles.tableHeaderCell : undefined,
-                mapped.cell,
-                { width: `${isFirst ? firstPct : otherPct}%` },
-              ] as any;
-              const finalTextStyle = [
-                mapped.text,
-                !isFirst ? tableStyles.right : undefined,
-              ] as any;
-              return (
-                <View key={`c-${ci}`} style={finalCellStyle}>
-                  <Text style={finalTextStyle}>
-                    {raw === undefined || raw === null || String(raw).trim() === "" ? " " : String(raw)}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        ))}
+          {rows.map((row, ri) => {
+            const isTotalRow = row.some(c => typeof c === 'string' && (c.trim() === 'Total Sources' || c.trim() === 'Total Uses'));
+            return (
+              <View key={`r-${ri}`} style={tableStyles.tableRow} wrap={false}>
+                {Array.from({ length: colCount }).map((_, ci) => {
+                  const raw = row[ci];
+                  const cellStyleStr = (styles[ri] && styles[ri][ci]) || "";
+                  const mapped = mapCssToPdfStyle(cellStyleStr);
+                  const isFirst = ci === 0;
+                  const finalCellStyle = [
+                    tableStyles.tableCell,
+                    ri === 0 ? tableStyles.tableHeaderCell : undefined,
+                    mapped.cell,
+                    isTotalRow ? { borderTopWidth: 1.5, borderTopColor: "#333", borderTopStyle: "solid" } : undefined,
+                    { width: `${isFirst ? firstPct : otherPct}%` },
+                  ] as any;
+                  const finalTextStyle = [
+                    mapped.text,
+                    !isFirst ? tableStyles.right : undefined,
+                    isTotalRow ? { fontWeight: 700 } : undefined,
+                  ] as any;
+                  return (
+                    <View key={`c-${ci}`} style={finalCellStyle}>
+                      <Text style={finalTextStyle}>
+                        {(() => {
+                          if (raw === undefined || raw === null || String(raw).trim() === "") return " ";
+                          if (raw === 0 || raw === "0") return "-";
+                          return String(raw);
+                        })()}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
         </View>
       </View>
     );
