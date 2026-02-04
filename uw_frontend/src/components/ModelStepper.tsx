@@ -46,6 +46,7 @@ interface ModelStepperProps {
   leveredMoic?: string;
   finalMetricsCalculating?: boolean;
   finalMetricsCalculating2?: boolean;
+  isDebouncing?: boolean;
   children?: React.ReactNode;
   showRetail?: boolean;
   existingModel?: boolean;
@@ -68,6 +69,7 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
   leveredMoic = "",
   finalMetricsCalculating = false,
   finalMetricsCalculating2 = false,
+  isDebouncing = false,
   showRetail = false,
   children,
   existingModel = false,
@@ -125,6 +127,9 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
 
   const isNextDisabled =
     isCreating ||
+    finalMetricsCalculating ||
+    finalMetricsCalculating2 ||
+    isDebouncing ||
     (!existingModel && !isStepComplete(activeStep)) ||
     !isStepComplete(activeStep) ||
     isSqFtBlocker ||

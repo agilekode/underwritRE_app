@@ -134,6 +134,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
   const [retailIncome, setRetailIncome] = useState<RetailIncome[]>([]);
   const [operatingExpenses, setOperatingExpenses] = useState<OperatingExpense[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [isDebouncing, setIsDebouncing] = useState(false);
   const [newRentalGrowthName, setNewRentalGrowthName] = useState('');
   const [modelMapping, setModelMapping] = useState({});
   const [variableMapping, setVariableMapping] = useState({});
@@ -183,7 +184,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
       return;
     }
 
-      
+
 
     if (selectedModelTypeInfo?.show_retail) {
       if(selectedModelTypeInfo?.show_rental_units) {
@@ -233,7 +234,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
         )
 
       }
-      
+
     } else {
 
       if(selectedModelTypeInfo?.show_rental_units) {
@@ -404,7 +405,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     // Secondary to secondary -> nothing UNLESS expense, then do expense update
 
     if (PRIMARY_STEPS.includes(current) && SECONDARY_STEPS.includes(next)) {
-    
+
       handleCreateIntermediate();
     }
     else if (SECONDARY_STEPS.includes(current) && PRIMARY_STEPS.includes(next)) {
@@ -498,6 +499,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
 
     // Set a new timeout to delay the API call
     debounceTimeoutRef.current = setTimeout(async () => {
+      setIsDebouncing(false);
 
       ;
 
@@ -523,37 +525,42 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
           return;
         }
 
-    
+
 
         setFinalMetricsCalculating(true);
-        const token = await getAccessTokenSilently();
-        const response = await fetch(BACKEND_URL + '/api/user_models_single_field_updates', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ updates: toSend, variable_mapping: variableMappingRef.current, model_mapping: modelMappingRef.current, google_sheet_url: googleUrlRef.current })
+        try {
+          const token = await getAccessTokenSilently();
+          const response = await fetch(BACKEND_URL + '/api/user_models_single_field_updates', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ updates: toSend, variable_mapping: variableMappingRef.current, model_mapping: modelMappingRef.current, google_sheet_url: googleUrlRef.current })
+          });
+          const result = await response.json();
+
+          if (result.result) {
+            setLeveredIrr(result.result.levered_irr);
+            setLeveredMoic(result.result.levered_moic);
+            setVariables(result.result.variables);
+            setNoiTableValues(result.result.NOI || []);
+          }
+        } catch (error) {
+          console.error("Error updating field:", error);
+        } finally {
+          setFinalMetricsCalculating(false);
+        }
+        // Clear the queue we just sent (avoid clearing if new items arrived during send)
+        setUpdatesPending((prev) => {
+          // Drop the items that were in toSend; keep any that arrived after we started sending
+          const sentKeys = new Set(toSend.map((u: any) => u.field_id || u.field_key));
+          return prev.filter((u: any) => !sentKeys.has(u.field_id || u.field_key));
         });
-        const result = await response.json();
- 
-         if (result.result) {
-           setLeveredIrr(result.result.levered_irr);
-           setLeveredMoic(result.result.levered_moic);
-           setVariables(result.result.variables);
-           setNoiTableValues(result.result.NOI || []);
-           setFinalMetricsCalculating(false);
-         }
-         // Clear the queue we just sent (avoid clearing if new items arrived during send)
-         setUpdatesPending((prev) => {
-           // Drop the items that were in toSend; keep any that arrived after we started sending
-           const sentKeys = new Set(toSend.map((u: any) => u.field_id || u.field_key));
-           return prev.filter((u: any) => !sentKeys.has(u.field_id || u.field_key));
-         });
-       }
-       else {
-         // Not ready; the update is already queued by enqueueUpdate
-       }
+      }
+      else {
+        // Not ready; the update is already queued by enqueueUpdate
+      }
     }, 500); // 500ms delay
   }
 
@@ -566,10 +573,10 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     fieldType?: string // <-- optionally pass fieldType if available
   ) => {
 
-  // Preserve leading zero for decimals like 0.25; only strip for integers like 01
-  if (typeof value === 'string' && value.length > 1 && value.startsWith('0') && value[1] !== '.') {
-    value = value.slice(1);
-  }
+    // Preserve leading zero for decimals like 0.25; only strip for integers like 01
+    if (typeof value === 'string' && value.length > 1 && value.startsWith('0') && value[1] !== '.') {
+      value = value.slice(1);
+    }
 
     // Helper to convert YYYY-MM-DD to MM/DD/YYYY
     const formatDate = (dateStr: string) => {
@@ -638,7 +645,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
           const valueChanged = !existingField || existingField.value !== processedValue;
 
           if (section.name !== "General Property Assumptions" && section.name !== "Retail Leasing Assumptions" && valueChanged) {
-          
+
             handleSingleFieldUpdate(updateObject);
           }
 
@@ -770,9 +777,9 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     return isValueComplete && isTimePhasedComplete && isDateValid;
   };
 
-const isStepComplete = (step: number) => {
+  const isStepComplete = (step: number) => {
     // Global validation: any Retail expense with end_month < start_month blocks progression
-    
+
     if (steps[activeStep] === "Property Address") {
       return modelDetails.street_address && modelDetails.city && modelDetails.state && modelDetails.zip_code;
     } else if (steps[activeStep] === "General Property Assumptions" && selectedModelTypeInfo) {
@@ -979,7 +986,7 @@ const isStepComplete = (step: number) => {
     const waitForGoogleSheetUrlAndNotCreating = () => {
       return new Promise<void>((resolve, reject) => {
         const check = () => {
-          if (modelDetails.google_sheet_url && !isCreating) {
+          if (modelDetails.google_sheet_url && !isCreating && !finalMetricsCalculating && !finalMetricsCalculating2 && !isDebouncing) {
             resolve();
           } else if (waited >= maxWait) {
             reject(new Error("Timeout: google_sheet_url not set or isCreating still true after 20 seconds"));
@@ -1036,7 +1043,7 @@ const isStepComplete = (step: number) => {
     const waitForGoogleSheetUrlAndNotCreating = () => {
       return new Promise<void>((resolve, reject) => {
         const check = () => {
-          if (modelDetails.google_sheet_url && !isCreating) {
+          if (modelDetails.google_sheet_url && !isCreating && !finalMetricsCalculating && !finalMetricsCalculating2 && !isDebouncing) {
             resolve();
           } else if (waited >= maxWait) {
             reject(new Error("Timeout: google_sheet_url not set or isCreating still true after 20 seconds"));
@@ -1229,6 +1236,7 @@ const isStepComplete = (step: number) => {
           leveredMoic={leveredMoic}
           finalMetricsCalculating={finalMetricsCalculating}
           finalMetricsCalculating2={finalMetricsCalculating2}
+          isDebouncing={isDebouncing}
           showRetail={selectedModelTypeInfo?.show_retail}
           existingModel={existingModel}
           handleSaveAndExit={handleSaveAndExit}
@@ -1586,9 +1594,9 @@ const isStepComplete = (step: number) => {
             </Box>
           )}
 
-{steps[activeStep] === "Retail Income" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === true && (
+          {steps[activeStep] === "Retail Income" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === true && (
             <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: "bolder", fontSize: { xs: "1rem", sm: "1.125rem" } }}>Base Retail Income</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: "bolder", fontSize: { xs: "1rem", sm: "1.125rem" } }}>Base Retail Income</Typography>
 
               <RetailIncomeTable
                 retailIncome={retailIncome}
@@ -1597,24 +1605,24 @@ const isStepComplete = (step: number) => {
                 unitsTotalSqFt={units.reduce((acc, u) => acc + (u.square_feet || 0), 0)}
                 showIndustrialColumns={true}
               />
-              
+
               <Divider sx={{ my: 2 }} />
 
               <Typography variant="subtitle1" sx={{ fontWeight: "bolder", mt: 2, mb: 2, fontSize: { xs: "1rem", sm: "1.125rem" } }}>Recovery Income</Typography>
 
-                  <RecoveryIncomeTable expenses={expenses} retailIncome={retailIncome as any[]} setRetailIncome={setRetailIncome as any} />
-          
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: "bolder", mt: 2, mb: 0, fontSize: { xs: "1rem", sm: "1.125rem" } }}>Gross Potential Retail Income</Typography>
-                  <GrossPotentialRetailIncomeTable retailIncome={retailIncome as any[]} expenses={expenses} modelDetails={modelDetails} handleFieldChange={handleFieldChange} />
+              <RecoveryIncomeTable expenses={expenses} retailIncome={retailIncome as any[]} setRetailIncome={setRetailIncome as any} />
 
-                  <Divider sx={{ my: 2 }} />
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle1" sx={{ fontWeight: "bolder", mt: 2, mb: 0, fontSize: { xs: "1rem", sm: "1.125rem" } }}>Gross Potential Retail Income</Typography>
+              <GrossPotentialRetailIncomeTable retailIncome={retailIncome as any[]} expenses={expenses} modelDetails={modelDetails} handleFieldChange={handleFieldChange} />
+
+              <Divider sx={{ my: 2 }} />
                   <Typography variant="subtitle1" sx={{ fontWeight: "bolder", mt: 2, mb: 2, fontSize: { xs: "1rem", sm: "1.125rem", mt: 2  } }}>Recoverable Retail Operating Expenses</Typography>
 
 
-                  <RetailExpenses expenses={expenses} setExpenses={setExpenses} step={steps[activeStep]} totalRetailSF={retailIncome.reduce((acc, curr) => acc + curr.square_feet, 0)} />
+              <RetailExpenses expenses={expenses} setExpenses={setExpenses} step={steps[activeStep]} totalRetailSF={retailIncome.reduce((acc, curr) => acc + curr.square_feet, 0)} />
 
-                <Box sx={{ mt: 2, width: '100%' }}>
+              <Box sx={{ mt: 2, width: '100%' }}>
                 {growthRates
                   .filter((rate: any) => rate.type === 'retail')
                   .map((rate: any, idx: number) => (
@@ -1653,7 +1661,7 @@ const isStepComplete = (step: number) => {
 
               <Divider sx={{ my: 2 }} />
               <Typography variant="subtitle1" sx={{ fontWeight: "bolder", mt: 2, mb: 2, fontSize: { xs: "1rem", sm: "1.125rem", mt: 2  } }}>Calculate the Leasing Cost Reserves</Typography>
-                  <LeasingCostReserves modelDetails={modelDetails} handleFieldChange={handleFieldChange} retailIncome={retailIncome as any[]} />
+              <LeasingCostReserves modelDetails={modelDetails} handleFieldChange={handleFieldChange} retailIncome={retailIncome as any[]} />
             </Box>
           )}
 
@@ -1812,19 +1820,19 @@ const isStepComplete = (step: number) => {
 
           {EXPENSE_STEPS.includes(steps[activeStep]) && (
             <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
-              <Expenses 
-                operatingExpenses={operatingExpenses} 
-                variables={variables} 
-                modelDetails={modelDetails} 
-                expenses={expenses} 
-                setExpenses={setExpenses} 
-                step={steps[activeStep]} 
-                units={units} 
-                amenityIncome={amenityIncome} 
-                retailIncome={retailIncome} 
-                retailExpenses={expenses.filter((expense: any) => expense.type === "Retail")} 
+              <Expenses
+                operatingExpenses={operatingExpenses}
+                variables={variables}
+                modelDetails={modelDetails}
+                expenses={expenses}
+                setExpenses={setExpenses}
+                step={steps[activeStep]}
+                units={units}
+                amenityIncome={amenityIncome}
+                retailIncome={retailIncome}
+                retailExpenses={expenses.filter((expense: any) => expense.type === "Retail")}
                 industrialModel={selectedModelTypeInfo?.show_rental_units === false && selectedModelTypeInfo?.show_retail === true}
-                />
+              />
               {/* <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>{steps[activeStep]}</Typography> */}
 
             </Box>
@@ -1875,8 +1883,8 @@ const isStepComplete = (step: number) => {
           {steps[activeStep] === "Operating Expenses" && (
             <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
 
-              <OperatingExpensesTable operatingExpenses={operatingExpenses} setOperatingExpenses={setOperatingExpenses} units={units} amenityIncome={amenityIncome} modelDetails={modelDetails} retailIncome={retailIncome} 
-              retailExpenses={expenses.filter((expense: any) => expense.type === "Retail")} />
+              <OperatingExpensesTable operatingExpenses={operatingExpenses} setOperatingExpenses={setOperatingExpenses} units={units} amenityIncome={amenityIncome} modelDetails={modelDetails} retailIncome={retailIncome}
+                retailExpenses={expenses.filter((expense: any) => expense.type === "Retail")} />
               <Box sx={{ mt: 2, width: '100%' }}>
                 {growthRates
                   .filter((rate: any) => rate.type === 'expense')
@@ -1946,20 +1954,20 @@ const isStepComplete = (step: number) => {
           )}
 
 
-{steps[activeStep] === "Exit Assumptions" && (
-  <Box sx={{ maxWidth: "1200px", mx: "auto", p: 0 }}>
-    <ExitAssumptions
-      modelDetails={modelDetails}
-      handleFieldChange={handleFieldChange}
-      showRetail={selectedModelTypeInfo?.show_retail}
-      showRentalUnits={selectedModelTypeInfo?.show_rental_units}
-      variables={variables}
-      numUnits={units?.length || 0}
-    />
-  </Box>
-)}
- 
- 
+          {steps[activeStep] === "Exit Assumptions" && (
+            <Box sx={{ maxWidth: "1200px", mx: "auto", p: 0 }}>
+              <ExitAssumptions
+                modelDetails={modelDetails}
+                handleFieldChange={handleFieldChange}
+                showRetail={selectedModelTypeInfo?.show_retail}
+                showRentalUnits={selectedModelTypeInfo?.show_rental_units}
+                variables={variables}
+                numUnits={units?.length || 0}
+              />
+            </Box>
+          )}
+
+
           {/* Show "General Property Assumptions" section at step 1, all others at the end */}
           {selectedModelTypeInfo?.sections.map((section, index) => {
             // Show "General Property Assumptions" at step 1
@@ -1969,59 +1977,59 @@ const isStepComplete = (step: number) => {
             ) {
               return (
                 <Box key={section.id} sx={{ p: 2, px:4, borderRadius: 2, maxWidth: "1200px", mx: "auto" }}>
-                  
+
                   {section.fields.filter(field => field.active === true).map((field: Field) => {
                     const fieldValue = modelDetails.user_model_field_values.find((fv: any) => fv.field_id === field.id)?.value || '';
                     const startMonth = modelDetails.user_model_field_values.find((fv: any) => fv.field_id === field.id)?.start_month ?? '';
                     const endMonth = modelDetails.user_model_field_values.find((fv: any) => fv.field_id === field.id)?.end_month ?? '';
- 
+
                     return (
                       <SectionFields key={field.id} field={field} fieldValue={fieldValue} startMonth={startMonth} endMonth={endMonth} handleFieldChange={handleFieldChange} />
- 
+
                     );
                   })}
- 
+
                 </Box>
               );
             }
- 
- 
+
+
             // Only show the current section that matches the current step
             if (
-              steps[activeStep] === section.name && section.name !== "General Property Assumptions" 
-              && section.name !== "Acquisition Financing" 
-              && section.name !== "Refinancing" 
-              && section.name !== "Leasing Assumptions" 
+              steps[activeStep] === section.name && section.name !== "General Property Assumptions"
+              && section.name !== "Acquisition Financing"
+              && section.name !== "Refinancing"
+              && section.name !== "Leasing Assumptions"
               && section.name !== "Exit Assumptions"
             ) {
               // Calculate the last step for finish button
               const lastStep = steps.length - 1;
               const thisStep = activeStep;
- 
+
               return (
                 <Box key={section.id} sx={{ p: 2, borderRadius: 2, border: "1px solid #e6e9ef", maxWidth: "1200px", mx: "auto" }}>
                   {/* <Box key={section.id} sx={{ mt: 0, backgroundColor: "white", p: 2, borderRadius: 2, maxWidth: "600px", mx: "auto" }}> */}
-               
+
                   {section.fields.filter(field => field.active === true).map((field: Field) => {
                     const fieldValue = modelDetails.user_model_field_values.find((fv: any) => fv.field_id === field.id)?.value || '';
                     const startMonth = modelDetails.user_model_field_values.find((fv: any) => fv.field_id === field.id)?.start_month ?? '';
                     const endMonth = modelDetails.user_model_field_values.find((fv: any) => fv.field_id === field.id)?.end_month ?? '';
- 
+
                     return (
                       <SectionFields key={field.id} field={field} fieldValue={fieldValue} startMonth={startMonth} endMonth={endMonth} handleFieldChange={handleFieldChange} />
                     );
                   })}
- 
-                {/* </Box> */}
-    </Box>               
+
+                  {/* </Box> */}
+                </Box>
               );
             }
- 
- 
+
+
             // Otherwise, don't render anything for this section at this step
             return null;
           })}
-          
+
 
 
 

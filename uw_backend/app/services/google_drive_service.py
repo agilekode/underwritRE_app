@@ -814,36 +814,43 @@ def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service):
     ranges = []
     location_map = {}
 
-    # Preprocess: collect all ranges and literals in one pass
+    # Preprocess: collect ranges and literals
     for entry in variable_data:
         name = entry.get("variable_name")
         location = entry.get("variable_location")
         if not name or not location:
             continue
         if location.startswith('=') and '!' in location:
-            clean_location = location[1:]  # Remove '='
-            ranges.append(clean_location)
-            location_map[clean_location] = name
+            clean_location = location[1:]  # remove '='
+
+            if clean_location not in location_map:
+                location_map[clean_location] = []
+                ranges.append(clean_location)
+
+            location_map[clean_location].append(name)
         else:
-            variables[name] = location  # Literal value
+            variables[name] = location
 
     # Batch get all ranges in a single API call (already optimal)
     if ranges:
-        # Google Sheets API allows up to 100 ranges per batchGet call.
-        # If more, split into chunks to avoid multiple roundtrips.
         CHUNK_SIZE = 100
         for i in range(0, len(ranges), CHUNK_SIZE):
-            chunk = ranges[i:i+CHUNK_SIZE]
+            chunk = ranges[i:i + CHUNK_SIZE]
+
             result = sheets_service.spreadsheets().values().batchGet(
                 spreadsheetId=sheet_id,
                 ranges=chunk,
                 valueRenderOption='FORMATTED_VALUE'
             ).execute()
+
             for j, value_range in enumerate(result.get("valueRanges", [])):
-                name = location_map[chunk[j]]
+                cell_location = chunk[j]
+                names = location_map.get(cell_location, [])
+
                 values = value_range.get("values", [[]])
                 value = values[0][0] if values and values[0] else ""
-                variables[name] = value
+                for name in names:
+                    variables[name] = value
 
     return variables
 
