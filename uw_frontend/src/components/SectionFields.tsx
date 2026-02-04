@@ -231,7 +231,11 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
                 }
                 if (!/^\d*$/.test(raw)) return;
                 const sqft = Math.max(0, parseInt(raw || '0', 10));
-                const acres = Math.round((sqft / 43560) * 10000) / 10000;
+                // Preserve extra precision only for very small areas (< 10 SF)
+                const acresRaw = sqft / 43560;
+                const acres = sqft < 10
+                  ? Math.round(acresRaw * 1e6) / 1e6
+                  : Math.round(acresRaw * 1e4) / 1e4;
                 handleFieldChange(field.id, field.field_key, acres);
                 setTimeout(() => {
                   if (e.target) {
@@ -256,7 +260,7 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
               }}
               required={field.required}
               type="text"
-              placeholder="Enter square feet"
+              placeholder="Enter sq feet"
               sx={{ width: 200, minWidth: 160 }}
               variant="standard"
               InputProps={{
@@ -531,7 +535,11 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
                 }
                 if (!/^\d*$/.test(raw)) return;
                 const sqft = Math.max(0, parseInt(raw || '0', 10));
-                const acres = Math.round((sqft / 43560) * 10000) / 10000;
+                // Preserve extra precision only for very small areas (< 10 SF)
+                const acresRaw = sqft / 43560;
+                const acres = sqft < 10
+                  ? Math.round(acresRaw * 1e6) / 1e6
+                  : Math.round(acresRaw * 1e4) / 1e4;
                 handleFieldChange(field.id, field.field_key, acres);
                 setTimeout(() => {
                   if (e.target) {
@@ -556,7 +564,7 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
               }}
               required={field.required}
               type="text"
-              placeholder="Enter square feet"
+              placeholder="Enter sq feet"
               sx={{ width: 140, textAlign: 'right' }}
               variant="standard"
               InputProps={{

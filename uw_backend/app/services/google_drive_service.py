@@ -39,7 +39,7 @@ SCOPES = [
 
 
 PARENT_FOLDER_ID = os.getenv("GOOGLE_PARENT_FOLDER_ID")
-# PARENT_FOLDER_ID = '14dBWRN-2ItiRLRy9HWfy1U3oF_p7MzPt'
+PARENT_FOLDER_ID = '14dBWRN-2ItiRLRy9HWfy1U3oF_p7MzPt'
 # PARENT_FOLDER_ID = '1xoc6MuOW8ULr3PIucwoEhG0hwpWeIxdk'
 # Determine environment: Use local creds if file is specified, otherwise use default (Cloud Run, GCP, etc.)
 try:
@@ -2424,8 +2424,8 @@ def get_amenity_income_formula_update_industrial(
     start_col=5,
     num_months=132
 ):
-    print("get_amenity_income_formula_update")
-    print("amenity_json", amenity_json)
+    # print("get_amenity_income_formula_update")
+    # print("amenity_json", amenity_json)
     num_amenities = len(amenity_json)
     all_rows = []
 
@@ -2441,10 +2441,11 @@ def get_amenity_income_formula_update_industrial(
             col_index = start_col + j
             col_letter = rowcol_to_a1(1, col_index).replace("1", "")
             formula = (
-                f"=IF({col_letter}15<'{amenity_sheet}'!$D{amenity_row},"
-                f"0,"
-                f"'{amenity_sheet}'!H{amenity_row}*{col_letter}10*'{amenity_sheet}'!E{amenity_row})"
+                f"=IF('{amenity_sheet}'!D{amenity_row}<={col_letter}14,"
+                f"'{amenity_sheet}'!I{amenity_row}*{col_letter}10,0)"
             )
+
+            # =IF('Amenity Income'!D5 <=E14, 'Amenity Income'!I5*E10,0)
             row.append(formula)
 
         all_rows.append(row)
@@ -4618,6 +4619,34 @@ def get_retail_assumptions_inserts_industrial(spreadsheet, retail_income, sheet_
                 "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
                 "fields": "userEnteredFormat.textFormat.foregroundColor"
             }
+        },
+        {
+            # Align columns B and C flush left
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": start_row - 1,
+                    "endRowIndex": end_row,
+                    "startColumnIndex": 1,  # B
+                    "endColumnIndex": 3     # through C (exclusive)
+                },
+                "cell": {"userEnteredFormat": {"horizontalAlignment": "LEFT"}},
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        {
+            # Align column K flush right
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": start_row - 1,
+                    "endRowIndex": end_row,
+                    "startColumnIndex": 10,  # K
+                    "endColumnIndex": 11
+                },
+                "cell": {"userEnteredFormat": {"horizontalAlignment": "RIGHT"}},
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
         }
     ]
 
@@ -4633,6 +4662,30 @@ def get_retail_assumptions_inserts_industrial(spreadsheet, retail_income, sheet_
             },
             "cell": {"userEnteredFormat": {"textFormat": {"bold": False}}},
             "fields": "userEnteredFormat.textFormat.bold"
+        }
+    })
+
+    # Add data validation for Column K (rent_type): Dropdown with "NNN" and "Gross"
+    format_requests.append({
+        "setDataValidation": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": start_row - 1,
+                "endRowIndex": end_row,
+                "startColumnIndex": 10,  # K
+                "endColumnIndex": 11
+            },
+            "rule": {
+                "condition": {
+                    "type": "ONE_OF_LIST",
+                    "values": [
+                        {"userEnteredValue": "NNN"},
+                        {"userEnteredValue": "Gross"}
+                    ]
+                },
+                "showCustomUi": True,
+                "strict": True
+            }
         }
     })
 
@@ -4716,6 +4769,8 @@ def get_retail_recovery_summary_row_industrial(retail_income, sheet_name='Retail
     
     # Column J: =SUM(J6:J<data_end>)
     summary_row[9] = f"=SUM(J{10 + len(retail_income)}:J{data_end_row -1})"
+
+    summary_row[11] = f"=SUM(L{10 + len(retail_income)}:L{data_end_row -1})"
     
     # Columns L through EQ (columns 11 through 144): Sum formulas
     for col_idx in range(13, 147):  # L is column 11 (0-based), EQ is column 144
@@ -4879,6 +4934,20 @@ def get_retail_recovery_inserts_industrial(spreadsheet, retail_income, retail_ex
             }
         },
         {
+            # Align columns B and C flush left
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": start_row - 1,
+                    "endRowIndex": end_row,
+                    "startColumnIndex": 1,  # B
+                    "endColumnIndex": 3     # through C (exclusive)
+                },
+                "cell": {"userEnteredFormat": {"horizontalAlignment": "LEFT"}},
+                "fields": "userEnteredFormat.horizontalAlignment"
+            }
+        },
+        {
             "repeatCell": {
                 "range": {
                     "sheetId": sheet_id,
@@ -4889,6 +4958,20 @@ def get_retail_recovery_inserts_industrial(spreadsheet, retail_income, retail_ex
                 },
                 "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
                 "fields": "userEnteredFormat.textFormat.foregroundColor"
+            }
+        },
+        {
+            # Align column K flush right
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": start_row - 1,
+                    "endRowIndex": end_row,
+                    "startColumnIndex": 10,  # K
+                    "endColumnIndex": 11
+                },
+                "cell": {"userEnteredFormat": {"horizontalAlignment": "RIGHT"}},
+                "fields": "userEnteredFormat.horizontalAlignment"
             }
         },
         {
