@@ -25,7 +25,12 @@ import { BACKEND_URL } from './utils/constants';
 import AppRoutes from './AppRoutes';
 import TermsModal from './components/TermsModal';
 import artLogo from './assets/logo_art.png';
-import { NavBar } from './components/NavBar';
+import { ThemeProvider } from '@mui/material/styles';
+import { theme } from './theme';
+import { AppLayout } from './components/AppLayout';
+import { ConditionalLayout } from './components/ConditionalLayout';
+import { LayoutProvider } from './context/LayoutContext';
+
 
 function App() {
   const {
@@ -139,16 +144,19 @@ function App() {
 
   if (isLoading) {
     return (
+      <ThemeProvider theme={theme}>
       <Container maxWidth="sm">
         <Paper elevation={3} sx={{ mt: 10, p: 4, textAlign: 'center' }}>
           <Typography variant="h6">Loading...</Typography>
         </Paper>
       </Container>
+      </ThemeProvider>
     );
   }
 
   if (!isAuthenticated) {
     return (
+      <ThemeProvider theme={theme}>
       <Box
         sx={{
           minHeight: '100vh',
@@ -271,52 +279,57 @@ function App() {
           </Box>
         )}
       </Box>
+      </ThemeProvider>
     );
   }
 
   return (
+  <ThemeProvider theme={theme}>
+    <LayoutProvider>
     <UserProvider>
       <UserModelsProvider>
         <Router>
-          {isAuthenticated && <NavBar />}
-          {isAuthenticated && (<Box sx={{ height: 64 }} />)}
-          <AppRoutes />
-          {authErrorOpen && authError && (
-            <Box sx={{ mt: 2, mb: 3, px: 2, display: 'flex', justifyContent: 'center' }}>
-              <Alert
-                severity="warning"
-                onClose={() => setAuthErrorOpen(false)}
-                sx={{ width: '100%', maxWidth: 960 }}
-              >
-                {authError}
-              </Alert>
-            </Box>
-          )}
-          <TermsModal
-            open={isAuthenticated && termsOpen}
-            onCancel={() => setTermsOpen(false)}
-            onAccept={async () => {
-              try {
-                const token = await getAccessTokenSilently({
-                  authorizationParams: { audience: process.env.REACT_APP_AUTH0_AUDIENCE, scope: 'openid profile email' }
-                });
-                await fetch(BACKEND_URL + "/api/user_info", {
-                  method: 'PUT',
-                  headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-User-Email': user?.email || '' } as any,
-                  credentials: 'include',
-                  body: JSON.stringify({
-                    accepted_terms_and_conditions: true,
-                    accepted_terms_and_conditions_date: new Date().toISOString()
-                  })
-                });
-              } catch {}
-              setTermsOpen(false);
-            }}
-          />
+          <ConditionalLayout>
+            <AppRoutes />
+            {authErrorOpen && authError && (
+              <Box sx={{ mt: 2, mb: 3, px: 2, display: 'flex', justifyContent: 'center' }}>
+                <Alert
+                  severity="warning"
+                  onClose={() => setAuthErrorOpen(false)}
+                  sx={{ width: '100%', maxWidth: 960 }}
+                >
+                  {authError}
+                </Alert>
+              </Box>
+            )}
+            <TermsModal
+              open={isAuthenticated && termsOpen}
+              onCancel={() => setTermsOpen(false)}
+              onAccept={async () => {
+                try {
+                  const token = await getAccessTokenSilently({
+                    authorizationParams: { audience: process.env.REACT_APP_AUTH0_AUDIENCE, scope: 'openid profile email' }
+                  });
+                  await fetch(BACKEND_URL + "/api/user_info", {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-User-Email': user?.email || '' } as any,
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      accepted_terms_and_conditions: true,
+                      accepted_terms_and_conditions_date: new Date().toISOString()
+                    })
+                  });
+                } catch {}
+                setTermsOpen(false);
+              }}
+            />
+          </ConditionalLayout>
         </Router>
       </UserModelsProvider>
     </UserProvider>
-  );
+    </LayoutProvider>
+  </ThemeProvider>
+);
 }
 
 export default App;

@@ -28,7 +28,8 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { pdf } from "@react-pdf/renderer";
 import PdfSummaryDocument from "../components/PdfSummaryDocument";
 import { DataGrid, GridPagination } from "@mui/x-data-grid";
-import { BACKEND_URL, MID_DARK_THEME_COLOR, MID_THEME_COLOR } from "../utils/constants";
+import { BACKEND_URL } from "../utils/constants";
+import { colors } from "../theme";
 import SensitivityTable from "../components/SensitivityTable";
 import { NumberInput } from "../components/NumberInput";
 import OperatingExpensesReadOnly from "../components/OperatingExpensesReadOnly";
@@ -37,6 +38,8 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import GridOnIcon from "@mui/icons-material/GridOn";
 import RetailSummary from "../components/RetailSummary";
 
 const ModelDetails = () => {
@@ -1221,31 +1224,18 @@ const ModelDetails = () => {
   };
 
   return (
-    <Container
-      maxWidth={false}
+    <Box
       sx={{
-        maxWidth: 1200,
-        minWidth: "1200px",
         width: "100%",
-        background:
-          "linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.40) 100%)",
-        backdropFilter: "blur(10px) saturate(140%)",
-        WebkitBackdropFilter: "blur(10px) saturate(140%)",
-        border: "1px solid rgba(255,255,255,0.55)",
-        boxShadow:
-          "0 16px 36px rgba(31,38,135,0.12), inset 0 1px 0 rgba(255,255,255,0.35)",
-        borderRadius: 3,
-        mt: 4,
-        padding: "0px !important",
+        minHeight: "100vh",
+        bgcolor: colors.grey[100],
+        padding: 0,
       }}
     >
       <Box
         sx={{
           mt: 0,
-          borderTopLeftRadius: 2,
-          borderTopRightRadius: 2,
           padding: 0,
-          backgroundColor: "#fff",
         }}
       >
         <Box
@@ -1259,9 +1249,8 @@ const ModelDetails = () => {
             sx={{
               flexGrow: 1,
               position: "relative",
-              backgroundColor: MID_DARK_THEME_COLOR,
-              borderBottomLeftRadius: 0,
-              borderBottomRightRadius: 0,
+              backgroundColor: colors.navy,
+              borderRadius: 0,
               color: "#fff",
             }}
           >
@@ -1280,34 +1269,40 @@ const ModelDetails = () => {
                 }}
               >
                 {/* Edit Model Button */}
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="small"
-                  disabled={downloadingPDF || downloading || isCalculating}
-                  sx={{
-                    minWidth: 0,
-                    fontWeight: 500,
-                    px: 2,
-                    whiteSpace: "nowrap",
-                  }}
-                  onClick={() => {
-                    navigate(`/edit-model/${modelDetails.version_id}`);
-                  }}
-                >
-                  Edit Model
-                </Button>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="small"
-                  
-                  sx={{ minWidth: 0, fontWeight: 500, px: 2, whiteSpace: "nowrap", display: "flex", alignItems: "center" }}
-                  onClick={() => setDownloadOptionsOpen(true)}
-                  disabled={downloadingPDF || downloading || isCalculating}
-                >
-                  Download PDF Summary
-                </Button>
+                <Tooltip title="Edit Model">
+                  <IconButton
+                    color="primary"
+                    size="small"
+                    disabled={downloadingPDF || downloading || isCalculating}
+                    sx={{
+                      backgroundColor: "primary.main",
+                      color: "#fff",
+                      "&:hover": { backgroundColor: "primary.dark" },
+                      "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
+                    }}
+                    onClick={() => {
+                      navigate(`/edit-model/${modelDetails.version_id}`);
+                    }}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Download PDF Summary">
+                  <IconButton
+                    color="primary"
+                    size="small"
+                    sx={{
+                      backgroundColor: "primary.main",
+                      color: "#fff",
+                      "&:hover": { backgroundColor: "primary.dark" },
+                      "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
+                    }}
+                    onClick={() => setDownloadOptionsOpen(true)}
+                    disabled={downloadingPDF || downloading || isCalculating}
+                  >
+                    <PictureAsPdfIcon />
+                  </IconButton>
+                </Tooltip>
 
                 <Dialog open={downloadOptionsOpen} onClose={() => setDownloadOptionsOpen(false)} maxWidth="sm" fullWidth>
                   <DialogTitle sx={{ fontWeight: 800, bgcolor: 'grey.50', borderBottom: '1px solid #e5e7eb' }}>Download Options</DialogTitle>
@@ -1400,56 +1395,56 @@ const ModelDetails = () => {
                 </Dialog>
 
                 {/* Download Worksheet Button */}
-                <Button
-                  variant="contained"
-                  color="primary"
-                  size="small"
-                  sx={{
-                    minWidth: 0,
-                    fontWeight: 500,
-                    px: 2,
-                    whiteSpace: "nowrap",
-                    display: "flex",
-                    alignItems: "center",
-                    opacity: downloading ? 0.7 : 1,
-                  }}
-                  onClick={() =>
-                    downloadWorksheet(getAccessTokenSilently, modelDetails)
-                  }
-                  disabled={downloadingPDF || downloading || isCalculating}
-                  startIcon={
-                    downloading ? (
-                      <span
-                        style={{
-                          width: 18,
-                          height: 18,
-                          border: "2px solid #fff",
-                          borderTop: `2px solid ${MID_THEME_COLOR}`,
-                          borderRadius: "50%",
-                          display: "inline-block",
-                          animation: "spin 1s linear infinite",
-                        }}
-                      />
-                    ) : null
-                  }
-                >
-                  {modelDetails.sensitivity_tables &&
-                  isCalculating
+                <Tooltip title={
+                  modelDetails.sensitivity_tables && isCalculating
                     ? "Generating..."
                     : downloading
                     ? "Downloading..."
-                    : "Download Worksheet"}
-                  {/* {} */}
-                  {/* Spinner keyframes */}
-                  <style>
-                    {`
-                      @keyframes spin {
-                        0% { transform: rotate(0deg);}
-                        100% { transform: rotate(360deg);}
+                    : "Download Worksheet"
+                }>
+                  <span>
+                    <IconButton
+                      color="primary"
+                      size="small"
+                      sx={{
+                        backgroundColor: "primary.main",
+                        color: "#fff",
+                        "&:hover": { backgroundColor: "primary.dark" },
+                        "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
+                        opacity: downloading ? 0.7 : 1,
+                      }}
+                      onClick={() =>
+                        downloadWorksheet(getAccessTokenSilently, modelDetails)
                       }
-                    `}
-                  </style>
-                </Button>
+                      disabled={downloadingPDF || downloading || isCalculating}
+                    >
+                      {downloading ? (
+                        <span
+                          style={{
+                            width: 18,
+                            height: 18,
+                            border: "2px solid #fff",
+                            borderTop: `2px solid ${colors.blue}`,
+                            borderRadius: "50%",
+                            display: "inline-block",
+                            animation: "spin 1s linear infinite",
+                          }}
+                        />
+                      ) : (
+                        <GridOnIcon />
+                      )}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                {/* Spinner keyframes */}
+                <style>
+                  {`
+                    @keyframes spin {
+                      0% { transform: rotate(0deg);}
+                      100% { transform: rotate(360deg);}
+                    }
+                  `}
+                </style>
 
               </Box>
               <Box sx={{ display: "flex", gap: 2 }}>
@@ -1457,13 +1452,13 @@ const ModelDetails = () => {
               </Box>
               <Typography
                 variant="h4"
-                sx={{ fontWeight: 700, maxWidth: "calc(100% - 360px)" }}
+                sx={{ fontWeight: 700, maxWidth: "calc(100% - 180px)", color: "#fff" }}
               >
                 {modelDetails.name}
               </Typography>
               <Typography
                 variant="subtitle1"
-                sx={{ fontSize: "1rem", fontWeight: 500, mb: 1, mt: 1 }}
+                sx={{ fontSize: "1rem", fontWeight: 500, mb: 1, mt: 1, color: "#fff" }}
               >
                 {modelDetails.street_address}, {modelDetails.city},{" "}
                 {modelDetails.state}, {modelDetails.zip_code}
@@ -1568,53 +1563,47 @@ const ModelDetails = () => {
                   }}
                 >
                   {/* Levered IRR */}
-                  <Card elevation={0} sx={{ borderRadius: 2, border: `2px solid ${MID_DARK_THEME_COLOR}`, background:"#fff" }}>
-                    <CardContent sx={{ p: 2 }}>
-                      <Typography sx={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 600 }}>
-                        Levered IRR
-                      </Typography>
-                      <Typography variant="h4" sx={{ fontWeight: 700, color: '#111827', mt: 0.5 }}>
-                        {modelDetails.levered_irr ? `${modelDetails.levered_irr}` : 'N/A'}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.80rem', color: '#6b7280', mt: 0.25 }}>
-                        Internal Rate of Return
-                      </Typography>
-                    </CardContent>
-                  </Card>
+                  <Paper elevation={1} sx={{ borderRadius: '6px', border: `1px solid ${colors.grey[300]}`, bgcolor: 'white', p: 3 }}>
+                    <Typography sx={{ fontSize: '0.875rem', color: colors.grey[600], fontWeight: 600 }}>
+                      Levered IRR
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: colors.grey[900], mt: 0.5 }}>
+                      {modelDetails.levered_irr ? `${modelDetails.levered_irr}` : 'N/A'}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.80rem', color: colors.grey[600], mt: 0.25 }}>
+                      Internal Rate of Return
+                    </Typography>
+                  </Paper>
 
                   {/* Levered MOIC */}
-                  <Card elevation={0} sx={{ borderRadius: 2, border: `2px solid ${MID_DARK_THEME_COLOR}`, background:"#fff" }}>
-                    <CardContent sx={{ p: 2 }}>
-                      <Typography sx={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 600 }}>
-                        Levered MOIC
-                      </Typography>
-                      <Typography variant="h4" sx={{ fontWeight: 700, color: '#111827', mt: 0.5 }}>
-                        {modelDetails.levered_moic ? `${modelDetails.levered_moic}` : 'N/A'}
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.80rem', color: '#6b7280', mt: 0.25 }}>
-                        Multiple on Invested Capital
-                      </Typography>
-                    </CardContent>
-                  </Card>
+                  <Paper elevation={1} sx={{ borderRadius: '6px', border: `1px solid ${colors.grey[300]}`, bgcolor: 'white', p: 3 }}>
+                    <Typography sx={{ fontSize: '0.875rem', color: colors.grey[600], fontWeight: 600 }}>
+                      Levered MOIC
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: colors.grey[900], mt: 0.5 }}>
+                      {modelDetails.levered_moic ? `${modelDetails.levered_moic}` : 'N/A'}
+                    </Typography>
+                    <Typography sx={{ fontSize: '0.80rem', color: colors.grey[600], mt: 0.25 }}>
+                      Multiple on Invested Capital
+                    </Typography>
+                  </Paper>
 
                   {/* Exit/Hold Period (max of Retail Exit/Multifamily Exit) */}
                   {maxExitMonths !== null && (
-                  <Card elevation={0} sx={{ borderRadius: 2, border: `2px solid ${MID_DARK_THEME_COLOR}`, background:"#fff" }}>
-                    <CardContent sx={{ p: 2 }}>
-                      <Typography sx={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: 600 }}>
-                        Hold Period
-                      </Typography>
-                      <Typography variant="h4" sx={{ fontWeight: 700, color: '#111827', mt: 0.5 }}>
-                        {Number(maxExitMonths).toLocaleString()} Months
-                      </Typography>
-                    </CardContent>
-                  </Card>
+                  <Paper elevation={1} sx={{ borderRadius: '6px', border: `1px solid ${colors.grey[300]}`, bgcolor: 'white', p: 3 }}>
+                    <Typography sx={{ fontSize: '0.875rem', color: colors.grey[600], fontWeight: 600 }}>
+                      Hold Period
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: colors.grey[900], mt: 0.5 }}>
+                      {Number(maxExitMonths).toLocaleString()} Months
+                    </Typography>
+                  </Paper>
                   )}
                 </Box>
               </Box>
               {summaryTables.map((tbl: any, idx: number) => (
                 <Box key={idx} sx={{ p: 2, mb: 0 }}>
-                  <table style={{ borderCollapse: "collapse", width: "100%", border: `2px solid ${MID_DARK_THEME_COLOR}` }}>
+                  <table style={{ borderCollapse: "collapse", width: "100%", border: `2px solid ${colors.navy}` }}>
                     <tbody>{renderTableMappingRows(tbl, 100)}</tbody>
                   </table>
                 </Box>
@@ -1645,7 +1634,7 @@ const ModelDetails = () => {
                     backgroundColor: "grey.50",
                     p: 2,
                     borderRadius: 2,
-                    border: `2px solid ${MID_DARK_THEME_COLOR}`,
+                    border: `2px solid ${colors.navy}`,
                   }}
                 >
                   <TextField
@@ -1762,7 +1751,7 @@ const ModelDetails = () => {
                     sx={{
                       borderRadius: 1,
                       overflow: "hidden",
-                      border: `2px solid ${MID_DARK_THEME_COLOR}`,
+                      border: `2px solid ${colors.navy}`,
                       // transition: "all 0.2s ease-in-out",
                       // "&:hover": {
                       //   boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
@@ -1775,7 +1764,7 @@ const ModelDetails = () => {
                         bgcolor: "grey.50",
                         borderBottom: "1px solid",
                         borderColor: "divider",
-                        backgroundColor: MID_DARK_THEME_COLOR,
+                        backgroundColor: colors.navy,
                       }}
                     >
                       <Typography
@@ -1832,7 +1821,7 @@ const ModelDetails = () => {
                     sx={{
                       borderRadius: 1,
                       overflow: "hidden",
-                      border: `2px solid ${MID_DARK_THEME_COLOR}`,
+                      border: `2px solid ${colors.navy}`,
                     }}
                   >
                     <Box
@@ -1841,7 +1830,7 @@ const ModelDetails = () => {
                         bgcolor: "grey.50",
                         borderBottom: "1px solid",
                         borderColor: "divider",
-                        backgroundColor: MID_DARK_THEME_COLOR,
+                        backgroundColor: colors.navy,
                       }}
                     >
                       <Typography
@@ -2044,19 +2033,19 @@ const ModelDetails = () => {
                   }}
                   pagination
                   sx={{
-                    border: `2px solid ${MID_DARK_THEME_COLOR}`,
+                    border: `2px solid ${colors.navy}`,
                     borderRadius: 1,
                     "& .MuiDataGrid-footerContainer": {
                       display:
                         modelDetails.units.length > 100 ? "flex" : "none",
                     },
                     "& .MuiDataGrid-columnHeaders": {
-                      backgroundColor: `${MID_DARK_THEME_COLOR} !important`,
+                      backgroundColor: `${colors.navy} !important`,
                       backgroundImage: "none !important",
                       color: "#fff",
                     },
                     "& .MuiDataGrid-columnHeader": {
-                      backgroundColor: `${MID_DARK_THEME_COLOR} !important`,
+                      backgroundColor: `${colors.navy} !important`,
                     },
                     "& .MuiDataGrid-columnHeaderTitle": {
                       color: "#fff",
@@ -2064,7 +2053,7 @@ const ModelDetails = () => {
                     },
                     "& .MuiDataGrid-columnSeparator": { color: "rgba(255,255,255,0.35)" },
                     "& .MuiSvgIcon-root": { color: "#fff" },
-                    "& .MuiDataGrid-withBorderColor": { borderColor: MID_DARK_THEME_COLOR },
+                    "& .MuiDataGrid-withBorderColor": { borderColor: colors.navy },
                   }}
                   density="compact"
                 />
@@ -2212,7 +2201,7 @@ const ModelDetails = () => {
                   }}
                   pagination
                   sx={{
-                    border: `2px solid ${MID_DARK_THEME_COLOR}`,
+                    border: `2px solid ${colors.navy}`,
                     borderRadius: 1,
                     "& .MuiDataGrid-footerContainer": {
                       display:
@@ -2221,12 +2210,12 @@ const ModelDetails = () => {
                           : "none",
                     },
                     "& .MuiDataGrid-columnHeaders": {
-                      backgroundColor: `${MID_DARK_THEME_COLOR} !important`,
+                      backgroundColor: `${colors.navy} !important`,
                       backgroundImage: "none !important",
                       color: "#fff",
                     },
                     "& .MuiDataGrid-columnHeader": {
-                      backgroundColor: `${MID_DARK_THEME_COLOR} !important`,
+                      backgroundColor: `${colors.navy} !important`,
                     },
                     "& .MuiDataGrid-columnHeaderTitle": {
                       color: "#fff",
@@ -2234,7 +2223,7 @@ const ModelDetails = () => {
                     },
                     "& .MuiDataGrid-columnSeparator": { color: "rgba(255,255,255,0.35)" },
                     "& .MuiSvgIcon-root": { color: "#fff" },
-                    "& .MuiDataGrid-withBorderColor": { borderColor: MID_DARK_THEME_COLOR },
+                    "& .MuiDataGrid-withBorderColor": { borderColor: colors.navy },
                   }}
                   density="compact"
                   slots={{ footer: AmenityIncomeFooter }}
@@ -2296,7 +2285,7 @@ const ModelDetails = () => {
                   padding: 2,
                 }}
               >
-                <table style={{ borderCollapse: "collapse", width: "100%", border: `2px solid ${MID_DARK_THEME_COLOR}`}}>
+                <table style={{ borderCollapse: "collapse", width: "100%", border: `2px solid ${colors.navy}`}}>
                   <tbody>
                         {renderTableMappingRows(tablesToShow[tableIdx])}
                   </tbody>
@@ -2403,7 +2392,7 @@ const ModelDetails = () => {
                                 <Box className="note-actions" sx={{ display: "flex", gap: 0.5, opacity: 0, visibility: "hidden", transition: "opacity 120ms ease" }}>
                                   <Tooltip title="Edit" arrow>
                                     <IconButton size="small" onClick={() => startEditNote(n)}>
-                                      <EditIcon fontSize="small" sx={{ color: MID_THEME_COLOR }} />
+                                      <EditIcon fontSize="small" sx={{ color: colors.blue }} />
                                     </IconButton>
                                   </Tooltip>
                                   <Tooltip title="Delete" arrow>
@@ -2545,7 +2534,7 @@ const ModelDetails = () => {
                                 {!isEditingPic && (
                                   <Tooltip title="Edit" arrow>
                                     <IconButton size="small" onClick={() => startEditPicture(p)}>
-                                      <EditIcon fontSize="small" sx={{ color: MID_THEME_COLOR }} />
+                                      <EditIcon fontSize="small" sx={{ color: colors.blue }} />
                                     </IconButton>
                                   </Tooltip>
                                 )}
@@ -2611,7 +2600,7 @@ const ModelDetails = () => {
           })()}
         </Box>
       </Box>
-    </Container>
+    </Box>
   );
 };
 

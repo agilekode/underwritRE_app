@@ -351,6 +351,7 @@ export default function ExitAssumptions({
             label="Implied Valuation at Exit"
             value={formatCurrency(parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0))}
           />
+          {numUnits > 0 && (
           <ReadonlyRow
             label="Implied Valuation per Unit"
             value={(() => {
@@ -359,6 +360,19 @@ export default function ExitAssumptions({
               return formatCurrency(perUnit);
             })()}
           />
+          )}
+          { numUnits === 0 && (
+                      <ReadonlyRow
+                      label="Implied Valuation per SF"
+                      value={(() => {
+                        const totalVal = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
+                        const SF = getFieldValue("Gross Square Feet", 0)
+                        const perSF = totalVal / SF;
+                        return formatCurrency(perSF) + " / SF";
+                      })()}
+          />
+          )}
+
           <Row
             label={space_type + " Less: Selling Costs"}
             control={

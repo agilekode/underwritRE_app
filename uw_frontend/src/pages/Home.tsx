@@ -14,8 +14,11 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { BACKEND_URL } from '../utils/constants';
 import OnboardingStepOne from '../components/OnboardingStepOne';
 import OnboardingStepTwo from '../components/OnboardingStepTwo';
+import { useTheme } from '@mui/material/styles';
+import { colors } from '../theme';
 
 const Home = () => {
+  const theme = useTheme();
   const { getAccessTokenSilently } = useAuth0();
   const { user } = useUser();
   const { userModels, setUserModels } = useUserModels();
@@ -477,32 +480,7 @@ const Home = () => {
       
       {showModelsUi && models.length > 0 && (
         <>
-        <Box sx={{
-          display: 'flex',
-          alignItems: { xs: 'stretch', sm: 'center' },
-          justifyContent: 'space-between',
-          gap: 2,
-          mb: 3,
-          flexDirection: { xs: 'column', sm: 'row' }
-        }}>
-          <Typography
-            variant="h4"
-            sx={{ fontWeight: 700, fontSize: { xs: '1.6rem', sm: '1.8rem', md: '2.125rem' } }}
-          >
-            Your Models
-          </Typography>
-          {isSubActive && (
-            <Button
-              variant="contained"
-              sx={{ fontWeight: 700, borderRadius: 2, alignSelf: { xs: 'stretch', sm: 'center' } }}
-              fullWidth={{ xs: true, sm: false } as any}
-              onClick={() => navigate('/create-model')}
-            >
-              Create Model
-            </Button>
-          )}
-        </Box>
-
+        
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
@@ -550,27 +528,13 @@ const Home = () => {
                 maxWidth: '320px',
                 minWidth: '250px',
                 mb: 2,
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.40) 100%)',
-                backdropFilter: 'blur(10px) saturate(140%)',
-                WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-                border: '1px solid rgba(255,255,255,0.55)',
-                boxShadow: '0 14px 32px rgba(31,38,135,0.12), inset 0 1px 0 rgba(255,255,255,0.35)',
-                borderRadius: 3,
-                position: 'relative',
-                overflow: 'hidden',
+                borderRadius: `${theme.shape.borderRadius}px`,
+                border: `1px solid ${colors.grey[300]}`,
+                boxShadow: theme.shadows[1],
                 transition: 'transform 160ms ease, box-shadow 160ms ease',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  inset: 0,
-                  pointerEvents: 'none',
-                  background:
-                    'radial-gradient(180px 140px at 10% -10%, rgba(255,255,255,0.35), transparent 60%), ' +
-                    'radial-gradient(220px 180px at 110% 0%, rgba(255,255,255,0.18), transparent 60%)'
-                },
                 '&:hover': {
                   transform: 'translateY(-2px)',
-                  boxShadow: '0 18px 40px rgba(31,38,135,0.18), inset 0 1px 0 rgba(255,255,255,0.4)'
+                  boxShadow: theme.shadows[2],
                 },
                 '& .model-actions': {
                   opacity: 0,
@@ -584,7 +548,7 @@ const Home = () => {
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <Typography variant="h4" sx={{ fontWeight: 600, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {model.name}
                 </Typography>
                 <Box className="model-actions" sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5 }}>
@@ -648,12 +612,9 @@ const Home = () => {
         <TableContainer
           component={Paper}
           sx={{
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.65) 0%, rgba(255,255,255,0.40) 100%)',
-            backdropFilter: 'blur(10px) saturate(140%)',
-            WebkitBackdropFilter: 'blur(10px) saturate(140%)',
-            border: '1px solid rgba(255,255,255,0.55)',
-            boxShadow: '0 16px 36px rgba(31,38,135,0.12), inset 0 1px 0 rgba(255,255,255,0.35)',
-            borderRadius: 3,
+            borderRadius: `${theme.shape.borderRadius}px`,
+            border: `1px solid ${colors.grey[300]}`,
+            boxShadow: theme.shadows[1],
             overflowX: 'auto',
             width: '100%'
           }}

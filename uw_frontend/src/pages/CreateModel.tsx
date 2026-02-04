@@ -8,7 +8,7 @@ import OperatingExpensesTable from '../components/OperatingExpenses';
 import AmenityIncomeTable from '../components/AmentityIncome';
 import { BACKEND_URL } from '../utils/constants';
 import ModelIntroSteps from '../components/ModelIntroSteps';
-import ModelStepper from '../components/ModelStepper';
+import ModelStepper from '../components/ModelStepperNew';
 import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
 import { SectionFields } from '../components/SectionFields';
 import RetailIncomeTable from '../components/RetailIncomeTable';
@@ -29,6 +29,7 @@ import RecoveryIncomeTableIndustrial from '../components/RecoveryIncomeTableIndu
 import { RetailExpensesIndustrial } from '../components/RetailExpensesIndustrial';
 import GrossPotentialRetailIncomeTableIndustrial from '../components/GrossPotentialRetailIncomeTableIndustrial';
 import RetailSummary from '../components/RetailSummary';
+import { useLayout } from '../context/LayoutContext';
 
 type Section = {
   id: string;
@@ -108,12 +109,17 @@ interface CreateModelProps {
 
 
 export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
+
   const navigate = useNavigate();
   const { getAccessTokenSilently } = useAuth0();
   const { user } = useUser();
+  const { setHideMainSidebar, modelCreationStarted, setModelCreationStarted, selectedModelTypeId, setSelectedModelTypeId } = useLayout();
   const [activeStep, setActiveStep] = useState(0);
-  const [selectedModelType, setSelectedModelType] = useState('');
-  const [introStepComplete, setIntroStepComplete] = useState(false);
+  // Use context for selectedModelType so it survives remounting
+  const selectedModelType = selectedModelTypeId;
+  const setSelectedModelType = setSelectedModelTypeId;
+  // Get introStepComplete from context (survives remounting)
+  const introStepComplete = modelCreationStarted || !!existingModel;
   const [modelDetails, setModelDetails] = useState<Record<string, any>>({
     name: '',
     street_address: '',
@@ -146,8 +152,6 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
 
-
-
   // Add debounce timeout ref
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -159,6 +163,32 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
   const googleUrlRef = useRef(modelDetails.google_sheet_url);
   useEffect(() => { googleUrlRef.current = modelDetails.google_sheet_url; }, [modelDetails.google_sheet_url]);
 
+console.log('🎨 CreateModel render - introStepComplete:', introStepComplete);
+// Sync sidebar visibility with introStepComplete
+useEffect(() => {
+  console.log('🔄 introStepComplete changed:', introStepComplete);
+  setHideMainSidebar(introStepComplete);
+  // NOTE: Do NOT reset modelCreationStarted in cleanup - it must survive remounting
+}, [introStepComplete, setHideMainSidebar]);
+
+// Reset context state only when navigating away from create-model/edit-model page entirely
+useEffect(() => {
+  return () => {
+    // Use a small delay to check if we're still on create-model/edit-model page
+    // If we remounted due to layout change, we'll still be on the same route
+    // Note: Don't include 'models/' - that's the detail page which should show main sidebar
+    setTimeout(() => {
+      const stillOnModelCreationPage = window.location.pathname.includes('create-model') ||
+                                        window.location.pathname.includes('edit-model');
+      if (!stillOnModelCreationPage) {
+        setHideMainSidebar(false);
+        setModelCreationStarted(false);
+        setSelectedModelTypeId('');
+      }
+    }, 50);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   const [steps, setSteps] = useState<string[]>([]);
 
@@ -247,7 +277,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
             "General Property Assumptions",
             "Residential Rental Units",
             "Market Rent Assumptions",
-            "Retail Income",
+            // "Retail Income",
             "Amenity Income",
             "Operating Expenses",
             "Net Operating Income",
@@ -321,14 +351,9 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
   let called = false;
 
   useEffect(() => {
-
-
     // Create a unique key for this fetch operation
     const fetchKey = `${existingModel}-${modelId}-${user?.id}`;
-
-
     if (existingModel && modelId && user?.id) {
-
       // Mark as fetched immediately using global flag
       (window as any).__modelDetailsFetchFlag.add(fetchKey);
 
@@ -337,7 +362,8 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
         google_sheet_url: ''
       }));
 
-      setIntroStepComplete(true);
+      // Set modelCreationStarted in context so it survives any remounting
+      setModelCreationStarted(true);
       setCompletedSteps(Array.from({ length: PRIMARY_STEPS.length + SECONDARY_STEPS.length }, (_, i) => i + 1));
 
       const fetchModelDetails = async () => {
@@ -1014,6 +1040,10 @@ const isStepComplete = (step: number) => {
       });
       const result = await response.json();
       if (response.ok) {
+        // Reset context state before navigating to model detail page (which should show main sidebar)
+        setHideMainSidebar(false);
+        setModelCreationStarted(false);
+        setSelectedModelTypeId('');
         navigate(`/models/${result.id}`);
       } else {
         console.error('Error creating user model:', result.error);
@@ -1065,6 +1095,10 @@ const isStepComplete = (step: number) => {
       });
       const result = await response.json();
       if (response.ok) {
+        // Reset context state before navigating to model detail page (which should show main sidebar)
+        setHideMainSidebar(false);
+        setModelCreationStarted(false);
+        setSelectedModelTypeId('');
         navigate(`/models/${result.id}`);
       } else {
         console.error('Error creating user model:', result.error);
@@ -1137,9 +1171,20 @@ const isStepComplete = (step: number) => {
 
   }
   const getStarted = async () => {
-    setIntroStepComplete(true);
+    console.log('🚀 getStarted called');
+
+    // Set context state (survives remounting)
+    setModelCreationStarted(true);
+    console.log('✅ modelCreationStarted set to true');
+
     if (selectedModelType) {
-      generateGoogleSheet(selectedModelType);
+      try {
+        console.log('📊 Calling generateGoogleSheet...');
+        await generateGoogleSheet(selectedModelType);
+        console.log('✅ generateGoogleSheet completed successfully');
+      } catch (err) {
+        console.error('❌ Error generating sheet:', err);
+      }
     }
   };
 
