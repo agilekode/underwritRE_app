@@ -84,6 +84,14 @@ export default function ExitAssumptions({
   const [rtExitMonth, setRtExitMonth] = useState<string>(String(getFieldValue(K.rtExitMonth, "60")));
   const [rtCapRate, setRtCapRate] = useState<string>(String(getFieldValue(K.rtCapRate, "8")));
   const [rtSelling, setRtSelling] = useState<string>(String(getFieldValue(K.rtSellingCosts, "3")));
+  useEffect(() => {
+    setMfExitMonth(String(getFieldValue(K.mfExitMonth, "60")));
+    setMfCapRate(String(getFieldValue(K.mfCapRate, "6")));
+    setMfSelling(String(getFieldValue(K.mfSellingCosts, "3")));
+    setRtExitMonth(String(getFieldValue(K.rtExitMonth, "60")));
+    setRtCapRate(String(getFieldValue(K.rtCapRate, "8")));
+    setRtSelling(String(getFieldValue(K.rtSellingCosts, "3")));
+  }, [modelDetails, getFieldValue]);
 
   // Commit helpers (send to parent only on blur/commit) and sync local state
   const commit = (fieldKey: string) => (value: number | string) => {
@@ -101,9 +109,19 @@ export default function ExitAssumptions({
   };
 
   // Do not update parent/local state on each keypress to avoid re-render blips
-  const onNum = (_fieldKey: string) => (_value: number | string) => {};
-
-  // Values now come from local state (above)
+  const onNum = useCallback((fieldKey: string) => (value: number | string) => {
+    const v = typeof value === 'number' ? String(value) : value;
+    switch (fieldKey) {
+      case K.mfExitMonth: setMfExitMonth(v); break;
+      case K.mfCapRate: setMfCapRate(v); break;
+      case K.mfSellingCosts: setMfSelling(v); break;
+      case K.rtExitMonth: setRtExitMonth(v); break;
+      case K.rtCapRate: setRtCapRate(v); break;
+      case K.rtSellingCosts: setRtSelling(v); break;
+    }
+    const id = getFieldId(fieldKey);
+    handleFieldChange(id, fieldKey, v);
+  }, [getFieldId, handleFieldChange]);
 
   const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     <Typography
