@@ -219,7 +219,7 @@ const CustomFooter = ({ expenses, expenseType, modelDetails, variables, operatin
   });
   
   const totalMonthlyExpenses = computedRows.reduce((sum, row) => sum + (row.monthly || 0), 0);
-  const totalAnnualExpenses = computedRows.reduce((sum, row) => sum + (row.annual || 0), 0);
+  const totalAnnualExpenses = Math.ceil(computedRows.reduce((sum, row) => sum + (row.annual || 0), 0));
 
   return (
     <div style={{ 
