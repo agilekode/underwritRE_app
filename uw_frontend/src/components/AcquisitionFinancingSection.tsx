@@ -54,10 +54,32 @@ export default function AcquisitionFinancingSection({
   };
 
   // Shared interest rate and amortization state
-  const [sharedInterestRate, setSharedInterestRate] = useState(getFieldValue("Acquisition Loan Interest Rate", 5));
+  const [sharedInterestRate, setSharedInterestRate] = useState<string>(
+    String(getFieldValue("Acquisition Loan Interest Rate", 5))
+  );
   const [sharedAmortization, setSharedAmortization] = useState(getFieldValue("Acquisition Loan Amortization", 30));
 
-  useEffect(() => { handleFieldChange(getFieldId("Acquisition Loan Interest Rate"), "Acquisition Loan Interest Rate", sharedInterestRate); }, [sharedInterestRate]);
+  useEffect(() => {
+    if (!sharedInterestRate) return;
+
+    if (
+      sharedInterestRate === "." ||
+      sharedInterestRate.endsWith(".")
+    ) {
+      return;
+    }
+
+    const floatValue = parseFloat(sharedInterestRate);
+
+    if (isNaN(floatValue)) return;
+
+    handleFieldChange(
+      getFieldId("Acquisition Loan Interest Rate"),
+      "Acquisition Loan Interest Rate",
+      floatValue.toFixed(1)
+    );
+
+  }, [sharedInterestRate]);
   useEffect(() => { handleFieldChange(getFieldId("Acquisition Loan Amortization"), "Acquisition Loan Amortization", sharedAmortization); }, [sharedAmortization]);
 
   // --- LTV Calculation Column State ---
@@ -202,7 +224,12 @@ export default function AcquisitionFinancingSection({
           </Typography>
           <PercentageInput
             value={sharedInterestRate}
-            onChange={(value: number | string) => setSharedInterestRate(Number(value))}
+            onChange={(value) => {
+              const str = String(value);
+              if (/^(\d+(\.\d*)?|\.\d*)?$/.test(str)) {
+                setSharedInterestRate(str);
+              }
+            }}
             variant="standard"
             size="small"
             sx={{ flex: 1, minWidth: 60, width: { xs: '100%', sm: 'auto', fontSize: { xs: '0.85rem', sm: '0.95rem', md: '1rem' } } }}
