@@ -54,9 +54,7 @@ export default function AcquisitionFinancingSection({
   };
 
   // Shared interest rate and amortization state
-  const [sharedInterestRate, setSharedInterestRate] = useState<string>(
-    String(getFieldValue("Acquisition Loan Interest Rate", 5))
-  );
+  const [sharedInterestRate, setSharedInterestRate] = useState(getFieldValue("Acquisition Loan Interest Rate", 5));
   const [sharedAmortization, setSharedAmortization] = useState(getFieldValue("Acquisition Loan Amortization", 30));
 
   useEffect(() => {
@@ -224,11 +222,8 @@ export default function AcquisitionFinancingSection({
           </Typography>
           <PercentageInput
             value={sharedInterestRate}
-            onChange={(value) => {
-              const str = String(value);
-              if (/^(\d+(\.\d*)?|\.\d*)?$/.test(str)) {
-                setSharedInterestRate(str);
-              }
+            onChange={(value: string | number) => {
+             setSharedInterestRate(value.toString());
             }}
             variant="standard"
             size="small"
