@@ -140,6 +140,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
   const [retailIncome, setRetailIncome] = useState<RetailIncome[]>([]);
   const [operatingExpenses, setOperatingExpenses] = useState<OperatingExpense[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [isDebouncing, setIsDebouncing] = useState(false);
   const [newRentalGrowthName, setNewRentalGrowthName] = useState('');
   const [modelMapping, setModelMapping] = useState({});
   const [variableMapping, setVariableMapping] = useState({});
@@ -524,7 +525,7 @@ useEffect(() => {
 
     // Set a new timeout to delay the API call
     debounceTimeoutRef.current = setTimeout(async () => {
-
+      setIsDebouncing(false);
       ;
 
       // Wait up to 20s for mappings and sheet URL to be ready and not creating
@@ -552,30 +553,35 @@ useEffect(() => {
     
 
         setFinalMetricsCalculating(true);
-        const token = await getAccessTokenSilently();
-        const response = await fetch(BACKEND_URL + '/api/user_models_single_field_updates', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ updates: toSend, variable_mapping: variableMappingRef.current, model_mapping: modelMappingRef.current, google_sheet_url: googleUrlRef.current })
+        try {
+          const token = await getAccessTokenSilently();
+          const response = await fetch(BACKEND_URL + '/api/user_models_single_field_updates', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ updates: toSend, variable_mapping: variableMappingRef.current, model_mapping: modelMappingRef.current, google_sheet_url: googleUrlRef.current })
+          });
+          const result = await response.json();
+
+          if (result.result) {
+            setLeveredIrr(result.result.levered_irr);
+            setLeveredMoic(result.result.levered_moic);
+            setVariables(result.result.variables);
+            setNoiTableValues(result.result.NOI || []);
+          }
+        } catch (error) {
+          console.error("Error updating field:", error);
+        } finally {
+          setFinalMetricsCalculating(false);
+        }
+        // Clear the queue we just sent (avoid clearing if new items arrived during send)
+        setUpdatesPending((prev) => {
+          // Drop the items that were in toSend; keep any that arrived after we started sending
+          const sentKeys = new Set(toSend.map((u: any) => u.field_id || u.field_key));
+          return prev.filter((u: any) => !sentKeys.has(u.field_id || u.field_key));
         });
-        const result = await response.json();
- 
-         if (result.result) {
-           setLeveredIrr(result.result.levered_irr);
-           setLeveredMoic(result.result.levered_moic);
-           setVariables(result.result.variables);
-           setNoiTableValues(result.result.NOI || []);
-           setFinalMetricsCalculating(false);
-         }
-         // Clear the queue we just sent (avoid clearing if new items arrived during send)
-         setUpdatesPending((prev) => {
-           // Drop the items that were in toSend; keep any that arrived after we started sending
-           const sentKeys = new Set(toSend.map((u: any) => u.field_id || u.field_key));
-           return prev.filter((u: any) => !sentKeys.has(u.field_id || u.field_key));
-         });
        }
        else {
          // Not ready; the update is already queued by enqueueUpdate
@@ -1005,7 +1011,7 @@ const isStepComplete = (step: number) => {
     const waitForGoogleSheetUrlAndNotCreating = () => {
       return new Promise<void>((resolve, reject) => {
         const check = () => {
-          if (modelDetails.google_sheet_url && !isCreating) {
+          if (modelDetails.google_sheet_url && !isCreating && !finalMetricsCalculating && !finalMetricsCalculating2 && !isDebouncing) {
             resolve();
           } else if (waited >= maxWait) {
             reject(new Error("Timeout: google_sheet_url not set or isCreating still true after 20 seconds"));
@@ -1066,7 +1072,7 @@ const isStepComplete = (step: number) => {
     const waitForGoogleSheetUrlAndNotCreating = () => {
       return new Promise<void>((resolve, reject) => {
         const check = () => {
-          if (modelDetails.google_sheet_url && !isCreating) {
+          if (modelDetails.google_sheet_url && !isCreating  && !finalMetricsCalculating && !finalMetricsCalculating2 && !isDebouncing) {
             resolve();
           } else if (waited >= maxWait) {
             reject(new Error("Timeout: google_sheet_url not set or isCreating still true after 20 seconds"));
@@ -1274,6 +1280,7 @@ const isStepComplete = (step: number) => {
           leveredMoic={leveredMoic}
           finalMetricsCalculating={finalMetricsCalculating}
           finalMetricsCalculating2={finalMetricsCalculating2}
+          isDebouncing={isDebouncing}
           showRetail={selectedModelTypeInfo?.show_retail}
           existingModel={existingModel}
           handleSaveAndExit={handleSaveAndExit}

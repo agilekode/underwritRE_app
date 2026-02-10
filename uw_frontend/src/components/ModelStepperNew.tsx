@@ -32,6 +32,7 @@ interface ModelStepperProps {
   leveredMoic?: string;
   finalMetricsCalculating?: boolean;
   finalMetricsCalculating2?: boolean;
+  isDebouncing?: boolean;
   children?: React.ReactNode;
   showRetail?: boolean;
   existingModel?: boolean;
@@ -54,10 +55,14 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
   leveredMoic = "",
   finalMetricsCalculating = false,
   finalMetricsCalculating2 = false,
+  isDebouncing = false,
   children,
+  showRetail,
   existingModel = false,
   handleSaveAndExit,
   modelDetails,
+  unitSqFtTotal,
+  retailSqFtTotal,
 }) => {
   const navigate = useNavigate();
   const completedCount = completedSteps.length;
@@ -69,6 +74,9 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
 
   const isNavDisabled =
     isCreating ||
+    isDebouncing ||
+    finalMetricsCalculating ||
+    finalMetricsCalculating2 ||
     !modelDetails?.google_sheet_url ||
     modelDetails.google_sheet_url === "";
 
@@ -387,7 +395,7 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
           <Button
             variant="outlined"
             onClick={onBack}
-            disabled={activeStep === 0 || isCreating}
+            disabled={activeStep === 0 || isNavDisabled}
             startIcon={<ChevronLeft />}
             sx={{
               textTransform: 'none',
@@ -404,9 +412,7 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
                 onClick={handleSaveAndExit}
                 disabled={
                   !isStepComplete(activeStep) ||
-                  isCreating ||
-                  !modelDetails?.google_sheet_url ||
-                  modelDetails.google_sheet_url === ""
+                  isNavDisabled
                 }
                 sx={{
                   textTransform: 'none',
@@ -419,7 +425,7 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
             <Button
               variant="contained"
               onClick={onNext}
-              disabled={isCreating || (!existingModel && !isStepComplete(activeStep)) || !isStepComplete(activeStep)}
+              disabled={isNavDisabled || !isStepComplete(activeStep)}
               endIcon={activeStep === steps.length - 1 ? undefined : <ChevronRight />}
               sx={{
                 textTransform: 'none',

@@ -822,8 +822,12 @@ def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service):
             continue
         if location.startswith('=') and '!' in location:
             clean_location = location[1:]  # Remove '='
-            ranges.append(clean_location)
-            location_map[clean_location] = name
+
+            if clean_location not in location_map:
+                location_map[clean_location] = []
+                ranges.append(clean_location)
+
+            location_map[clean_location].append(name)
         else:
             variables[name] = location  # Literal value
 
@@ -840,10 +844,12 @@ def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service):
                 valueRenderOption='FORMATTED_VALUE'
             ).execute()
             for j, value_range in enumerate(result.get("valueRanges", [])):
-                name = location_map[chunk[j]]
+                cell_location = chunk[j]
+                names = location_map.get(cell_location, [])
                 values = value_range.get("values", [[]])
                 value = values[0][0] if values and values[0] else ""
-                variables[name] = value
+                for name in names:
+                    variables[name] = value
 
     return variables
 

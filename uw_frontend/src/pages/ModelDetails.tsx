@@ -154,12 +154,25 @@ const ModelDetails = () => {
     const fieldValue = modelDetails.user_model_field_values.find(
       (fv: any) => fv.field_id === fieldId
     );
-    if (!fieldValue) {
-      return defaultValue;
+    return fieldValue?.value?.toString() || defaultValue;
+  };
+
+  const formatKpiValue = (val: any, type: 'irr' | 'moic' | 'auto' = 'auto') => {
+    if (val === null || val === undefined || val === "" || val === "N/A") return "N/A";
+    const str = String(val).trim();
+
+    // First try to extract a numeric value
+    const num = parseFloat(str.replace(/[%,x$]/g, "").replace(/,/g, ""));
+    if (isNaN(num)) return str;
+
+    if (type === 'irr' || (type === 'auto' && str.endsWith('%'))) {
+      return `${num.toFixed(1)}%`;
+    }
+    if (type === 'moic') {
+      return `${num.toFixed(2)}x`;
     }
 
-    const result = fieldValue.value?.toString() || defaultValue;
-    return result;
+    return str;
   };
 
   const handleGenerate = async (maxPrice: string, minCapRate: string) => {
@@ -1190,7 +1203,20 @@ const ModelDetails = () => {
       }
     };
 
-    return keptRowIndices.map((ri) => (
+    const filteredRowIndices = keptRowIndices.filter((ri, idx) => {
+      const row = data[ri] || [];
+      const prevRowIndex = idx > 0 ? keptRowIndices[idx - 1] : -1;
+      const prevRow = prevRowIndex >= 0 ? data[prevRowIndex] : null;
+      const isPrevTotalSources = prevRow && prevRow.some(c => typeof c === 'string' && c.trim() === 'Total Sources');
+      if (isPrevTotalSources && row.every(cell => isBlank(cell))) return false;
+      return true;
+    });
+
+    return filteredRowIndices.map((ri) => {
+      const row = data[ri] || [];
+      const isTotalRow = row.some(c => typeof c === 'string' && (c.trim() === 'Total Sources' || c.trim() === 'Total Uses'));
+
+      return (
       <tr key={ri}>
         {keptColIndices.map((ci) => {
           const cell = (data[ri] || [])[ci];
@@ -1206,6 +1232,7 @@ const ModelDetails = () => {
                 verticalAlign: "middle",
             // fontSize: '1.2rem',
             textAlign: ci === keptColIndices[0] ? 'left' : 'right',
+                  ...(isTotalRow ? { borderTop: "2px solid #333", fontWeight: 'bold' } : {}),
             ...(inlineStyle as any),
                 maxWidth: maxWidth,
               }}
@@ -1214,7 +1241,18 @@ const ModelDetails = () => {
                 const val = cell;
                 if (val === null || val === undefined) return "\u00A0";
                 const str = typeof val === "string" ? val : String(val);
-                return str.trim() === "" ? "\u00A0" : val;
+                if (str.trim() === "") return "\u00A0";
+
+                // Check labels for context-based formatting
+                const rowLabel = String(data[ri][0] || "").toLowerCase();
+                if (rowLabel.includes("irr") || str.endsWith("%")) {
+                  return formatKpiValue(str, 'irr');
+                }
+                if (rowLabel.includes("moic")) {
+                  return formatKpiValue(str, 'moic');
+                }
+
+                return val;
               })()}
             </td>
           );

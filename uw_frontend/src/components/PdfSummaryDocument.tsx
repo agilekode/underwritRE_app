@@ -202,6 +202,24 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
   })();
   const holdMonths = holdMonthsExternal ?? computedHoldMonths;
 
+  const formatKpiValue = (val: any, type: 'irr' | 'moic' | 'auto' = 'auto') => {
+    if (val === null || val === undefined || val === "" || val === "N/A" || val === "-") return "-";
+    const str = String(val).trim();
+
+    // First try to extract a numeric value
+    const num = parseFloat(str.replace(/[%,x$]/g, "").replace(/,/g, ""));
+    if (isNaN(num)) return str;
+
+    if (type === 'irr' || (type === 'auto' && str.endsWith('%'))) {
+      return `${num.toFixed(1)}%`;
+    }
+    if (type === 'moic') {
+      return `${num.toFixed(2)}x`;
+    }
+
+    return str;
+  };
+
   // Table utilities (modeled after renderTableMappingRows) for trimming and rendering tables
   const isBlank = (cell: any) =>
     cell === null || cell === undefined || (typeof cell === "string" && cell.trim() === "");
@@ -301,8 +319,21 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
   };
 
   const renderPdfTable = (mapping: any, key: string) => {
-    const { rows, styles } = buildTrimmedTable(mapping);
-    if (!rows || rows.length === 0) return null;
+    const { rows: rawRows, styles: rawStyles } = buildTrimmedTable(mapping);
+    if (!rawRows || rawRows.length === 0) return null;
+
+    // Filter out extra blank row after "Total Sources"
+    const rows: any[][] = [];
+    const styles: any[][] = [];
+    rawRows.forEach((row, ri) => {
+      const prevRow = ri > 0 ? rawRows[ri - 1] : null;
+      const isPrevTotalSources = prevRow && prevRow.some(c => typeof c === 'string' && c.trim() === 'Total Sources');
+      const isBlankRow = row.every(isBlank);
+      if (isPrevTotalSources && isBlankRow) return;
+      rows.push(row);
+      styles.push(rawStyles[ri]);
+    });
+
     const colCount = rows.reduce((m, r) => Math.max(m, r.length), 0);
     const base = colCount > 0 ? 100 / (colCount + 1) : 100; // first column counts as 2x
     const firstPct = (2 * base).toFixed(6);
@@ -333,7 +364,18 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
               return (
                 <View key={`c-${ci}`} style={finalCellStyle}>
                   <Text style={finalTextStyle}>
-                    {raw === undefined || raw === null || String(raw).trim() === "" ? " " : String(raw)}
+                    {(() => {
+                        if (raw === undefined || raw === null || String(raw).trim() === "") return " ";
+                        const str = String(raw).trim();
+                        const rowLabel = String(row[0] || "").toLowerCase();
+                        if (rowLabel.includes("irr") || str.endsWith("%")) {
+                          return formatKpiValue(str, 'irr');
+                        }
+                        if (rowLabel.includes("moic")) {
+                          return formatKpiValue(str, 'moic');
+                        }
+                        return str;
+                      })()}
                   </Text>
                 </View>
               );
@@ -355,7 +397,7 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
     if (!tbl || !Array.isArray(tbl.capRates) || !Array.isArray(tbl.acquisitionPrices)) return null;
     const headerRow = [leftHeader, ...tbl.acquisitionPrices.map((p) => `$${(toNum(p) ?? 0).toLocaleString()}`)];
     const rows = [headerRow, ...tbl.capRates.map((cr, ri) => {
-      const left = `${(toNum(cr) ?? 0).toFixed(2)}%`;
+      const left = `${(toNum(cr) ?? 0).toFixed(1)}%`;
       const vals = (tbl.values?.[ri] || []).map((v) => format(toNum(v) ?? 0));
       return [left, ...vals];
     })];
@@ -940,11 +982,11 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
               <View style={styles.grid}>
                 <View style={styles.gridItemThird}>
                   <Text style={styles.label}>Levered IRR</Text>
-                  <Text style={styles.value}>{modelDetails?.levered_irr ?? safeVar("Levered IRR")}</Text>
+                  <Text style={styles.value}>{formatKpiValue(modelDetails?.levered_irr ?? variables?.["Levered IRR"], 'irr')}</Text>
                 </View>
                 <View style={styles.gridItemThird}>
                   <Text style={styles.label}>Levered MOIC</Text>
-                  <Text style={styles.value}>{modelDetails?.levered_moic ?? safeVar("Levered MOIC")}</Text>
+                  <Text style={styles.value}>{formatKpiValue(modelDetails?.levered_moic ?? variables?.["Levered MOIC"], 'moic')}</Text>
                 </View>
                 <View style={styles.gridItemThird}>
                   <Text style={styles.label}>Hold Period</Text>
