@@ -29,7 +29,6 @@ import RecoveryIncomeTableIndustrial from '../components/RecoveryIncomeTableIndu
 import { RetailExpensesIndustrial } from '../components/RetailExpensesIndustrial';
 import GrossPotentialRetailIncomeTableIndustrial from '../components/GrossPotentialRetailIncomeTableIndustrial';
 import RetailSummary from '../components/RetailSummary';
-import { useLayout } from '../context/LayoutContext';
 
 type Section = {
   id: string;
@@ -102,19 +101,19 @@ interface RetailIncome {
   recovery_start_month: number;
 }
 
-interface CreateModelProps {
+interface CreateModelOldProps {
   existingModel?: boolean;
   modelId?: string;
 }
 
 
-export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
+export const CreateModelOld = ({ existingModel, modelId }: CreateModelOldProps) => {
   const navigate = useNavigate();
   const { getAccessTokenSilently } = useAuth0();
   const { user } = useUser();
   const [activeStep, setActiveStep] = useState(0);
-  // const [selectedModelType, setSelectedModelType] = useState('');
-  // const [introStepComplete, setIntroStepComplete] = useState(false);
+  const [selectedModelType, setSelectedModelType] = useState('');
+  const [introStepComplete, setIntroStepComplete] = useState(false);
   const [modelDetails, setModelDetails] = useState<Record<string, any>>({
     name: '',
     street_address: '',
@@ -146,35 +145,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
   const [finalMetricsCalculating2, setFinalMetricsCalculating2] = useState(false);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const { setHideMainSidebar, modelCreationStarted, setModelCreationStarted, selectedModelTypeId, setSelectedModelTypeId } = useLayout();
-  const selectedModelType = selectedModelTypeId;
-  const setSelectedModelType = setSelectedModelTypeId;
 
-  const introStepComplete = modelCreationStarted || !!existingModel;
-
-  useEffect(() => {
-    setHideMainSidebar(introStepComplete);
-    // NOTE: Do NOT reset modelCreationStarted in cleanup - it must survive remounting
-  }, [introStepComplete, setHideMainSidebar]);
-  
-  // Reset context state only when navigating away from create-model/edit-model page entirely
-  useEffect(() => {
-    return () => {
-      // Use a small delay to check if we're still on create-model/edit-model page
-      // If we remounted due to layout change, we'll still be on the same route
-      // Note: Don't include 'models/' - that's the detail page which should show main sidebar
-      setTimeout(() => {
-        const stillOnModelCreationPage = window.location.pathname.includes('create-model') ||
-                                          window.location.pathname.includes('edit-model');
-        if (!stillOnModelCreationPage) {
-          setHideMainSidebar(false);
-          setModelCreationStarted(false);
-          setSelectedModelTypeId('');
-        }
-      }, 50);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
 
   // Add debounce timeout ref
@@ -366,8 +337,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
         google_sheet_url: ''
       }));
 
-      // setIntroStepComplete(true);
-      setModelCreationStarted(true);
+      setIntroStepComplete(true);
       setCompletedSteps(Array.from({ length: PRIMARY_STEPS.length + SECONDARY_STEPS.length }, (_, i) => i + 1));
 
       const fetchModelDetails = async () => {
@@ -1044,9 +1014,6 @@ const isStepComplete = (step: number) => {
       });
       const result = await response.json();
       if (response.ok) {
-        setHideMainSidebar(false);
-        setModelCreationStarted(false);
-        setSelectedModelTypeId('');
         navigate(`/models/${result.id}`);
       } else {
         console.error('Error creating user model:', result.error);
@@ -1098,9 +1065,6 @@ const isStepComplete = (step: number) => {
       });
       const result = await response.json();
       if (response.ok) {
-        setHideMainSidebar(false);
-        setModelCreationStarted(false);
-        setSelectedModelTypeId('');
         navigate(`/models/${result.id}`);
       } else {
         console.error('Error creating user model:', result.error);
@@ -1170,18 +1134,17 @@ const isStepComplete = (step: number) => {
     } catch (err) {
       console.error('Error during Google Sheet generation:', err);
     }
-  }
 
+  }
   const getStarted = async () => {
-    setModelCreationStarted(true);
-    // setIntroStepComplete(true);
+    setIntroStepComplete(true);
     if (selectedModelType) {
       generateGoogleSheet(selectedModelType);
     }
   };
 
 
-  
+
   const rentalNames = growthRates
     .filter(rate => rate.type === 'rental')
     .map(rate => rate.name.trim().toLowerCase());
@@ -2078,4 +2041,4 @@ const isStepComplete = (step: number) => {
   );
 };
 
-export default CreateModel;
+export default CreateModelOld;

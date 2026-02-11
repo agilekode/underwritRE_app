@@ -304,8 +304,6 @@ const ModelDetails = () => {
 
         setModelDetails(data);
         console.log("MODEL DETAILS", data);
-
-
         // Set the selected version to the current version if not already set
         if (!selectedVersion && data.version_id) {
           setSelectedVersion(data.version_id);
@@ -1258,7 +1256,8 @@ const ModelDetails = () => {
           );
         })}
       </tr>
-    ));
+    );
+    });
   };
 
   return (

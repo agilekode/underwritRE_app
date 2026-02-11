@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Box,
   Button,
@@ -72,13 +72,15 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
   const isBranchCompleted = (stepIndex: number) => completedSteps.includes(stepIndex + 1);
   const isCurrentStep = (stepIndex: number) => stepIndex === activeStep;
 
+  const sheetUrl = modelDetails?.google_sheet_url ?? '';
   const isNavDisabled =
     isCreating ||
     isDebouncing ||
     finalMetricsCalculating ||
     finalMetricsCalculating2 ||
-    !modelDetails?.google_sheet_url ||
-    modelDetails.google_sheet_url === "";
+    !sheetUrl ||
+    sheetUrl === "";
+
 
   const isNextDisabled = !isStepComplete(activeStep);
 

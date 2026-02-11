@@ -10,6 +10,7 @@ import FeedbackIcon from '@mui/icons-material/Feedback';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useUser } from '../context/UserContext';
 import { colors } from '../theme';
+import { useLayout } from '../context/LayoutContext';
 
 const SIDEBAR_WIDTH = 240;
 
@@ -22,6 +23,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const location = useLocation();
   const { logout } = useAuth0();
   const { user } = useUser();
+  const { hideMainSidebar } = useLayout();
   
   // Get admin emails from environment variable
   const adminEmails = process.env.REACT_APP_ADMIN_EMAILS?.split(',') || [];
@@ -54,7 +56,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           width: SIDEBAR_WIDTH,
           flexShrink: 0,
           bgcolor: colors.navy,
-          display: 'flex',
+          display: hideMainSidebar ? 'none' : 'flex',
           flexDirection: 'column',
           position: 'fixed',
           height: '100vh',
@@ -238,7 +240,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          marginLeft: `${SIDEBAR_WIDTH}px`,
+          marginLeft: hideMainSidebar ? 0 : `${SIDEBAR_WIDTH}px`,
           minHeight: '100vh',
           bgcolor: colors.grey[100],
         }}
