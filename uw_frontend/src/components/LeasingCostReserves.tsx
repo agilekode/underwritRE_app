@@ -1,15 +1,38 @@
-import React, { useEffect, useMemo } from 'react';
-import { Box, Typography, InputAdornment, TextField } from '@mui/material';
+import React, { useMemo } from 'react';
+import { Box, Typography } from '@mui/material';
+import { NumberInput, PercentInput } from './StandardInput';
+import { colors, typography } from '../theme';
 
 type RetailIncome = { square_feet: number };
 
 // Hoisted stable wrappers to prevent remounts that steal input focus
 const Cell = React.memo(({ children, right = false, bold = false }: any) => (
-  <Box sx={{ p: 1, textAlign: right ? 'right' : 'left', fontWeight: bold ? 700 : 500 }}>{children}</Box>
+  <Box
+    sx={{
+      p: 1,
+      textAlign: right ? 'right' : 'left',
+      fontWeight: bold ? 700 : 500,
+      fontSize: 14.5,
+      color: colors.grey[900],
+      fontFamily: typography.fontFamily,
+    }}
+  >
+    {children}
+  </Box>
 ));
 
 const Label = React.memo(({ children }: any) => (
-  <Box sx={{ p: 1, color: 'text.primary', fontWeight: 600 }}>{children}</Box>
+  <Box
+    sx={{
+      p: 1,
+      color: colors.grey[900],
+      fontWeight: 600,
+      fontSize: 14.5,
+      fontFamily: typography.fontFamily,
+    }}
+  >
+    {children}
+  </Box>
 ));
 
 function LeasingCostReserves({
@@ -30,6 +53,15 @@ function LeasingCostReserves({
   const getFieldId = (field_key: string) => {
     const f = modelDetails?.user_model_field_values?.find((x: any) => x.field_key === field_key);
     return f ? f.field_id : '';
+  };
+
+  const handleNumericChange = (field_key: string) => (e: any) => {
+    const raw = e.target.value;
+    handleFieldChange(
+      getFieldId(field_key),
+      field_key,
+      raw === '' ? '' : Number(raw)
+    );
   };
 
   const totalSF = useMemo(() => (retailIncome || []).reduce((s, r) => s + Number(r.square_feet || 0), 0), [retailIncome]);
@@ -85,179 +117,96 @@ function LeasingCostReserves({
   return (
     <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
       {/* Column 1 - Inputs */}
-      <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden' }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', bgcolor: '#f5f7fa', borderBottom: '1px solid #e0e0e0' }}>
+      <Box sx={{ border: `1px solid ${colors.grey[300]}`, borderRadius: 2, overflow: 'hidden', backgroundColor: colors.white }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', bgcolor: colors.grey[50], borderBottom: `1px solid ${colors.grey[300]}` }}>
           <Cell bold>Calculate the Leasing Cost Reserves</Cell>
           <Cell right bold>New Lease</Cell>
           <Cell right bold>Renewal Lease</Cell>
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', alignItems: 'center', borderBottom: `1px solid ${colors.grey[300]}` }}>
           <Label>Lease Renewal Probability</Label>
           <Cell right>
-            <Typography component="span" color="text.secondary">{`${newProb.toFixed(1)}%`}</Typography>
+            <Typography component="span" sx={{ color: colors.grey[600] }}>{`${newProb.toFixed(1)}%`}</Typography>
           </Cell>
           <Cell right>
-            <TextField
+            <PercentInput
               value={String(getFieldValue('Renewal Property: Renewal Lease', 0) ?? '')}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/,/g, '');
-                handleFieldChange(
-                  getFieldId('Renewal Property: Renewal Lease'),
-                  'Renewal Property: Renewal Lease',
-                  raw === '' ? '' : raw
-                );
-              }}
-              variant="standard"
+              onChange={handleNumericChange('Renewal Property: Renewal Lease')}
               size="small"
-              sx={{ width: { xs: '100%', sm: 160 }, '& .MuiInputBase-input': { textAlign: 'right' } }}
-              InputProps={{
-                disableUnderline: true,
-                endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                inputProps: { style: { textAlign: 'right' }, inputMode: 'decimal', pattern: '[0-9]*\\.?[0-9]*' },
-              }}
+              sx={{ width: { xs: '100%', sm: 160 } }}
             />
           </Cell>
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', alignItems: 'center', borderBottom: `1px solid ${colors.grey[300]}` }}>
           <Label>Average {space_type} Rent</Label>
           <Cell right>
-            <TextField
+            <NumberInput
               value={String(getFieldValue('Retail Rent: New Lease', 0) ?? '')}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/,/g, '');
-                handleFieldChange(
-                  getFieldId('Retail Rent: New Lease'),
-                  'Retail Rent: New Lease',
-                  raw === '' ? '' : raw
-                );
-              }}
-              variant="standard"
+              onChange={handleNumericChange('Retail Rent: New Lease')}
+              prefix="$"
+              suffix="/ SF"
+              allowDecimals
               size="small"
-              sx={{ width: { xs: '100%', sm: 160 }, '& .MuiInputBase-input': { textAlign: 'right' } }}
-              InputProps={{
-                disableUnderline: true,
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                endAdornment: <InputAdornment position="end">/ SF</InputAdornment>,
-                inputProps: { style: { textAlign: 'right' }, inputMode: 'decimal', pattern: '[0-9]*\\.?[0-9]*' },
-              }}
+              sx={{ width: { xs: '100%', sm: 160 } }}
             />
           </Cell>
           <Cell right>
-            <TextField
+            <NumberInput
               value={String(getFieldValue('Retail Rent: Renewal Lease', 0) ?? '')}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/,/g, '');
-                handleFieldChange(
-                  getFieldId('Retail Rent: Renewal Lease'),
-                  'Retail Rent: Renewal Lease',
-                  raw === '' ? '' : raw
-                );
-              }}
-              variant="standard"
+              onChange={handleNumericChange('Retail Rent: Renewal Lease')}
+              prefix="$"
+              suffix="/ SF"
+              allowDecimals
               size="small"
-              sx={{ width: { xs: '100%', sm: 160 }, '& .MuiInputBase-input': { textAlign: 'right' } }}
-              InputProps={{
-                disableUnderline: true,
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                endAdornment: <InputAdornment position="end">/ SF</InputAdornment>,
-                inputProps: { style: { textAlign: 'right' }, inputMode: 'decimal', pattern: '[0-9]*\\.?[0-9]*' },
-              }}
+              sx={{ width: { xs: '100%', sm: 160 } }}
             />
           </Cell>
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', alignItems: 'center', borderBottom: `1px solid ${colors.grey[300]}` }}>
           <Label>Tenant Improvements</Label>
           <Cell right>
-            <TextField
+            <NumberInput
               value={String(getFieldValue("TI's: New Lease", 0) ?? '')}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/,/g, '');
-                handleFieldChange(
-                  getFieldId("TI's: New Lease"),
-                  "TI's: New Lease",
-                  raw === '' ? '' : raw
-                );
-              }}
-              variant="standard"
+              onChange={handleNumericChange("TI's: New Lease")}
+              prefix="$"
+              suffix="/ SF"
+              allowDecimals
               size="small"
-              sx={{ width: { xs: '100%', sm: 160 }, '& .MuiInputBase-input': { textAlign: 'right' } }}
-              InputProps={{
-                disableUnderline: true,
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                endAdornment: <InputAdornment position="end">/ SF</InputAdornment>,
-                inputProps: { style: { textAlign: 'right' }, inputMode: 'decimal', pattern: '[0-9]*\\.?[0-9]*' },
-              }}
+              sx={{ width: { xs: '100%', sm: 160 } }}
             />
           </Cell>
           <Cell right>
-            <TextField
+            <NumberInput
               value={String(getFieldValue("TI's: Renewal Lease", 0) ?? '')}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/,/g, '');
-                handleFieldChange(
-                  getFieldId("TI's: Renewal Lease"),
-                  "TI's: Renewal Lease",
-                  raw === '' ? '' : raw
-                );
-              }}
-              variant="standard"
+              onChange={handleNumericChange("TI's: Renewal Lease")}
+              prefix="$"
+              suffix="/ SF"
+              allowDecimals
               size="small"
-              sx={{ width: { xs: '100%', sm: 160 }, '& .MuiInputBase-input': { textAlign: 'right' } }}
-              InputProps={{
-                disableUnderline: true,
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                endAdornment: <InputAdornment position="end">/ SF</InputAdornment>,
-                inputProps: { style: { textAlign: 'right' }, inputMode: 'decimal', pattern: '[0-9]*\\.?[0-9]*' },
-              }}
+              sx={{ width: { xs: '100%', sm: 160 } }}
             />
           </Cell>
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', alignItems: 'center', borderBottom: '1px solid #e0e0e0' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', alignItems: 'center', borderBottom: `1px solid ${colors.grey[300]}` }}>
           <Label>Leasing Commissions</Label>
           <Cell right>
-            <TextField
+            <PercentInput
               value={String(getFieldValue('Leasing Commissions: New Lease', 0) ?? '')}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/,/g, '');
-                handleFieldChange(
-                  getFieldId('Leasing Commissions: New Lease'),
-                  'Leasing Commissions: New Lease',
-                  raw === '' ? '' : raw
-                );
-              }}
-              variant="standard"
+              onChange={handleNumericChange('Leasing Commissions: New Lease')}
               size="small"
-              sx={{ width: { xs: '100%', sm: 160 }, '& .MuiInputBase-input': { textAlign: 'right' } }}
-              InputProps={{
-                disableUnderline: true,
-                endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                inputProps: { style: { textAlign: 'right' }, inputMode: 'decimal', pattern: '[0-9]*\\.?[0-9]*' },
-              }}
+              sx={{ width: { xs: '100%', sm: 160 } }}
             />
           </Cell>
           <Cell right>
-            <TextField
+            <PercentInput
               value={String(getFieldValue('Leasing Commissions: Renewal Lease', 0) ?? '')}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/,/g, '');
-                handleFieldChange(
-                  getFieldId('Leasing Commissions: Renewal Lease'),
-                  'Leasing Commissions: Renewal Lease',
-                  raw === '' ? '' : raw
-                );
-              }}
-              variant="standard"
+              onChange={handleNumericChange('Leasing Commissions: Renewal Lease')}
               size="small"
-              sx={{ width: { xs: '100%', sm: 160 }, '& .MuiInputBase-input': { textAlign: 'right' } }}
-              InputProps={{
-                disableUnderline: true,
-                endAdornment: <InputAdornment position="end">%</InputAdornment>,
-                inputProps: { style: { textAlign: 'right' }, inputMode: 'decimal', pattern: '[0-9]*\\.?[0-9]*' },
-              }}
+              sx={{ width: { xs: '100%', sm: 160 } }}
             />
           </Cell>
         </Box>
@@ -265,53 +214,29 @@ function LeasingCostReserves({
         <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', alignItems: 'center' }}>
           <Label>New Lease Term</Label>
           <Cell right>
-            <TextField
+            <NumberInput
               value={String(getFieldValue('Lease Term: New Lease', 1) ?? '')}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/,/g, '');
-                handleFieldChange(
-                  getFieldId('Lease Term: New Lease'),
-                  'Lease Term: New Lease',
-                  raw === '' ? '' : raw
-                );
-              }}
-              variant="standard"
+              onChange={handleNumericChange('Lease Term: New Lease')}
+              suffix="years"
               size="small"
-              sx={{ width: { xs: '100%', sm: 160 }, '& .MuiInputBase-input': { textAlign: 'right' } }}
-              InputProps={{
-                disableUnderline: true,
-                endAdornment: <InputAdornment position="end">years</InputAdornment>,
-                inputProps: { style: { textAlign: 'right' }, inputMode: 'numeric', pattern: '[0-9]*' },
-              }}
+              sx={{ width: { xs: '100%', sm: 160 } }}
             />
           </Cell>
           <Cell right>
-            <TextField
+            <NumberInput
               value={String(getFieldValue('Lease Term: Renewal Lease', 1) ?? '')}
-              onChange={(e) => {
-                const raw = e.target.value.replace(/,/g, '');
-                handleFieldChange(
-                  getFieldId('Lease Term: Renewal Lease'),
-                  'Lease Term: Renewal Lease',
-                  raw === '' ? '' : raw
-                );
-              }}
-              variant="standard"
+              onChange={handleNumericChange('Lease Term: Renewal Lease')}
+              suffix="years"
               size="small"
-              sx={{ width: { xs: '100%', sm: 160 }, '& .MuiInputBase-input': { textAlign: 'right' } }}
-              InputProps={{
-                disableUnderline: true,
-                endAdornment: <InputAdornment position="end">years</InputAdornment>,
-                inputProps: { style: { textAlign: 'right' }, inputMode: 'numeric', pattern: '[0-9]*' },
-              }}
+              sx={{ width: { xs: '100%', sm: 160 } }}
             />
           </Cell>
         </Box>
       </Box>
 
       {/* Column 2 - Calculations */}
-      <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', bgcolor: '#f5f7fa', borderBottom: '1px solid #e0e0e0' }}>
+      <Box sx={{ border: `1px solid ${colors.grey[300]}`, borderRadius: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column', backgroundColor: colors.white }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', bgcolor: colors.grey[50], borderBottom: `1px solid ${colors.grey[300]}` }}>
           <Cell bold></Cell>
           <Cell right bold>New Lease</Cell>
           <Cell right bold>Renewal Lease</Cell>
@@ -334,7 +259,7 @@ function LeasingCostReserves({
           <Cell right>{money0(amortRen)}</Cell>
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', alignItems: 'center', background: '#e9ecef', py: 1, borderTop: '1px solid #e0e0e0' }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', alignItems: 'center', background: colors.blueTint, py: 1, borderTop: `1px solid ${colors.grey[300]}` }}>
           <Label>Annual Leasing Cost Reserves</Label>
           <Cell right bold>{`${money2(weightedPerSF)} / SF`}</Cell>
           <Cell right bold>{money0(weightedAnnual)}</Cell>

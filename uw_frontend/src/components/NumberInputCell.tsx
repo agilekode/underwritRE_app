@@ -34,10 +34,10 @@ export const NumberInputCell = ({ params, handleCellChange, field, prefix = '', 
     return (
       <div style={{ position: 'relative', width: '100%' }}>
         {prefix && (
-          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#888', pointerEvents: 'none', fontSize: 14 }}>{prefix}</span>
+          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#6b7280', pointerEvents: 'none', fontSize: 14, fontWeight: 500 }}>{prefix}</span>
         )}
         {suffix && (
-          <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#888', pointerEvents: 'none', fontSize: 14 }}>{suffix}</span>
+          <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#6b7280', pointerEvents: 'none', fontSize: 14, fontWeight: 500 }}>{suffix}</span>
         )}
         <input
           ref={inputRef}
@@ -114,7 +114,10 @@ export const NumberInputCell = ({ params, handleCellChange, field, prefix = '', 
               return `${base}px ${right}px ${base}px ${left}px`;
             })(),
             outline: 'none',
-            fontSize: 14, 
+            fontSize: 14,
+            fontWeight: 600,
+            fontFamily: 'inherit',
+            color: '#1f2937',
             textAlign: 'right'
           }}
         />

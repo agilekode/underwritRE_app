@@ -11,6 +11,7 @@ import { HEADER_FOOTER_HEIGHT, ROW_HEIGHT } from "../utils/constants";
 import { NumberDecimalInputCell } from "./NumberDecimalInputCell";
 import { getOperatingExpenseAnnualByName } from "../utils/operatingExpenseCalc";
 import { ExpensesSuggested, ExpensesBasic, ExpensesIndustrial} from "../utils/newModelConstants";
+import { colors, typography } from "../theme";
 
 const EditableNameCell = React.memo(function EditableNameCell({
   initialValue,
@@ -62,8 +63,22 @@ const EditableNameCell = React.memo(function EditableNameCell({
       onBlur={() => {
         onCommit(localValue);
       }}
-      sx={{ minWidth: 0, width: '100%', '& .MuiInputBase-input': { padding: 0, textAlign: 'left', height: '100%' } }}
-      InputProps={{ disableUnderline: true, sx: { px: 0, py: 0, height: 36, display: 'flex', alignItems: 'center', background: 'transparent' } }}
+      sx={{
+        minWidth: 0,
+        width: '100%',
+        '& .MuiInputBase-input': {
+          padding: 0,
+          textAlign: 'left',
+          height: '100%',
+          fontSize: 14.5,
+          fontWeight: 400,
+          fontFamily: typography.fontFamily
+        }
+      }}
+      InputProps={{
+        disableUnderline: true,
+        sx: { px: 0, py: 0, height: 36, display: 'flex', alignItems: 'center', background: 'transparent', fontFamily: 'inherit' }
+      }}
       inputProps={{ maxLength: 100 }}
     />
   );
@@ -77,7 +92,35 @@ const EXPENSE_STEPS_MAPPING = {
 };
 
 
-const CustomFooter = ({ expenses, expenseType, modelDetails, variables, operatingExpenses, units, amenityIncome, retailIncome, retailExpenses, onAdd, onAddWithName }: { expenses: Expense[], expenseType: string, modelDetails: any, variables: any, operatingExpenses: any[], units: any[], amenityIncome: any[], retailIncome: any[], retailExpenses: any[], onAdd: () => void, onAddWithName: (name: string) => void }) => {
+const CustomFooter = ({
+  expenses,
+  expenseType,
+  modelDetails,
+  variables,
+  operatingExpenses,
+  units,
+  amenityIncome,
+  retailIncome,
+  retailExpenses,
+  onAdd,
+  onAddWithName,
+  showMonths,
+  setShowMonths,
+}: {
+  expenses: Expense[];
+  expenseType: string;
+  modelDetails: any;
+  variables: any;
+  operatingExpenses: any[];
+  units: any[];
+  amenityIncome: any[];
+  retailIncome: any[];
+  retailExpenses: any[];
+  onAdd: () => void;
+  onAddWithName: (name: string) => void;
+  showMonths: boolean;
+  setShowMonths: (value: boolean) => void;
+}) => {
   // Filter expenses for this specific type
   const filteredExpenses = expenses.filter(exp => exp.type === expenseType);
   const newExpenseInputRef = useRef<HTMLInputElement | null>(null);
@@ -219,19 +262,21 @@ const CustomFooter = ({ expenses, expenseType, modelDetails, variables, operatin
   });
   
   const totalMonthlyExpenses = computedRows.reduce((sum, row) => sum + (row.monthly || 0), 0);
-  const totalAnnualExpenses = computedRows.reduce((sum, row) => sum + (row.annual || 0), 0);
+  const totalAnnualExpenses = Math.ceil(computedRows.reduce((sum, row) => sum + (row.annual || 0), 0));
 
   return (
-    <div style={{ 
-      padding: '16px 16px', 
-      backgroundColor: 'transparent', 
-      borderTop: '1px solid #e0e0e0',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      fontSize: 15
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <Box
+      sx={{
+        p: 2,
+        backgroundColor: colors.white,
+        borderTop: `1px solid ${colors.grey[300]}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 2,
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Autocomplete
           freeSolo
           size="small"
@@ -262,7 +307,12 @@ const CustomFooter = ({ expenses, expenseType, modelDetails, variables, operatin
                 }
               }}
               inputRef={newExpenseInputRef}
-              sx={{ minWidth: 260 }}
+              sx={{
+                minWidth: 260,
+                '& .MuiInputBase-input': { fontSize: 14, fontFamily: 'inherit' },
+                '& .MuiInputLabel-root': { fontSize: 14, fontFamily: 'inherit' },
+                '& .MuiInputLabel-shrink': { fontSize: 14, fontFamily: 'inherit' }
+              }}
             />
           )}
         />
@@ -275,16 +325,21 @@ const CustomFooter = ({ expenses, expenseType, modelDetails, variables, operatin
           } else {
             onAdd();
           }
-        }} sx={{ whiteSpace: 'nowrap', minWidth: 220 }}>
+        }} sx={{ whiteSpace: 'nowrap', minWidth: 220, fontSize: 14, fontWeight: 600 }}>
           Add {expenseType === 'Legal and Pre-Development Costs' ? 'Legal or Setup Cost' : (expenseType.endsWith('s') ? expenseType.slice(0, -1) : expenseType)}
         </Button>
-      </div>
-      <div style={{ display: 'flex', gap: '24px', marginLeft: 'auto', justifyContent: 'flex-end', textAlign: 'right', width: '100%' }}>
-        <div style={{ textAlign: 'right' }}>
-          <strong>Total {expenseType}:</strong> ${totalAnnualExpenses.toLocaleString()}
-        </div>
-      </div>
-    </div>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, marginLeft: 'auto' }}>
+        <FormControlLabel
+          control={<Switch checked={showMonths} onChange={(e) => setShowMonths(e.target.checked)} />}
+          label={showMonths ? 'Hide Start/End Months' : 'Show Start/End Months'}
+          sx={{ m: 0, '& .MuiFormControlLabel-label': { fontSize: 14, fontFamily: 'inherit', fontWeight: 500, color: colors.grey[700] } }}
+        />
+        <Box sx={{ textAlign: 'right', color: colors.grey[700], fontWeight: 600, fontSize: 14 }}>
+          Total {expenseType}: ${totalAnnualExpenses.toLocaleString()}
+        </Box>
+      </Box>
+    </Box>
   );
 };
 
@@ -409,7 +464,7 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
     { field: "name", headerName: "Name", editable: false, flex: flexByField.name, minWidth: 160,
       renderHeader: () => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="caption" sx={{ fontWeight: 700, fontSize: 15, color: 'text.primary' }}>Name</Typography>
+          <Typography variant="caption" sx={{ fontWeight: 700, fontSize: 14.5, color: 'text.primary', fontFamily: typography.fontFamily }}>Name</Typography>
           <Tooltip title={`Add ${expenseType.endsWith('s') ? expenseType.slice(0, -1) : expenseType}`} arrow>
             <IconButton size="small" onClick={addRow} sx={{ p: 0.25 }}>
               <AddIcon fontSize="small" />
@@ -434,7 +489,9 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           </Box>
         ) : (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, width: '100%' }}>
-            <span style={{ color: '#222' }}>{params.value || <span style={{ color: '#aaa' }}>Untitled</span>}</span>
+            <span style={{ color: '#1f2937', fontSize: 14.5, fontFamily: typography.fontFamily, fontWeight: 400 }}>
+              {params.value || <span style={{ color: '#aaa', fontFamily: typography.fontFamily }}>Untitled</span>}
+            </span>
             <span className="u-row-action">
               <Tooltip title="Edit name" arrow>
                 <IconButton
@@ -531,7 +588,11 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
                 outline: 'none',
                 appearance: 'none',
                 WebkitAppearance: 'none',
-                MozAppearance: 'none'
+                MozAppearance: 'none',
+                fontFamily: typography.fontFamily,
+                fontSize: 14.5,
+                fontWeight: 600,
+                color: '#1f2937'
               }}
               className="u-select"
             >
@@ -603,11 +664,12 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
             <NumberDecimalInputCell params={params} handleCellChange={handleCellChange} field="cost_per" prefix={preAdornment} suffix={adornment} />
           )
         }else{
+          const formattedAdornment = adornment && adornment.startsWith('/') ? ` ${adornment}` : adornment;
           return (
             <span style={{ color: editable ? "inherit" : "#999" }}>
               {preAdornment && <span style={{ color: "#888", marginRight: 2 }}>{preAdornment}</span>}
               {params.value}
-              <span style={{ color: "#888", marginLeft: 2 }}>{adornment}</span>
+              {formattedAdornment && <span style={{ color: "#888", marginLeft: 2 }}>{formattedAdornment}</span>}
             </span>
           );
         }
@@ -785,10 +847,11 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
             <NumberInputCell params={params} handleCellChange={handleCellChange} field="statistic" suffix={adornment} />
           )
         }else{
+          const formattedAdornment = adornment ? ` ${adornment}` : '';
           return (
             <span style={{ color: editable ? "inherit" : "#999" }}>
               {params.value}
-              {adornment && <span style={{ color: "#888", marginLeft: 2 }}>{adornment}</span>}
+              {formattedAdornment && <span style={{ color: "#888", marginLeft: 2 }}>{formattedAdornment}</span>}
             </span>
           );
         }
@@ -1022,34 +1085,8 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
 
   return (
     <Box sx={{ mt: 0 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, minWidth: '900px' }}>
-        {/* <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          {step}
-        </Typography> */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 'auto' }}>
-      
-          <FormControlLabel
-            control={<Switch checked={showMonths} onChange={(e) => setShowMonths(e.target.checked)} />}
-            label={showMonths ? 'Hide Start/End Months' : 'Show Start/End Months'}
-          />
-          {/* <Button
-            variant="contained"
-            color="primary"
-            size="small"
-            onClick={addRow}
-            // sx={{
-            //   fontWeight: 600,
-            //   borderRadius: 2,
-            //   textTransform: 'none',
-            //   px: 3,
-            //   py: 1
-            // }}
-          >
-            Add {expenseType.endsWith('s') ? expenseType.slice(0, -1) : expenseType}
-          </Button> */}
-        </Box>
-      </Box>
-      <Paper variant="outlined" sx={{ p: 0, mb: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, minWidth: '900px' }} />
+      <Paper variant="outlined" sx={{ p: 0, mb: 2, borderRadius: 2, borderColor: colors.grey[300], overflow: 'hidden', background: colors.white }}>
         <DataGrid
           disableColumnMenu
           disableColumnFilter
@@ -1075,32 +1112,43 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
                 retailExpenses={retailExpenses}
                 onAdd={addRow}
                 onAddWithName={addRowWithName}
+                showMonths={showMonths}
+                setShowMonths={setShowMonths}
               />
             )
           }}
-          rowHeight={52}
+          rowHeight={50}
           getRowClassName={getRowClassName}
           hideFooterSelectedRowCount
           sx={{
-            background: '#f9fbfe',
+            background: colors.white,
             minWidth: '900px',
-            '& .MuiDataGrid-main': { background: '#f9fbfe' },
-            '& .MuiDataGrid-columnHeaders': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-            '& .MuiDataGrid-columnHeader': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-            '& .MuiDataGrid-columnHeaderTitleContainer': { background: '#f9fbfe' },
-            '& .MuiDataGrid-columnHeaderTitle': {
-              fontWeight: 700,
-              fontSize: 15,
-              fontFamily: 'inherit',
-              textTransform: 'none',
-              lineHeight: '52px'
+            fontFamily: typography.fontFamily,
+            fontSize: 14.5,
+            '& .MuiDataGrid-cell, & .MuiDataGrid-columnHeader, & .MuiDataGrid-columnHeaderTitle, & .MuiDataGrid-cellContent': {
+              fontFamily: typography.fontFamily,
+              fontSize: 14.5,
             },
-            '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(0,0,0,0.06)', background: '#f9fbfe' },
-            '& .MuiDataGrid-row': { background: '#f9fbfe' },
-            '& .u-row-even': { background: '#fafafa' },
-            '& .MuiDataGrid-row:hover': { backgroundColor: '#f5f5f5' },
-            '& .u-editable-input': { border: 'none', borderBottom: '2px solid transparent', borderRadius: 0, background: 'transparent' },
-            '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: '2px solid #1976d2 !important' },
+            '& .MuiDataGrid-main': { background: colors.white },
+            '& .MuiDataGrid-columnHeaders': { background: colors.white, minHeight: 50, maxHeight: 50, borderBottom: `1px solid ${colors.grey[300]}` },
+            '& .MuiDataGrid-columnHeader': { background: colors.white, minHeight: 50, maxHeight: 50 },
+            '& .MuiDataGrid-columnHeaderTitleContainer': { background: colors.white },
+            '& .MuiDataGrid-columnHeaderTitle': {
+              fontWeight: 600,
+              fontSize: 14.5,
+              fontFamily: typography.fontFamily,
+              textTransform: 'none',
+              lineHeight: '50px',
+              color: colors.grey[900],
+            },
+            '& .MuiDataGrid-cell': { borderBottom: `1px solid ${colors.grey[300]}`, background: colors.white, fontSize: 14.5, color: colors.grey[900] },
+            '& .MuiDataGrid-row': { background: colors.white },
+            '& .u-row-even': { background: colors.grey[50] },
+            '& .MuiDataGrid-row:hover': { backgroundColor: colors.blueTint },
+            '& .u-editable-input': { border: 'none', borderBottom: '2px solid transparent', borderRadius: 0, background: 'transparent', fontWeight: 600 },
+            '& .u-editable-input input': { fontWeight: 600 },
+            '& .u-select': { fontFamily: typography.fontFamily, fontSize: 14.5, fontWeight: 600, color: colors.grey[900] },
+            '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: `2px solid ${colors.blue} !important` },
             '& .u-row-action': {
               opacity: 0,
               visibility: 'hidden',
@@ -1112,11 +1160,11 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
               visibility: 'visible',
               pointerEvents: 'auto'
             },
-            '& .u-caret': { opacity: 0, transition: 'opacity 120ms ease', color: 'inherit' },
+            '& .u-caret': { opacity: 0, transition: 'opacity 120ms ease', color: colors.blue },
             '& .u-select:focus + .u-caret': { opacity: 1 },
             '& .MuiDataGrid-row:hover .u-caret': { opacity: 1 },
-            '& .MuiDataGrid-virtualScroller': { background: '#f9fbfe' },
-            '& .MuiDataGrid-footerContainer': { background: '#f9fbfe' }
+            '& .MuiDataGrid-virtualScroller': { background: colors.white },
+            '& .MuiDataGrid-footerContainer': { background: colors.white }
           }}
         />
       </Paper>

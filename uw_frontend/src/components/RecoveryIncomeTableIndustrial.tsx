@@ -1,6 +1,8 @@
 import React from 'react';
 import { DataGrid, GridColDef, GridRowId } from '@mui/x-data-grid';
+import { Box } from '@mui/material';
 import { NumberInputCell } from './NumberInputCell';
+import { colors, typography } from '../theme';
 
 type RecoveryRow = {
   id: string;
@@ -83,6 +85,7 @@ export default function RecoveryIncomeTableIndustrial({ retailIncome, setRetailI
           params={params}
           handleCellChange={handleCellChange}
           field="recovery_start_month"
+          prefix="Month"
         />
       )
     },
@@ -154,23 +157,39 @@ export default function RecoveryIncomeTableIndustrial({ retailIncome, setRetailI
     );
     const avgPerSf = totals.totalSF ? totals.totalAnnual / totals.totalSF : 0;
     return (
-      <div style={{
-        padding: '12px 16px',
-        backgroundColor: 'transparent',
-        borderTop: '1px solid #e0e0e0',
-        display: 'flex',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-        gap: 24
-      }}>
-        <div style={{ fontWeight: 700, textAlign: 'right' }}>Average Rec. / SF / Yr.: ${Math.round(avgPerSf).toLocaleString()}</div>
-        <div style={{ fontWeight: 700, textAlign: 'right' }}>Total Annual Recovery: ${Math.round(totals.totalAnnual).toLocaleString()}</div>
-      </div>
+      <Box
+        sx={{
+          p: 2,
+          backgroundColor: colors.white,
+          borderTop: `1px solid ${colors.grey[300]}`,
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: 3,
+          fontSize: 14.5,
+          color: colors.grey[700],
+          flexWrap: 'wrap',
+        }}
+      >
+        <Box sx={{ textAlign: 'right', fontWeight: 600 }}>
+          Average Rec. / SF / Yr.:{' '}
+          <Box component="span" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+            ${Math.round(avgPerSf).toLocaleString()}
+          </Box>
+        </Box>
+        <Box sx={{ textAlign: 'right', fontWeight: 600 }}>
+          Total Annual Recovery:{' '}
+          <Box component="span" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+            ${Math.round(totals.totalAnnual).toLocaleString()}
+          </Box>
+        </Box>
+      </Box>
     );
   };
 
   return (
     <DataGrid
+      autoHeight
       disableColumnMenu
       disableColumnFilter
       disableColumnSelector
@@ -185,27 +204,36 @@ export default function RecoveryIncomeTableIndustrial({ retailIncome, setRetailI
       slots={{ footer: Footer }}
       sx={{
         minWidth: '900px',
-        background: '#f9fbfe',
-        '& .MuiDataGrid-main': { background: '#f9fbfe' },
-        '& .MuiDataGrid-columnHeaders': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-        '& .MuiDataGrid-columnHeader': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-        '& .MuiDataGrid-columnHeaderTitleContainer': { background: '#f9fbfe' },
-        '& .MuiDataGrid-columnHeaderTitle': {
-          fontWeight: 700,
-          fontSize: 15,
-          fontFamily: 'inherit',
-          textTransform: 'none',
-          lineHeight: '52px'
+        background: colors.white,
+        border: `1px solid ${colors.grey[300]}`,
+        borderRadius: 2,
+        fontFamily: typography.fontFamily,
+        fontSize: 14.5,
+        '& .MuiDataGrid-cell, & .MuiDataGrid-columnHeader, & .MuiDataGrid-columnHeaderTitle, & .MuiDataGrid-cellContent': {
+          fontFamily: typography.fontFamily,
+          fontSize: 14.5,
         },
-        '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(0,0,0,0.06)', background: '#f9fbfe' },
-        '& .greyed-out-cell': { color: '#888' },
-        '& .u-editable-input': { border: 'none', borderBottom: '2px solid transparent', borderRadius: 0, background: 'transparent' },
-        '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: '2px solid #1976d2 !important' },
-        '& .MuiDataGrid-row': { background: '#f9fbfe' },
-        '& .u-row-even': { background: '#fafafa' },
-        '& .MuiDataGrid-row:hover': { backgroundColor: '#f5f5f5' },
-        '& .MuiDataGrid-virtualScroller': { background: '#f9fbfe' },
-        '& .MuiDataGrid-footerContainer': { background: '#f9fbfe' }
+        '& .MuiDataGrid-main': { background: colors.white },
+        '& .MuiDataGrid-columnHeaders': { background: colors.white, minHeight: 52, maxHeight: 52, borderBottom: `1px solid ${colors.grey[300]}` },
+        '& .MuiDataGrid-columnHeader': { background: colors.white, minHeight: 52, maxHeight: 52 },
+        '& .MuiDataGrid-columnHeaderTitleContainer': { background: colors.white },
+        '& .MuiDataGrid-columnHeaderTitle': {
+          fontWeight: 600,
+          fontSize: 14.5,
+          fontFamily: typography.fontFamily,
+          textTransform: 'none',
+          lineHeight: '52px',
+          color: colors.grey[900],
+        },
+        '& .MuiDataGrid-cell': { borderBottom: `1px solid ${colors.grey[300]}`, background: colors.white, fontSize: 14.5, color: colors.grey[900] },
+        '& .greyed-out-cell': { color: colors.grey[600] },
+        '& .u-editable-input': { border: 'none', borderBottom: '2px solid transparent', borderRadius: 0, background: 'transparent', fontWeight: 600 },
+        '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: `2px solid ${colors.blue} !important` },
+        '& .MuiDataGrid-row': { background: colors.white },
+        '& .u-row-even': { background: colors.grey[50] },
+        '& .MuiDataGrid-row:hover': { backgroundColor: colors.blueTint },
+        '& .MuiDataGrid-virtualScroller': { background: colors.white },
+        '& .MuiDataGrid-footerContainer': { background: colors.white }
       }}
     />
   );

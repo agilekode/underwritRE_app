@@ -197,7 +197,7 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
         >
           <List sx={{ p: 0 }}>
             {steps.map((step, index) => {
-              const completed = isBranchCompleted(index);
+              const completed = isBranchCompleted(index + 1);
               const current = isCurrentStep(index);
               const canNavigate = completed || isBranchCompleted(index - 1) || index === 0;
 
@@ -330,62 +330,72 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
         sx={{
           flexGrow: 1,
           marginLeft: `${SIDEBAR_WIDTH}px`,
-          minHeight: '100vh',
           bgcolor: colors.grey[100],
           display: 'flex',
           flexDirection: 'column',
+          minHeight: '100vh',
         }}
       >
-        {/* Content Container */}
+          {/* Content Container - no padding/maxWidth for steps with their own full-width title bar */}
         <Box
+          id="create-model-content"
           sx={{
             flex: 1,
-            p: 4,
-            maxWidth: 1400,
-            width: '100%',
-            mx: 'auto',
+            p: 0,
           }}
         >
-          {/* Step Title */}
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 700,
-              color: colors.grey[900],
-              mb: 1,
-            }}
-          >
-            {currentStepTitle}
-          </Typography>
-
-          {/* Step Description */}
-          {stepDescription && (
-            <Typography
-              variant="body1"
-              sx={{
-                color: colors.grey[700],
-                mb: 3,
-              }}
-            >
-              {stepDescription}
-            </Typography>
-          )}
-
-          {/* Step Content */}
+          {/* Full-width Context Bar */}
           <Box
             sx={{
-              opacity: finalMetricsCalculating2 ? 0.6 : 1,
-              pointerEvents: finalMetricsCalculating2 ? 'none' : 'auto',
-              cursor: finalMetricsCalculating2 ? 'wait' : 'default',
+              backgroundColor: colors.navy,
+              color: 'white',
+              py: 2,
+              px: 4,
+              width: '100%',
             }}
           >
-            {children}
+            <Typography variant="h3" sx={{ fontWeight: 400, color: 'white' }}>
+              {currentStepTitle}
+              {modelDetails?.name && (
+                <span style={{ fontWeight: 400 }}>
+                  : {modelDetails.name}
+                </span>
+              )}
+            </Typography>
+          </Box>
+
+          {/* Content Wrapper */}
+          <Box sx={{ p: 4, maxWidth: 1400, mx: 'auto' }}>
+            {/* Step Description */}
+            {stepDescription && (
+              <Typography
+                variant="body1"
+                sx={{
+                  color: colors.grey[700],
+                  mb: 3,
+                }}
+              >
+                {stepDescription}
+              </Typography>
+            )}
+
+            {/* Step Content */}
+            <Box
+              sx={{
+                opacity: finalMetricsCalculating2 ? 0.6 : 1,
+                pointerEvents: finalMetricsCalculating2 ? 'none' : 'auto',
+                cursor: finalMetricsCalculating2 ? 'wait' : 'default',
+              }}
+            >
+              {children}
+            </Box>
           </Box>
         </Box>
 
         {/* Bottom Navigation */}
         <Box
           sx={{
+            marginTop: 'auto',
             borderTop: `1px solid ${colors.grey[300]}`,
             bgcolor: colors.white,
             p: 3,

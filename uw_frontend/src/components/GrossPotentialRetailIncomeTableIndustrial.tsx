@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
-import { PercentageInput } from './NumberInput';
+import { PercentInput } from './StandardInput';
+import { colors, typography } from '../theme';
 
 type RetailIncome = {
   id: string;
@@ -72,7 +73,6 @@ export default function GrossPotentialRetailIncomeTableIndustrial({
   const gpriPerSfBeforeVac = totalSF ? gpriAnnualBeforeVac / totalSF : 0;
 
   const vacPerSf = gpriPerSfBeforeVac * vacancyRate;
-  // As requested: show $7,210.993 / square feet style for the second column: Annual/ SF
   const vacAnnual = gpriAnnualBeforeVac * vacancyRate;
   const vacAnnualPerSf = totalSF ? vacAnnual / totalSF : 0;
 
@@ -81,59 +81,115 @@ export default function GrossPotentialRetailIncomeTableIndustrial({
 
   const money = (n: number) => `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const money0 = (n: number) => `$${Math.round(n).toLocaleString()}`;
-  const pct = (n: number) => `${(n * 100).toFixed(2)}%`;
-
 
   const space_type =
-  (modelDetails?.user_model_field_values || []).find((f: any) => {
-    const k = String(f.field_key || '');
-    return k === 'space_type' || k.trim() === 'space_type';
-  })?.value ?? 'Retail';
+    (modelDetails?.user_model_field_values || []).find((f: any) => {
+      const k = String(f.field_key || '');
+      return k === 'space_type' || k.trim() === 'space_type';
+    })?.value ?? 'Retail';
 
-
+  const columns = { xs: '1fr 110px 130px', md: '1fr 140px 160px' };
+  const rowBase = {
+    display: 'grid',
+    gridTemplateColumns: columns,
+    alignItems: 'center',
+    gap: 2,
+    px: 2,
+    py: 1,
+  } as const;
 
   return (
-    <Box sx={{ width: '100%', mt: 0 }}>
-      {/* Column headers */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 140px 160px', alignItems: 'center', mb: 0.5 }}>
-        <span />
-        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textAlign: 'right' }}>Rent / SF / Yr.</Typography>
-        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textAlign: 'right' }}>Annual</Typography>
-      </Box>
-      {/* Header row */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 140px 160px', alignItems: 'center', borderBottom: '2px solid #212121', pb: 0.5 }}>
-        <Typography sx={{ fontWeight: 700 }}>Gross Potential {space_type} Income</Typography>
-        <Typography sx={{ fontWeight: 700, textAlign: 'right' }}>{money0(gpriPerSfBeforeVac)}</Typography>
-        <Typography sx={{ fontWeight: 700, textAlign: 'right' }}>{money0(gpriAnnualBeforeVac)}</Typography>
+    <Box
+      sx={{
+        width: '100%',
+        border: `1px solid ${colors.grey[300]}`,
+        borderRadius: 2,
+        overflow: 'hidden',
+        backgroundColor: colors.white,
+        fontFamily: typography.fontFamily,
+        fontSize: 14.5,
+      }}
+    >
+      <Box
+        sx={{
+          ...rowBase,
+          backgroundColor: colors.grey[50],
+          borderBottom: `1px solid ${colors.grey[300]}`,
+        }}
+      >
+        <Box />
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 600,
+            color: colors.grey[600],
+            textAlign: 'right',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+          }}
+        >
+          Rent / SF / Yr.
+        </Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 600,
+            color: colors.grey[600],
+            textAlign: 'right',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+          }}
+        >
+          Annual
+        </Typography>
       </Box>
 
-      {/* Vacancy row with editable input */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 140px 160px', alignItems: 'center', borderBottom: '2px solid #212121', py: 0.75 }}>
+      <Box sx={{ ...rowBase, borderBottom: `1px solid ${colors.grey[300]}` }}>
+        <Typography sx={{ fontWeight: 600, color: colors.grey[900] }}>
+          Gross Potential {space_type} Income
+        </Typography>
+        <Typography sx={{ fontWeight: 600, textAlign: 'right', color: colors.grey[900] }}>
+          {money0(gpriPerSfBeforeVac)}
+        </Typography>
+        <Typography sx={{ fontWeight: 600, textAlign: 'right', color: colors.grey[900] }}>
+          {money0(gpriAnnualBeforeVac)}
+        </Typography>
+      </Box>
+
+      <Box sx={{ ...rowBase, borderBottom: `1px solid ${colors.grey[300]}` }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-          <Typography sx={{ color: 'text.primary' }}>Less: Vacancy and Bad Debt</Typography>
-          <PercentageInput
+          <Typography sx={{ color: colors.grey[900] }}>Less: Vacancy and Bad Debt</Typography>
+          <PercentInput
             value={vacancyPct}
-            onChange={(val: number | string) => {
+            onChange={(e) => {
+              const raw = e.target.value;
               const id = getFieldId('Vacancy ');
-              handleFieldChange(id, 'Vacancy ', val === '' ? '' : Number(val));
+              handleFieldChange(id, 'Vacancy ', raw === '' ? '' : Number(raw));
             }}
-            variant="standard"
             size="small"
-            sx={{ minWidth: 80, '& .MuiInputBase-input': { textAlign: 'right' } }}
+            sx={{ maxWidth: 140 }}
           />
         </Box>
-        <Typography sx={{ color: 'text.primary', textAlign: 'right' }}>{money(vacAnnualPerSf)}</Typography>
-        <Typography sx={{ color: 'text.primary', textAlign: 'right' }}>{money0(vacAnnual)}</Typography>
+        <Typography sx={{ color: colors.grey[700], textAlign: 'right' }}>{money(vacAnnualPerSf)}</Typography>
+        <Typography sx={{ color: colors.grey[700], textAlign: 'right' }}>{money0(vacAnnual)}</Typography>
       </Box>
 
-      {/* Total row */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 140px 160px', alignItems: 'center', background: '#eee', py: 0.75, }}>
-        <Typography sx={{ fontWeight: 700 }}>Gross Potential {space_type} Income</Typography>
-        <Typography sx={{ fontWeight: 700, textAlign: 'right' }}>{money0(gpriPerSfAfterVac)}</Typography>
-        <Typography sx={{ fontWeight: 700, textAlign: 'right' }}>{money0(gpriAnnualAfterVac)}</Typography>
+      <Box
+        sx={{
+          ...rowBase,
+          backgroundColor: colors.blueTint,
+        }}
+      >
+        <Typography sx={{ fontWeight: 700, color: colors.grey[900] }}>
+          Gross Potential {space_type} Income
+        </Typography>
+        <Typography sx={{ fontWeight: 700, textAlign: 'right', color: colors.grey[900] }}>
+          {money0(gpriPerSfAfterVac)}
+        </Typography>
+        <Typography sx={{ fontWeight: 700, textAlign: 'right', color: colors.grey[900] }}>
+          {money0(gpriAnnualAfterVac)}
+        </Typography>
       </Box>
     </Box>
   );
 }
-
-

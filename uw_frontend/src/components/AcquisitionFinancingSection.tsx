@@ -6,22 +6,21 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Paper,
+  Checkbox,
+  FormControlLabel,
   Card,
   CardContent,
-  CardHeader,
-  InputAdornment,
-  Divider,
-  Checkbox,
-  Grid,
-  TextField
 } from "@mui/material";
-import { NumberInput, PercentageInput, CurrencyInput, YearsInput } from './NumberInput';
-import { LIGHT_THEME_COLOR, MID_DARK_THEME_COLOR } from "../utils/constants";
+import { CurrencyInput, PercentInput, NumberInput, YearInput } from './StandardInput';
+import { InfoBox, FormRow } from './StandardLayout';
+import { colors } from "../theme";
 
 // Helper functions
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
+const formatCurrency = (amount: number | string) => {
+  const num = typeof amount === 'string' ? parseFloat(amount.replace(/,/g, '')) : amount;
+  if (isNaN(num)) return '$0';
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(num);
+};
 
 const calculateLoanConstant = (interestRate: number, amortizationYears: number) => {
   const monthlyRate = interestRate / 100 / 12;
@@ -53,33 +52,82 @@ export default function AcquisitionFinancingSection({
     return field ? field.field_id : "";
   };
 
-  // Shared interest rate and amortization state
+  // Shared loan parameters
   const [sharedInterestRate, setSharedInterestRate] = useState(getFieldValue("Acquisition Loan Interest Rate", 5));
   const [sharedAmortization, setSharedAmortization] = useState(getFieldValue("Acquisition Loan Amortization", 30));
 
-  useEffect(() => { handleFieldChange(getFieldId("Acquisition Loan Interest Rate"), "Acquisition Loan Interest Rate", sharedInterestRate); }, [sharedInterestRate]);
+  // Method enabled states (checkboxes - multiple can be selected)
+  const [ltvEnabled, setLtvEnabled] = useState(getFieldValue("Acquisition Loan: LTV Calculation", "no") === "yes");
+  const [dscrEnabled, setDscrEnabled] = useState(getFieldValue("Acquisition Loan: Debt-Service Coverage Ratio Calculation", "no") === "yes");
+  const [fixedEnabled, setFixedEnabled] = useState(getFieldValue("Acquisition Loan: Fixed Loan Amount Selected", "no") === "yes");
+  useEffect(() => {
+    if (!sharedInterestRate) return;
+
+    if (
+      sharedInterestRate === "." ||
+      sharedInterestRate.endsWith(".")
+    ) {
+      return;
+    }
+
+    const floatValue = parseFloat(sharedInterestRate);
+
+    if (isNaN(floatValue)) return;
+
+    handleFieldChange(
+      getFieldId("Acquisition Loan Interest Rate"),
+      "Acquisition Loan Interest Rate",
+      floatValue.toFixed(1)
+    );
+
+  }, [sharedInterestRate]);
   useEffect(() => { handleFieldChange(getFieldId("Acquisition Loan Amortization"), "Acquisition Loan Amortization", sharedAmortization); }, [sharedAmortization]);
 
-  // --- LTV Calculation Column State ---
-  const [ltvEnabled, setLtvEnabled] = useState(
-    getFieldValue("Acquisition Loan: LTV Calculation", "no") === "yes"
-  );
+  // LTV Calculation State
   const [purchasePrice, setPurchasePrice] = useState(getFieldValue("Acquisition Price", 0));
-  const [ltc, setLtc] = useState<string | number>(getFieldValue("Loan-to-Value (LTV)", 0));
-  const [financeHardCosts, setFinanceHardCosts] = useState("no"); // Default to "no" since this field is not tracked
+  const [ltv, setLtv] = useState<string | number>(getFieldValue("Loan-to-Value (LTV)", 0));
+  const [financeHardCosts, setFinanceHardCosts] = useState("no");
   const [ltcOnHardCosts, setLtcOnHardCosts] = useState(getFieldValue("LTC on Hard Costs", 75));
   const [hardCostAmount, setHardCostAmount] = useState(getFieldValue("Hard Cost Amount", 0));
   const [lendersInterestReserve, setLendersInterestReserve] = useState(getFieldValue("Lender's Minimum Required Interest Reserve", 0));
-  // Rehydrate ltvEnabled when modelDetails changes
+
+  // DSCR Calculation State
+  const [minDscr, setMinDscr] = useState(getFieldValue("Minimum DSCR", 1.25));
+
+  // Fixed Loan Amount State
+  const [fixedLoanAmount, setFixedLoanAmount] = useState(getFieldValue("Fixed Loan Amount", 750000));
+
+  // Hydration refs
   const ltvHydratedRef = useRef(false);
+  const dscrHydratedRef = useRef(false);
+  const fixedHydratedRef = useRef(false);
+
+  // Rehydrate enabled states when modelDetails changes
   useEffect(() => {
-    const v = getFieldValue("Acquisition Loan: LTV Calculation", "no");
-    setLtvEnabled(v === "yes");
-    if (!ltvHydratedRef.current) {
-      ltvHydratedRef.current = true;
-    }
+    setLtvEnabled(getFieldValue("Acquisition Loan: LTV Calculation", "no") === "yes");
+    if (!ltvHydratedRef.current) ltvHydratedRef.current = true;
   }, [modelDetails]);
-  // Save ltvEnabled after first hydration
+
+  useEffect(() => {
+    setDscrEnabled(getFieldValue("Acquisition Loan: Debt-Service Coverage Ratio Calculation", "no") === "yes");
+    if (!dscrHydratedRef.current) dscrHydratedRef.current = true;
+  }, [modelDetails]);
+
+  useEffect(() => {
+    setFixedEnabled(getFieldValue("Acquisition Loan: Fixed Loan Amount Selected", "no") === "yes");
+    if (!fixedHydratedRef.current) fixedHydratedRef.current = true;
+  }, [modelDetails]);
+
+  // Save shared parameters
+  useEffect(() => {
+    handleFieldChange(getFieldId("Acquisition Loan Interest Rate"), "Acquisition Loan Interest Rate", sharedInterestRate);
+  }, [sharedInterestRate]);
+
+  useEffect(() => {
+    handleFieldChange(getFieldId("Acquisition Loan Amortization"), "Acquisition Loan Amortization", sharedAmortization);
+  }, [sharedAmortization]);
+
+  // Save LTV enabled state
   useEffect(() => {
     if (!ltvHydratedRef.current) return;
     handleFieldChange(
@@ -88,49 +136,8 @@ export default function AcquisitionFinancingSection({
       ltvEnabled ? "yes" : "no"
     );
   }, [ltvEnabled]);
-  useEffect(() => { handleFieldChange(getFieldId("Purchase Price"), "Purchase Price", purchasePrice); }, [purchasePrice]);
-  useEffect(() => {
-    handleFieldChange(
-      getFieldId("Loan-to-Value (LTV)"),
-      "Loan-to-Value (LTV)",
-      Number(ltc)
-    );
-  }, [ltc]);
-  useEffect(() => { 
-    // If financeHardCosts is "no", set LTC on Hard Costs to 0
-    if (financeHardCosts === "no") {
-      setLtcOnHardCosts(0);
-    }
-    handleFieldChange(getFieldId("LTC on Hard Costs"), "LTC on Hard Costs", ltcOnHardCosts); 
-  }, [ltcOnHardCosts, financeHardCosts]);
-  useEffect(() => { handleFieldChange(getFieldId("Hard Cost Amount"), "Hard Cost Amount", hardCostAmount); }, [hardCostAmount]);
-  useEffect(() => { 
-    handleFieldChange(getFieldId("Lender's Minimum Required Interest Reserve"), "Lender's Minimum Required Interest Reserve", lendersInterestReserve); 
-  }, [lendersInterestReserve]);
 
-  const maxLtcLoan = () => {
-    const baseLoan = Number(purchasePrice) * Number(ltc) / 100;
-    const hardCostsLoan = financeHardCosts === "yes" ? Number(hardCostAmount) * Number(ltcOnHardCosts) / 100 : 0;
-    return baseLoan + hardCostsLoan;
-  };
-
-  // --- DSCR Calculation Column State ---
-  const [dscrEnabled, setDscrEnabled] = useState(
-    getFieldValue("Acquisition Loan: Debt-Service Coverage Ratio Calculation", "no") === "yes"
-  );
-  const [dscrMinDscr, setDscrMinDscr] = useState(getFieldValue("Minimum DSCR", 1.25));
-  const [dscrIoType, setDscrIoType] = useState(getFieldValue("DSCR IO Type", "no"));
-  const assumedNOI = 75000;
-  // Rehydrate dscrEnabled when modelDetails changes
-  const dscrHydratedRef = useRef(false);
-  useEffect(() => {
-    const v = getFieldValue("Acquisition Loan: Debt-Service Coverage Ratio Calculation", "no");
-    setDscrEnabled(v === "yes");
-    if (!dscrHydratedRef.current) {
-      dscrHydratedRef.current = true;
-    }
-  }, [modelDetails]);
-  // Save dscrEnabled after first hydration
+  // Save DSCR enabled state
   useEffect(() => {
     if (!dscrHydratedRef.current) return;
     handleFieldChange(
@@ -139,28 +146,10 @@ export default function AcquisitionFinancingSection({
       dscrEnabled ? "yes" : "no"
     );
   }, [dscrEnabled]);
-  useEffect(() => { handleFieldChange(getFieldId("Minimum DSCR"), "Minimum DSCR", dscrMinDscr); }, [dscrMinDscr]);
-  useEffect(() => { handleFieldChange(getFieldId("DSCR IO Type"), "DSCR IO Type", dscrIoType); }, [dscrIoType]);
 
-  const dscrLoanConstant = calculateLoanConstant(Number(sharedInterestRate), Number(sharedAmortization));
-  const maxDscrLoan = assumedNOI / Number(dscrMinDscr) / dscrLoanConstant;
-
-  // --- Fixed Loan Amount Column State ---
-  // boolean from model
-  const [fixedEnabled, setFixedEnabled] = useState(
-    getFieldValue("Acquisition Loan: Fixed Loan Amount Selected", "no") === "yes"
-  );
-
-  // re-hydrate when modelDetails changes
+  // Save Fixed enabled state
   useEffect(() => {
-    const v = getFieldValue("Acquisition Loan: Fixed Loan Amount Selected", "no");
-    setFixedEnabled(v === "yes");
-  }, [modelDetails]); // or whichever prop holds the latest values
-
-  // skip auto-save on first mount
-  const hydrated = useRef(false);
-  useEffect(() => {
-    if (!hydrated.current) { hydrated.current = true; return; }
+    if (!fixedHydratedRef.current) return;
     handleFieldChange(
       getFieldId("Acquisition Loan: Fixed Loan Amount Selected"),
       "Acquisition Loan: Fixed Loan Amount Selected",
@@ -168,555 +157,429 @@ export default function AcquisitionFinancingSection({
     );
   }, [fixedEnabled]);
 
-  const [fixedLoanAmount, setFixedLoanAmount] = useState(getFieldValue("Fixed Loan Amount", 750000));
-  const [fixedIoType, setFixedIoType] = useState(getFieldValue("Fixed Loan IO Type", "no"));
+  // Save LTV fields
+  useEffect(() => {
+    handleFieldChange(getFieldId("Loan-to-Value (LTV)"), "Loan-to-Value (LTV)", Number(ltv));
+  }, [ltv]);
 
-  useEffect(() => { handleFieldChange(getFieldId("Fixed Loan Amount"), "Fixed Loan Amount", fixedLoanAmount); }, [fixedLoanAmount]);
-  useEffect(() => { handleFieldChange(getFieldId("Fixed Loan IO Type"), "Fixed Loan IO Type", fixedIoType); }, [fixedIoType]);
+  useEffect(() => {
+    if (financeHardCosts === "no") {
+      setLtcOnHardCosts(0);
+    }
+    handleFieldChange(getFieldId("LTC on Hard Costs"), "LTC on Hard Costs", ltcOnHardCosts);
+  }, [ltcOnHardCosts, financeHardCosts]);
 
-  const fixedLoanConstant = calculateLoanConstant(Number(sharedInterestRate), Number(sharedAmortization));
-  const annualDebtService = Number(fixedLoanAmount) * fixedLoanConstant;
-  const dscr = annualDebtService > 0 ? assumedNOI / annualDebtService : 0;
+  useEffect(() => {
+    handleFieldChange(getFieldId("Hard Cost Amount"), "Hard Cost Amount", hardCostAmount);
+  }, [hardCostAmount]);
 
-  return (
-    <Box sx={{ maxWidth: 1200, mx: "auto", mt: 0, p: { xs: 1.5, sm: 2 }, borderRadius: 2, border: "1px solid #e0e0e0" }}>
-      {/* <Typography variant="h6" fontWeight={700} gutterBottom>
-      Acquisition Financing
-      </Typography> */}
-      {/* <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-      Configure your acquisition loan parameters by selecting and configuring the columns below.
-      </Typography> */}
+  useEffect(() => {
+    handleFieldChange(getFieldId("Lender's Minimum Required Interest Reserve"), "Lender's Minimum Required Interest Reserve", lendersInterestReserve);
+  }, [lendersInterestReserve]);
 
-      {/* Shared Interest Rate and Amortization */}
-      <Box sx={{ mt: { xs: 2, sm: 3 }, mb: { xs: 2, sm: 3 }, display: 'flex', gap: { xs: 2, sm: 3 }, flexWrap: 'wrap', flexDirection: { xs: 'column', sm: 'row' } }}>
-        {/* Interest Rate */}
-        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', borderBottom: '1px solid #bdbdbd', pb: 0.5 }}>
-          <Typography
-            variant="body1"
-            fontWeight={600}
-            component="label"
-            htmlFor="acq-loan-interest-rate"
-            sx={{ mr: 2, minWidth: { xs: 110, sm: 140, md: 160 }, fontSize: { xs: '0.9rem', sm: '0.95rem', md: '1rem' }, lineHeight: 1.2 }}
-          >
-            Acquisition Loan Interest Rate
-          </Typography>
-          <PercentageInput
-            value={sharedInterestRate}
-            onChange={(value: number | string) => setSharedInterestRate(Number(value))}
-            variant="standard"
-            size="small"
-            sx={{ flex: 1, minWidth: 60, width: { xs: '100%', sm: 'auto', fontSize: { xs: '0.85rem', sm: '0.95rem', md: '1rem' } } }}
-            InputProps={{
-              disableUnderline: true,
-              sx: { '& .MuiInputBase-input': { textAlign: 'right', whiteSpace: 'nowrap', fontSize: { xs: '0.95rem', sm: '1rem' }, lineHeight: 1.6, paddingTop: '6px', paddingBottom: '6px' } },
-              inputProps: { style: { textAlign: 'right', whiteSpace: 'nowrap' } }
-            }}
-          />
-        </Box>
-        {/* Amortization */}
-        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', borderBottom: '1px solid #bdbdbd', pb: 0.5 }}>
-          <Typography
-            variant="body1"
-            fontWeight={600}
-            component="label"
-            htmlFor="acq-loan-amortization"
-            sx={{ mr: 2, minWidth: { xs: 110, sm: 140, md: 160 }, fontSize: { xs: '0.85rem', sm: '0.95rem', md: '1rem' }, lineHeight: 1.2 }}
-          >
-            Acquisition Loan Amortization
-          </Typography>
-          <YearsInput
-            value={sharedAmortization}
-            onChange={(value: number | string) => setSharedAmortization(Number(value))}
-            variant="standard"
-            size="small"
-            sx={{ flex: 1, minWidth: 60, width: { xs: '100%', sm: 'auto' } }}
-            InputProps={{
-              disableUnderline: true,
-              sx: { '& .MuiInputBase-input': { textAlign: 'right', whiteSpace: 'nowrap', fontSize: { xs: '0.95rem', sm: '1rem' }, lineHeight: 1.6, paddingTop: '6px', paddingBottom: '6px' } },
-              inputProps: { style: { textAlign: 'right', whiteSpace: 'nowrap' } }
-            }}
-          />
-        </Box>
-      </Box>
+  // Save DSCR fields
+  useEffect(() => {
+    handleFieldChange(getFieldId("Minimum DSCR"), "Minimum DSCR", minDscr);
+  }, [minDscr]);
 
-  
-      <Box sx={{ mt: 2, display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', lg: 'repeat(3, minmax(0, 1fr))' }, alignItems: 'stretch' }}>
-        <Box sx={{ display: 'flex', minWidth: 0, width: '100%' }}>
-          <LtvCalculationColumn
-            modelDetails={modelDetails}
-            handleFieldChange={handleFieldChange}
-            enabled={ltvEnabled}
-            setEnabled={setLtvEnabled}
-            purchasePrice={purchasePrice}
-            setPurchasePrice={setPurchasePrice}
-            variables={variables}
-            ltc={ltc}
-            setLtc={setLtc}
-            financeHardCosts={financeHardCosts}
-            setFinanceHardCosts={setFinanceHardCosts}
-            ltcOnHardCosts={ltcOnHardCosts}
-            setLtcOnHardCosts={setLtcOnHardCosts}
-            hardCostAmount={hardCostAmount}
-            setHardCostAmount={setHardCostAmount}
-            lendersInterestReserve={lendersInterestReserve}
-            setLendersInterestReserve={setLendersInterestReserve}
-            finalMetricsCalculating={finalMetricsCalculating}
-          />
-        </Box>
-        <Box sx={{ display: 'flex', minWidth: 0, width: '100%' }}>
-          <DscrCalculationColumn
-            modelDetails={modelDetails}
-            handleFieldChange={handleFieldChange}
-            enabled={dscrEnabled}
-            setEnabled={setDscrEnabled}
-            sharedInterestRate={sharedInterestRate}
-            sharedAmortization={sharedAmortization}
-            variables={variables}
-            finalMetricsCalculating={finalMetricsCalculating}
-          />
-        </Box>
-        <Box sx={{ display: 'flex', minWidth: 0, width: '100%' }}>
-          <FixedLoanAmountColumn
-            sharedInterestRate={sharedInterestRate}
-            sharedAmortization={sharedAmortization}
-            modelDetails={modelDetails}
-            handleFieldChange={handleFieldChange}
-            enabled={fixedEnabled}
-            setEnabled={setFixedEnabled}
-            variables={variables}
-          />
-        </Box>
-      </Box>
-      
-    
-    {(ltvEnabled || dscrEnabled || fixedEnabled) && (
-      <Box sx={{ mt: 4 }}>
-        <Card sx={{ backgroundColor: '#fdfdfe' }}>
-          <CardContent>
-            
-            {/* Calculate max loan and which method */}
-            {(() => {
-              // Only consider enabled methods
-              const loanOptions = [];
-              if (ltvEnabled) loanOptions.push({ value: maxLtcLoan(), label: "LTV calculation" });
-              if (dscrEnabled) loanOptions.push({ value: maxDscrLoan, label: "DSCR calculation" });
-              if (fixedEnabled) loanOptions.push({ value: fixedLoanAmount, label: "Fixed loan amount" });
-              if (loanOptions.length === 0) return null;
-              const minLoan = loanOptions.reduce((min, curr) => curr.value < min.value ? curr : min, loanOptions[0]);
-              // For right column, use the method that produced minLoan
-              let details: any = {};
-              if (minLoan.label === "LTV calculation") {
-                details = {
-                  interestRate: sharedInterestRate,
-                  amortization: sharedAmortization,
-                  ioPeriod: "no", // No IO for LTV
-                  annualDebtService: Number(fixedLoanAmount) * fixedLoanConstant, // Use fixed loan constant
-                  ltc: ltc,
-                  dscr: dscr
-                };
-              } else if (minLoan.label === "DSCR calculation") {
-                details = {
-                  interestRate: sharedInterestRate,
-                  amortization: sharedAmortization,
-                  ioPeriod: dscrIoType,
-                  annualDebtService: annualDebtService,
-                  ltc: ltc,
-                  dscr: dscr
-                };
-              } else {
-                details = {
-                  interestRate: sharedInterestRate,
-                  amortization: sharedAmortization,
-                  ioPeriod: fixedIoType,
-                  annualDebtService: annualDebtService,
-                  ltc: ltc,
-                  dscr: dscr
-                };
-              }
-              return (
-                <Box sx={{ display: 'grid', gap: { xs: 2, sm: 3 }, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, alignItems: 'start' }}>
-                  {/* Left: Max Loan */}
-                  <Box sx={{ flex: 1 }}>
-                  <Typography variant="h5" fontWeight={700}>Maximum Acquisition Loan Summary</Typography>
-            <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
-              Based on the smallest loan size from the selected calculation methods
-            </Typography>
-                    <Paper sx={{ p: 2, mb: 2, background: "#f5f5f5" }} elevation={0}>
-                      <Typography fontWeight={700} fontSize="1.2rem">
-                      Max Acquisition Loan Size:
-                      </Typography>
-                      <Box sx={{ display: "flex", alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: "space-between", flexDirection: { xs: 'column', sm: 'row' } }}>
-                        <Typography color="text.secondary" fontSize="1rem" sx={{ mb: { xs: 0.5, sm: 0 } }}>
-                          Based on {(() => {
-                            if (variables?.["AQ: Max Acquisition Loan at Closing"] == variables?.["AQ: Max Loan Size Based on LTC"]) {
-                              return "LTV Loan"
-                            } else if (variables?.["AQ: Max Acquisition Loan at Closing"] == variables?.["AQ: Max Loan Size Based on DSCR"]) {
-                              return "DSCR Loan"
-                            } else if (variables?.["AQ: Max Acquisition Loan at Closing"] == variables?.["AQ: Exact Loan Amount"]) {
-                              return "Fixed Loan"
-                            } else {
-                              return "calculation"
-                            }
-                          })()}
-                        </Typography>
-                        <Typography fontWeight={900} fontSize={{ xs: '1.6rem', sm: '1.8rem', md: '2rem' }} sx={{ alignSelf: { xs: 'flex-start', sm: 'auto' } }}>
-                          ${variables?.["AQ: Max Acquisition Loan at Closing"] || 0}
-                        </Typography>
-                      </Box>
-                    </Paper>
-                    
-                    
-                  </Box>
-                  {/* Right: Metrics */}
-                  <Box sx={{ flex: 1, minWidth: 320 }}>
-                  <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: `1px solid ${LIGHT_THEME_COLOR}`, background: '#fff' }}>
-                  <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' } }}>
-                      <Typography fontWeight={700}>Interest Rate:</Typography>
-                      <Typography sx={{ mt: { xs: 0.5, sm: 0 } }}>{Number(details.interestRate).toFixed(3)}%</Typography>
-                    </Box>
-                    <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' } }}>
-                      <Typography fontWeight={700}>Amortization:</Typography>
-                      <Typography sx={{ mt: { xs: 0.5, sm: 0 } }}>{details.amortization} years</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' } }}>
-                      <Typography fontWeight={700}>Annual NOI at Acquisition:</Typography>
-                      <Typography sx={{ mt: { xs: 0.5, sm: 0 } }}>${variables?.["AQ: Annualized NOI in Month"] || "N/A"}</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, mt: 2, mb: 2 }}>
-                      <Typography fontWeight={700}>Annual Debt Service:</Typography>
-                      <Typography sx={{ mt: { xs: 0.5, sm: 0 } }}>${variables?.["AQ: Annual Debt Service"] || "N/A"}</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, mb: 2 }}>
-                      <Typography fontWeight={700}>Monthly Debt Service:</Typography>
-                      <Typography sx={{ mt: { xs: 0.5, sm: 0 } }}>${variables?.["AQ: Monthly Debt Service"] || "N/A"}</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, mb: 2 }}>
-                      <Typography fontWeight={700}>DSCR:</Typography>
-                      <Typography sx={{ mt: { xs: 0.5, sm: 0 } }}>{variables?.["AQ: DSCR"] ? `${variables["AQ: DSCR"]}` : "N/A"}</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, mb: 2 }}>
-                      <Typography fontWeight={700}>LTV:</Typography>
-                      <Typography sx={{ mt: { xs: 0.5, sm: 0 } }}>{variables?.["AQ: LTV"] ? `${variables["AQ: LTV"]}` : "N/A"}</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: { xs: 'flex-start', sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, mb: 2 }}>
-                      <Typography fontWeight={700}>Interest Reserve:</Typography>
-                      <Typography sx={{ mt: { xs: 0.5, sm: 0 } }}>${variables?.["AQ: Interest Reserve"] ? `${variables["AQ: Interest Reserve"]}` : "N/A"}</Typography>
-                    </Box>
-                    
-                  </Paper>
+  // Save Fixed Loan fields
+  useEffect(() => {
+    handleFieldChange(getFieldId("Fixed Loan Amount"), "Fixed Loan Amount", fixedLoanAmount);
+  }, [fixedLoanAmount]);
 
-                  
-                  </Box>
-                </Box>
-              );
-            })()}
-            
-          </CardContent>
-        </Card>
-      </Box>
-    )}
-    </Box>
-  );
-}
-
-
-export function LtvCalculationColumn({ modelDetails, handleFieldChange, enabled, setEnabled, purchasePrice, setPurchasePrice, ltc, setLtc, financeHardCosts, setFinanceHardCosts, ltcOnHardCosts, setLtcOnHardCosts, hardCostAmount, setHardCostAmount, lendersInterestReserve, setLendersInterestReserve, variables, finalMetricsCalculating }: {
-  modelDetails: any;
-  handleFieldChange: (fieldId: string, field_key: string, value: string | number) => void;
-  enabled: boolean;
-  setEnabled: React.Dispatch<React.SetStateAction<boolean>>;
-  purchasePrice: number;
-  setPurchasePrice: React.Dispatch<React.SetStateAction<number>>;
-  ltc: string | number;
-  setLtc: React.Dispatch<React.SetStateAction<string | number>>;
-  financeHardCosts: string;
-  setFinanceHardCosts: React.Dispatch<React.SetStateAction<string>>;
-  ltcOnHardCosts: number;
-  setLtcOnHardCosts: React.Dispatch<React.SetStateAction<number>>;
-  hardCostAmount: number;
-  setHardCostAmount: React.Dispatch<React.SetStateAction<number>>;
-  lendersInterestReserve: number;
-  setLendersInterestReserve: React.Dispatch<React.SetStateAction<number>>;
-  variables: any;
-  finalMetricsCalculating: boolean;
-}) {
-
-  // Calculation
-  const maxLtcLoan = () => {
-    const baseLoan = Number(purchasePrice) * Number(ltc) / 100;
-    const hardCostsLoan = financeHardCosts === "yes"
-      ? Number(hardCostAmount) * Number(ltcOnHardCosts) / 100
-      : 0;
+  // Calculations
+  const maxLtvLoan = () => {
+    const baseLoan = Number(purchasePrice) * Number(ltv) / 100;
+    const hardCostsLoan = financeHardCosts === "yes" ? Number(hardCostAmount) * Number(ltcOnHardCosts) / 100 : 0;
     return baseLoan + hardCostsLoan;
   };
 
-  // Format currency that can handle numbers, strings with commas, parentheses, and whitespace
-  // Improved formatCurrency to robustly handle "(27,591,648)" and " 10,000 "
-  const formatCurrency = (input: number | string) => {
-    // If input is a number, format directly
-    if (typeof input === "number" && !isNaN(input)) {
-      const formatted = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(input);
-      return formatted;
+  const loanConstant = calculateLoanConstant(Number(sharedInterestRate), Number(sharedAmortization));
+  const assumedNOI = variables?.["AQ: Annualized NOI in Month"] ?? 0;
+  const maxDscrLoan = Number(assumedNOI) / Number(minDscr) / loanConstant;
+
+  // Get the method label for summary
+  const getMethodLabel = () => {
+    if (variables?.["AQ: Max Acquisition Loan at Closing"] == variables?.["AQ: Max Loan Size Based on LTC"]) {
+      return "LTV";
+    } else if (variables?.["AQ: Max Acquisition Loan at Closing"] == variables?.["AQ: Max Loan Size Based on DSCR"]) {
+      return "DSCR";
+    } else if (variables?.["AQ: Max Acquisition Loan at Closing"] == variables?.["AQ: Exact Loan Amount"]) {
+      return "Fixed";
     }
-    if (typeof input === "string") {
-      // Remove whitespace and commas
-      let str = input.trim().replace(/,/g, "");
-      // Handle parentheses for negatives
-      let isNegative = false;
-      if (str.startsWith("(") && str.endsWith(")")) {
-        isNegative = true;
-        str = str.slice(1, -1);
-      }
-      // Remove any whitespace again
-      str = str.replace(/\s+/g, "");
-      // If the string is now empty, return as is
-      if (str.length === 0) {
-        return input;
-      }
-      // Try to parse as number
-      let num = Number(str);
-      // If still NaN, try to extract all digits (including negatives and decimals)
-      if (isNaN(num)) {
-        // This will match numbers like 10000, -10000, 10000.55, etc.
-        const digits = str.match(/-?\d+(\.\d+)?/g);
-        if (digits && digits.length > 0) {
-          // Join all found digit groups (in case of e.g. "27,591,648" or " 10,000 ")
-          num = Number(digits.join(""));
-        }
-      }
-      if (isNaN(num)) {
-        return input; // fallback to original if not a number
-      }
-      if (isNegative) num = -num;
-      const formatted = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(num);
-      return formatted;
-    }
-    return input;
+    return "selected methods";
   };
 
+  const anyMethodEnabled = ltvEnabled || dscrEnabled || fixedEnabled;
+
+  // Compact metric display component
+  const MetricRow = ({ label, value }: { label: string; value: string }) => (
+    <Box sx={{ py: 1, borderBottom: `1px solid ${colors.grey[300]}` }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        {value}
+      </Typography>
+    </Box>
+  );
+
   return (
-    <Card sx={{ borderRadius: 3, boxShadow: 1, backgroundColor: '#fdfdfe', height: '100%', minHeight: { xs: 320, sm: 300 }, display: 'flex', flexDirection: 'column', position: 'relative', width: '100%' }}>
-      <CardHeader
-        title={
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Box>
-              <Typography variant="h6" fontWeight={700}>LTV Calculation</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Calculate loan based on property value
+    <Box sx={{ maxWidth: 1400, mx: "auto", px: 4, pb: 4 }}>
+      {/* TWO-COLUMN LAYOUT */}
+      <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start' }}>
+
+        {/* LEFT COLUMN: Inputs (2/3 width) */}
+        <Box sx={{ flex: '0 0 65%', minWidth: 0 }}>
+
+          {/* Global Loan Parameters */}
+          <Card
+            elevation={0}
+            sx={{
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 2,
+              mb: 3,
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+                Loan Parameters
               </Typography>
-            </Box>
-            <Checkbox checked={enabled} onChange={(_event, checked) => setEnabled(checked)} />
-          </Box>
-        }
-        sx={{ pb: 0 }}
-      />
-      <CardContent sx={{ opacity: enabled ? 1 : 0.5, pointerEvents: enabled ? "auto" : "none", flexGrow: 1, display: 'flex', flexDirection: 'column', pb: 8 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography fontWeight={700}>Purchase Price:</Typography>
-            <Typography>
-              {formatCurrency(
-                Number(
-                  purchasePrice
-                )
-              )}
+              <FormRow>
+                <PercentInput
+                  label="Acquisition Loan Interest Rate"
+                  value={sharedInterestRate}
+                  onChange={(e) => setSharedInterestRate(Number(e.target.value))}
+                  fullWidth
+                />
+                <YearInput
+                  label="Acquisition Loan Amortization"
+                  value={sharedAmortization}
+                  onChange={(e) => setSharedAmortization(Number(e.target.value))}
+                  fullWidth
+                />
+              </FormRow>
+            </CardContent>
+          </Card>
+
+          {/* Calculation Method Selection */}
+          <Box>
+            <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+              Calculation Method
             </Typography>
-          </Box>
-          <PercentageInput
-            label="Loan-to-Value (LTV)"
-            value={ltc}
-            onChange={(value: number | string) => setLtc(value)}
-          />
-          <FormControl fullWidth>
-            <InputLabel>Acquisition Loan to Also Finance Hard Costs?</InputLabel>
-            <Select
-              value={financeHardCosts}
-              label="Acquisition Loan to Also Finance Hard Costs?"
-              onChange={e => setFinanceHardCosts(e.target.value)}
+
+            {/* METHOD 1: LTV CALCULATION */}
+            <Card
+              elevation={0}
+              sx={{
+                mb: 2,
+                border: ltvEnabled ? `2px solid ${colors.blue}` : `1px solid ${colors.grey[300]}`,
+                borderRadius: 2,
+                transition: 'border 0.2s ease',
+              }}
             >
-              <MenuItem value="yes">Yes</MenuItem>
-              <MenuItem value="no">No</MenuItem>
-            </Select>
-          </FormControl>
-          {financeHardCosts === "yes" && (
-            <>
-              <PercentageInput
-                label="LTC on Hard Costs"
-                value={ltcOnHardCosts}
-                onChange={(value: number | string) => setLtcOnHardCosts(Number(value))}
+              <CardContent sx={{ p: 3 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={ltvEnabled}
+                      onChange={(e) => setLtvEnabled(e.target.checked)}
+                      sx={{
+                        color: colors.blue,
+                        '&.Mui-checked': { color: colors.blue },
+                      }}
+                    />
+                  }
+                  label={
+                    <Box sx={{ ml: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>LTV Calculation</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Calculate loan based on property value
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ m: 0, alignItems: 'flex-start' }}
+                />
+
+                {ltvEnabled && (
+                  <Box sx={{ mt: 3, pl: 4 }}>
+                    <FormRow sx={{ mb: 2 }}>
+                      <CurrencyInput
+                        label="Purchase Price"
+                        value={purchasePrice}
+                        calculated
+                        fullWidth
+                      />
+                      <PercentInput
+                        label="Loan-to-Value (LTV)"
+                        value={ltv}
+                        onChange={(e) => setLtv(e.target.value)}
+                        fullWidth
+                      />
+                    </FormRow>
+
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel sx={{ fontSize: '0.875rem' }}>Finance Hard Costs?</InputLabel>
+                      <Select
+                        value={financeHardCosts}
+                        label="Finance Hard Costs?"
+                        onChange={(e) => setFinanceHardCosts(e.target.value)}
+                        size="small"
+                        sx={{
+                          fontSize: '0.875rem',
+                          '& .MuiSelect-select': { fontSize: '0.875rem' },
+                        }}
+                      >
+                        <MenuItem value="no" sx={{ fontSize: '0.875rem' }}>No - Do not finance hard costs</MenuItem>
+                        <MenuItem value="yes" sx={{ fontSize: '0.875rem' }}>Yes - Finance hard costs</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    {financeHardCosts === 'yes' && (
+                      <FormRow sx={{ mb: 2 }}>
+                        <PercentInput
+                          label="LTC on Hard Costs"
+                          value={ltcOnHardCosts}
+                          onChange={(e) => setLtcOnHardCosts(Number(e.target.value))}
+                          fullWidth
+                        />
+                        <CurrencyInput
+                          label="Hard Cost Amount"
+                          value={hardCostAmount}
+                          calculated
+                          fullWidth
+                        />
+                      </FormRow>
+                    )}
+
+                    <CurrencyInput
+                      label="Lender's Minimum Required Interest Reserve"
+                      value={lendersInterestReserve}
+                      onChange={(e) => setLendersInterestReserve(Number(e.target.value))}
+                      fullWidth
+                      sx={{ mb: 2 }}
+                    />
+
+                    {/* Inline result indicator */}
+                    <Box sx={{ p: 2, backgroundColor: colors.blueTint, borderRadius: 1, border: `1px solid ${colors.blue}` }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Max LTV Loan
+                      </Typography>
+                      <Typography variant="h5" sx={{ color: colors.navy, fontWeight: 700 }}>
+                        {variables?.["AQ: Max Loan Size Based on LTC"] ? `$${variables["AQ: Max Loan Size Based on LTC"]}` : formatCurrency(maxLtvLoan())}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* METHOD 2: DSCR CALCULATION */}
+            <Card
+              elevation={0}
+              sx={{
+                mb: 2,
+                border: dscrEnabled ? `2px solid ${colors.blue}` : `1px solid ${colors.grey[300]}`,
+                borderRadius: 2,
+                transition: 'border 0.2s ease',
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={dscrEnabled}
+                      onChange={(e) => setDscrEnabled(e.target.checked)}
+                      sx={{
+                        color: colors.blue,
+                        '&.Mui-checked': { color: colors.blue },
+                      }}
+                    />
+                  }
+                  label={
+                    <Box sx={{ ml: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>Debt-Service Coverage Ratio</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Calculate loan based on DSCR requirements
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ m: 0, alignItems: 'flex-start' }}
+                />
+
+                {dscrEnabled && (
+                  <Box sx={{ mt: 3, pl: 4 }}>
+                    <FormRow sx={{ mb: 2 }}>
+                      <CurrencyInput
+                        label="Annual NOI"
+                        value={assumedNOI}
+                        calculated
+                        fullWidth
+                      />
+                      <NumberInput
+                        label="Minimum DSCR"
+                        value={minDscr}
+                        onChange={(e) => setMinDscr(Number(e.target.value))}
+                        suffix="x"
+                        allowDecimals
+                        fullWidth
+                      />
+                    </FormRow>
+
+                    {/* Inline result indicator */}
+                    <Box sx={{ p: 2, backgroundColor: colors.blueTint, borderRadius: 1, border: `1px solid ${colors.blue}` }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Max DSCR Loan
+                      </Typography>
+                      <Typography variant="h5" sx={{ color: colors.navy, fontWeight: 700 }}>
+                        {variables?.["AQ: Max Loan Size Based on DSCR"] ? `$${variables["AQ: Max Loan Size Based on DSCR"]}` : formatCurrency(maxDscrLoan)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* METHOD 3: FIXED LOAN AMOUNT */}
+            <Card
+              elevation={0}
+              sx={{
+                mb: 2,
+                border: fixedEnabled ? `2px solid ${colors.blue}` : `1px solid ${colors.grey[300]}`,
+                borderRadius: 2,
+                transition: 'border 0.2s ease',
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={fixedEnabled}
+                      onChange={(e) => setFixedEnabled(e.target.checked)}
+                      sx={{
+                        color: colors.blue,
+                        '&.Mui-checked': { color: colors.blue },
+                      }}
+                    />
+                  }
+                  label={
+                    <Box sx={{ ml: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>Fixed Loan Amount</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Specify an exact loan amount
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ m: 0, alignItems: 'flex-start' }}
+                />
+
+                {fixedEnabled && (
+                  <Box sx={{ mt: 3, pl: 4 }}>
+                    <CurrencyInput
+                      label="Loan Amount"
+                      value={fixedLoanAmount}
+                      onChange={(e) => setFixedLoanAmount(e.target.value)}
+                      fullWidth
+                      sx={{ mb: 2 }}
+                    />
+
+                    {/* Inline result indicator */}
+                    <Box sx={{ p: 2, backgroundColor: colors.blueTint, borderRadius: 1, border: `1px solid ${colors.blue}` }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Exact Loan Amount
+                      </Typography>
+                      <Typography variant="h5" sx={{ color: colors.navy, fontWeight: 700 }}>
+                        {formatCurrency(fixedLoanAmount)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Box>
+        </Box>
+
+        {/* RIGHT COLUMN: Sticky Summary (1/3 width) */}
+        <Box
+          sx={{
+            flex: '0 0 32%',
+            minWidth: 0,
+            position: 'sticky',
+            top: 20,
+            alignSelf: 'flex-start',
+            maxHeight: 'calc(100vh - 100px)',
+            overflowY: 'auto',
+          }}
+        >
+          <Card
+            elevation={0}
+            sx={{
+              backgroundColor: colors.white,
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 2,
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 700 }}>
+                Loan Summary
+              </Typography>
+              {anyMethodEnabled && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                  Based on {getMethodLabel()} calculation
+                </Typography>
+              )}
+
+              {/* Primary metric */}
+              <Box sx={{ mb: 3 }}>
+                <InfoBox
+                  label="Max Acquisition Loan"
+                  value={anyMethodEnabled ? `$${variables?.["AQ: Max Acquisition Loan at Closing"] || 0}` : "—"}
+                  variant="primary"
+                />
+              </Box>
+
+              {/* Compact metrics list */}
+              <MetricRow
+                label="Interest Rate"
+                value={`${Number(sharedInterestRate).toFixed(3)}%`}
               />
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography fontWeight={700}>Hard Cost Amount:</Typography>
-                <Typography>
-                  {formatCurrency(Number(hardCostAmount))}
+              <MetricRow
+                label="Amortization"
+                value={`${sharedAmortization} years`}
+              />
+              <MetricRow
+                label="Annual NOI at Acquisition"
+                value={`$${variables?.["AQ: Annualized NOI in Month"] || "N/A"}`}
+              />
+              <MetricRow
+                label="Annual Debt Service"
+                value={`$${variables?.["AQ: Annual Debt Service"] || "N/A"}`}
+              />
+              <MetricRow
+                label="Monthly Debt Service"
+                value={`$${variables?.["AQ: Monthly Debt Service"] || "N/A"}`}
+              />
+              <MetricRow
+                label="DSCR"
+                value={variables?.["AQ: DSCR"] ? `${variables["AQ: DSCR"]}` : "N/A"}
+              />
+              <MetricRow
+                label="LTV"
+                value={variables?.["AQ: LTV"] ? `${variables["AQ: LTV"]}` : "N/A"}
+              />
+              <Box sx={{ py: 1 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
+                  Interest Reserve
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {`$${variables?.["AQ: Interest Reserve"] || "N/A"}`}
                 </Typography>
               </Box>
-            </>
-          )}
-          <CurrencyInput
-            label="Lender's Minimum Required Interest Reserve"
-            value={lendersInterestReserve}
-            onChange={(value: number | string) => setLendersInterestReserve(Number(value))}
-          />
-          {/* <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography fontWeight={700}>Interest Reserve:</Typography>
-            <Typography sx={finalMetricsCalculating ? { color: "text.disabled" } : {}}>
-              {variables?.["AQ: Interest Reserve"] !== undefined ? "$" + String(variables["AQ: Interest Reserve"]).trim() : "N/A"}
-              
-            </Typography>
-          </Box> */}
-          <br />
-          <br />
-    
-          <Box sx={{ position: 'absolute', left: 16, right: 16, bottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e0e0e0', paddingTop: 2 }}>
-            <Typography fontWeight={700}>Max LTV Loan:</Typography>
-            <Typography fontWeight={900} fontSize="1.3rem">
-              {"AQ: Max Loan Size Based on LTC" in (variables || {}) ? `$${variables["AQ: Max Loan Size Based on LTC"]}` : ''}
-            </Typography>
-          </Box>
+            </CardContent>
+          </Card>
         </Box>
-      </CardContent>
-    </Card>
-  );
-}
 
-// --- DSCR Calculation Column ---
-function DscrCalculationColumn({ modelDetails, handleFieldChange, enabled, setEnabled, sharedInterestRate, sharedAmortization, variables, finalMetricsCalculating }: any) {
-  const getFieldValue = (field_key: string, defaultValue: any) => {
-    const field = modelDetails?.user_model_field_values?.find((f: any) => f.field_key === field_key);
-    return field ? field.value : defaultValue;
-  };
-  const getFieldId = (field_key: string) => {
-    const field = modelDetails?.user_model_field_values?.find((f: any) => f.field_key === field_key);
-    return field ? field.field_id : "";
-  };
-
-  const [minDscr, setMinDscr] = useState(getFieldValue("Minimum DSCR", 1.25));
-  const [assumedNOI, setAssumedNOI] = useState(variables?.["AQ: Annualized NOI in Month"] !== undefined ? variables["AQ: Annualized NOI in Month"] : 0);
-
-  useEffect(() => {
-    setAssumedNOI(variables?.["AQ: Annualized NOI in Month"] !== undefined ? variables["AQ: Annualized NOI in Month"] : 0);
-  }, [variables]);
-
-  useEffect(() => { handleFieldChange(getFieldId("Minimum DSCR"), "Minimum DSCR", minDscr); }, [minDscr]);
-
-  const loanConstant = calculateLoanConstant(Number(sharedInterestRate), Number(sharedAmortization));
-  const maxDscrLoan = assumedNOI / Number(minDscr) / loanConstant;
-
-  return (
-    <Card sx={{ borderRadius: 3, boxShadow: 1, backgroundColor: '#fdfdfe', height: '100%', minHeight: { xs: 320, sm: 300 }, display: 'flex', flexDirection: 'column', position: 'relative', width: '100%' }}>
-      <CardHeader
-        title={
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Box>
-              <Typography variant="h6" fontWeight={700}>Debt-Service Coverage Ratio</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Calculate loan based on DSCR requirements
-              </Typography>
-            </Box>
-            <Checkbox checked={enabled} onChange={(_event, checked) => setEnabled(checked)} />
-          </Box>
-        }
-        sx={{ pb: 0 }}
-      />
-      <CardContent sx={{ opacity: enabled ? 1 : 0.5, pointerEvents: enabled ? "auto" : "none", flexGrow: 1, display: 'flex', flexDirection: 'column', pb: 8 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography fontWeight={700}>NOI:</Typography>
-            <Typography>
-                  ${String(variables?.["AQ: Annualized NOI in Month"] ?? "").trim()}
-            </Typography>
-          </Box>
-          <NumberInput
-            label="Minimum DSCR"
-            value={minDscr}
-            onChange={setMinDscr}
-            min={0}
-            step={0.01}
-            endAdornment={<InputAdornment position="end">x</InputAdornment>}
-            fullWidth
-            size="medium"
-          />
-          {/* <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography fontWeight={700}>Interest Reserve:</Typography>
-            <Typography sx={finalMetricsCalculating ? { color: "text.disabled" } : {}}>
-              {assumedNOI}
-            </Typography>
-          </Box> */}
-   
-          <Box sx={{ position: 'absolute', left: 16, right: 16, bottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e0e0e0', paddingTop: 2 }}>
-            <Typography fontWeight={700}>Max DSCR Loan:</Typography>
-            <Typography fontWeight={900} fontSize="1.3rem">
-            $ {variables?.["AQ: Max Loan Size Based on DSCR"]}
-            </Typography>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-}
-
-// --- Fixed Loan Amount Column ---
-function FixedLoanAmountColumn({ modelDetails, handleFieldChange, enabled, setEnabled, sharedInterestRate, sharedAmortization, variables }: any) {
-  const getFieldValue = (field_key: string, defaultValue: any) => {
-    const field = modelDetails?.user_model_field_values?.find((f: any) => f.field_key === field_key);
-    return field ? field.value : defaultValue;
-  };
-  const getFieldId = (field_key: string) => {
-    const field = modelDetails?.user_model_field_values?.find((f: any) => f.field_key === field_key);
-    return field ? field.field_id : "";
-  };
-
-  const [fixedLoanAmount, setFixedLoanAmount] = useState(getFieldValue("Fixed Loan Amount", 750000));
-
-
-  useEffect(() => { handleFieldChange(getFieldId("Fixed Loan Amount"), "Fixed Loan Amount", fixedLoanAmount); }, [fixedLoanAmount]);
-
-
-  const loanConstant = calculateLoanConstant(Number(sharedInterestRate), Number(sharedAmortization));
-  const annualDebtService = Number(fixedLoanAmount) * loanConstant;
-
-  // Coerce display value to number to enable comma formatting when safe
-  const fixedLoanAmountDisplay =
-    typeof fixedLoanAmount === 'string'
-      ? (() => {
-          const raw = fixedLoanAmount.replace(/,/g, '');
-          return /^-?\d+(\.\d+)?$/.test(raw) ? Number(raw) : fixedLoanAmount;
-        })()
-      : fixedLoanAmount;
-
-  return (
-    <Card sx={{ borderRadius: 3, boxShadow: 1, backgroundColor: '#fdfdfe', height: '100%', minHeight: { xs: 320, sm: 300 }, display: 'flex', flexDirection: 'column', position: 'relative', width: '100%' }}>
-      <CardHeader
-        title={
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Box>
-              <Typography variant="h6" fontWeight={700}>Fixed Loan Amount</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Calculate metrics based on a fixed loan amount
-              </Typography>
-            </Box>
-            <Checkbox checked={enabled} onChange={(_event, checked) => setEnabled(checked)} />
-          </Box>
-        }
-        sx={{ pb: 0 }}
-      />
-      <CardContent sx={{ opacity: enabled ? 1 : 0.5, pointerEvents: enabled ? "auto" : "none", flexGrow: 1, display: 'flex', flexDirection: 'column', pb: 8 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <CurrencyInput
-            label="Loan Amount"
-            value={fixedLoanAmountDisplay}
-            onChange={(value: number | string) => setFixedLoanAmount(value)}
-          />
-    
-          <Box sx={{ position: 'absolute', left: 16, right: 16, bottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e0e0e0', paddingTop: 2 }}>
-            <Typography fontWeight={700}>Exact Loan Amount:</Typography>
-            <Typography fontWeight={900} fontSize="1.3rem">
-              {formatCurrency(fixedLoanAmount)}
-            </Typography>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
+      </Box>
+    </Box>
   );
 }

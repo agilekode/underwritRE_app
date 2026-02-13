@@ -1843,7 +1843,6 @@ def get_rent_roll_assumption_row_inserts(rent_roll_ws, rental_assumptions_json, 
     rental_growth_json = [entry for entry in rental_growth_json if entry.get("type") == "rental"]
 
     num_rental_rows = len(rental_assumptions_json)
-    rental_rows = 2
     growth_rows = rental_growth_json
     growth_length = len(growth_rows)
     start_row = start_row + growth_length
@@ -1867,20 +1866,23 @@ def get_rent_roll_assumption_row_inserts(rent_roll_ws, rental_assumptions_json, 
 
     rehab_time_location = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Rehab Time')
     lease_up_time_location = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Lease-up Time')
+
+    # Rental Assumptions table is written starting at B5 in get_rental_assumptions_insert_ops
+    rental_start_row = 5
     
     for i in range(num_rental_rows):
-        rental_row = rental_rows + i
+        rental_row = rental_start_row + i
         current_row = start_row + i
 
         row = [
             "",  # Column A
-            f"='Rental Assumptions'!A{rental_row}",  # B
-            f"='Rental Assumptions'!B{rental_row}",  # C
-            f"='Rental Assumptions'!C{rental_row}",  # D
-            f"='Rental Assumptions'!F{rental_row}",  # E
+            f"='Rental Assumptions'!B{rental_row}",  # B: Unit number
+            f"='Rental Assumptions'!C{rental_row}",  # C: Rent Type
+            f"='Rental Assumptions'!D{rental_row}",  # D: Vacate Flag
+            f"='Rental Assumptions'!G{rental_row}",  # E: Vacated Month
             f"=IF(D{current_row}=1,E{current_row}+{rehab_time_location}+{lease_up_time_location},E{current_row})",  # F
-            f"='Rental Assumptions'!H{rental_row}",  # G
-            f"='Rental Assumptions'!I{rental_row}",  # H
+            f"='Rental Assumptions'!I{rental_row}",  # G: Current Rent
+            f"='Rental Assumptions'!J{rental_row}",  # H: Pro Forma Rent
             ""
         ]
 
@@ -2373,9 +2375,81 @@ def get_amenity_income_insert_request_noi(
                 "startIndex": start_row - 1,
                 "endIndex": start_row - 1 + num_amenities,
             },
-            "inheritFromBefore": True
+            # The row above the insert point is often a %/italic row (e.g., Vacancy %),
+            # so inheriting formatting causes amenity line items to render incorrectly.
+            "inheritFromBefore": False
         }
     }
+
+def get_noi_walk_amenity_income_format_reset_requests(
+    spreadsheet,
+    amenity_income_json,
+    start_row=25,
+    start_col=5,
+    num_months=132,
+    sheet_name="NOI Walk",
+):
+    """
+    Ensure inserted Amenity Income rows in NOI Walk use normal line-item formatting
+    (not %/italic inherited from the row above).
+    """
+    num_amenities = len(amenity_income_json or [])
+    if num_amenities <= 0:
+        return []
+
+    ws = spreadsheet.worksheet(sheet_name)
+    sheet_id = ws._properties["sheetId"]
+
+    # Google Sheets API uses 0-based indices; end indices are exclusive.
+    start_row_index = start_row - 1
+    end_row_index = start_row_index + num_amenities
+
+    month_start_col_index = start_col - 1  # e.g., E -> 4
+    month_end_col_index = month_start_col_index + num_months
+
+    # Apply across A..(last month col) so labels are also non-italic.
+    full_end_col_index = month_end_col_index
+
+    number_format = {
+        "numberFormat": {
+            "type": "NUMBER",
+            "pattern": "#,##0;(#,##0);\"-\"",
+        },
+        "horizontalAlignment": "RIGHT",
+    }
+
+    return [
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": start_row_index,
+                    "endRowIndex": end_row_index,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": full_end_col_index,
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {"italic": False, "bold": False},
+                    }
+                },
+                "fields": "userEnteredFormat.textFormat.italic,userEnteredFormat.textFormat.bold",
+            }
+        },
+        {
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": start_row_index,
+                    "endRowIndex": end_row_index,
+                    "startColumnIndex": month_start_col_index,
+                    "endColumnIndex": month_end_col_index,
+                },
+                "cell": {"userEnteredFormat": number_format},
+                "fields": "userEnteredFormat.numberFormat,userEnteredFormat.horizontalAlignment",
+            }
+        },
+    ]
 
 def get_amenity_income_formula_update(
     amenity_json,
@@ -2404,7 +2478,7 @@ def get_amenity_income_formula_update(
             formula = (
                 f"=IF({col_letter}15<'{amenity_sheet}'!$D{amenity_row},"
                 f"0,"
-                f"'{amenity_sheet}'!H{amenity_row}*{col_letter}16*{col_letter}10*'{amenity_sheet}'!E{amenity_row})"
+                f"'{amenity_sheet}'!$H{amenity_row}*{col_letter}10*'{amenity_sheet}'!$G{amenity_row})"
             )
             row.append(formula)
 
@@ -2622,7 +2696,9 @@ def get_operating_expenses_update_payload(
         key=lambda x: 0 if x["name"] == "Property Taxes" else (1 if x["name"] == "Insurance" else 2)
     )
 
-    rental_row = len(rental_assumptions_json) + 2
+    # Rental Assumptions totals row is 1 row below the last unit row.
+    # Units are inserted starting at row 5, so total row index = 5 + num_units.
+    rental_total_row = 5 + len(rental_assumptions_json)
     amenity_row = len(amenity_income_json) + 2
     rows_to_insert = []
 
@@ -2644,7 +2720,8 @@ def get_operating_expenses_update_payload(
         col_h_formula = ""
 
         if expense["cost_per"].lower() == "per unit":
-            col_h_formula = f"='Rental Assumptions'!$D${rental_row}"
+            # Units count is stored in column E of the totals row in the formatted Rental Assumptions table
+            col_h_formula = f"='Rental Assumptions'!$E${rental_total_row}"
 
         elif expense["cost_per"].lower() == "per ca square foot":
             col_h_formula = f"={gross_sf_location}-{net_rentable_sf_location}"
@@ -3040,7 +3117,15 @@ def get_operating_expense_formula_update_payloads(
             col_letter = rowcol_to_a1(1, col_index).replace("1", "")
             # formula = f"='{op_exp_sheet}'!$H{op_row}*{col_letter}$11"
 
-            formula = f"=IF('{op_exp_sheet}'!$E{op_row}=\"Percent of EGI\",'{op_exp_sheet}'!$F{op_row}*{col_letter}{egi_row},'{op_exp_sheet}'!$H{op_row}*{col_letter}$11)"
+            # Operating Expenses table columns:
+            # F = Factor (e.g., "Percent of EGI")
+            # G = Expense (numeric value/percent)
+            # I = Monthly
+            formula = (
+                f"=IF('{op_exp_sheet}'!$F{op_row}=\"Percent of EGI\","
+                f"'{op_exp_sheet}'!$G{op_row}*{col_letter}{egi_row},"
+                f"'{op_exp_sheet}'!$I{op_row}*{col_letter}$11)"
+            )
 
             formula_row.append(formula)
         formula_rows.append(formula_row)
@@ -3384,6 +3469,40 @@ def get_ntm_update_payload(
         "values": [values]
     }
 
+def get_noi_walk_rental_summary_update_payload(
+    rental_assumptions_json,
+    rental_sheet_name="Rental Assumptions",
+    noi_sheet_name="NOI Walk",
+    rental_start_row=5,
+    noi_col="C",
+    noi_units_row=3,
+    noi_current_rent_row=4,
+    noi_pf_rent_row=5,
+):
+    """
+    Updates the NOI Walk header summary cells (Units / Current Rent per Unit / Pro Forma Rent per Unit)
+    to reference the formatted Rental Assumptions table locations.
+    """
+    num_units = len(rental_assumptions_json or [])
+    if num_units <= 0:
+        return []
+
+    # Rental Assumptions totals row index = start_row + num_units
+    total_row = rental_start_row + num_units
+    units_cell = f"'{rental_sheet_name}'!E{total_row}"
+    current_total_cell = f"'{rental_sheet_name}'!I{total_row}"
+    pf_total_cell = f"'{rental_sheet_name}'!J{total_row}"
+
+    range_str = f"'{noi_sheet_name}'!{noi_col}{noi_units_row}:{noi_col}{noi_pf_rent_row}"
+    return {
+        "range": range_str,
+        "values": [
+            [f"={units_cell}"],
+            [f"=IFERROR({current_total_cell}/{units_cell},0)"],
+            [f"=IFERROR({pf_total_cell}/{units_cell},0)"],
+        ],
+    }
+
 
 
 def get_restabilization_update_payload(model_variable_mapping, rental_assumptions_json, sheet_name="Assumptions"):
@@ -3411,11 +3530,15 @@ def get_restabilization_update_payload(model_variable_mapping, rental_assumption
     num_units = len(rental_assumptions_json)
     if num_units == 0:
         raise ValueError("No rental units found in rental_assumptions_json")
-    end_row = 2 + num_units - 1
+    rental_start_row = 5
+    end_row = rental_start_row + num_units - 1
 
     # Vacate flags column (e.g., C) and Lease End column (e.g., F)
-    vacate_range    = f"'Rental Assumptions'!C2:C{end_row}"
-    lease_end_range = f"'Rental Assumptions'!F2:F{end_row}"
+    # In the formatted Rental Assumptions table:
+    # - Vacate Flag is column D
+    # - Vacated date is column H
+    vacate_range    = f"'Rental Assumptions'!D{rental_start_row}:D{end_row}"
+    lease_end_range = f"'Rental Assumptions'!H{rental_start_row}:H{end_row}"
 
 
     # =IFERROR(IF(COUNTIF('Rental Assumptions'!D3:D4,1)=0,1,SUMPRODUCT(LARGE(('Rental Assumptions'!D3:D4=1)*'Rental Assumptions'!G3:G4,1))+Assumptions!G48+Assumptions!G47),0)
@@ -5679,6 +5802,16 @@ def run_full_sheet_update(
     )
     print(f"[run_full_sheet_update] amenity_income_insert_request_noi ops:{len(amenity_income_insert_request_noi)}")
 
+    amenity_income_noi_walk_format_reset = get_noi_walk_amenity_income_format_reset_requests(
+        spreadsheet,
+        amenity_income_json,
+        start_row=noi_walk_amenity_start_row,
+        start_col=5,
+        num_months=132,
+        sheet_name="NOI Walk",
+    )
+    print(f"[run_full_sheet_update] amenity_income_noi_walk_format_reset ops:{len(amenity_income_noi_walk_format_reset)}")
+
     amenity_noi_summary_insert_request = get_noi_summary_insert_request(
         spreadsheet, len(amenity_income_json), start_row=noi_amenity_start_row, sheet_name="NOI"
     )
@@ -5753,6 +5886,10 @@ def run_full_sheet_update(
             market_start_row=5
         )
         print(f"[run_full_sheet_update] market_formula_update ops:{len(market_formula_update)}")
+
+        noi_rental_summary_update = get_noi_walk_rental_summary_update_payload(rental_assumptions_json)
+        print(f"[run_full_sheet_update] noi_rental_summary_update ops:{len(noi_rental_summary_update)}")
+
         noi_growth_formula_update = get_noi_growth_factor_formula_update(
             assumption_row_mapping,
             rental_growth_json,
@@ -5778,6 +5915,7 @@ def run_full_sheet_update(
         vacancy_formula_update = []
         vacancy_format_request = []
         market_formula_update = []
+        noi_rental_summary_update = []
         noi_growth_formula_update = []
         total_summary_update = []
         total_summary_format = []
@@ -5974,6 +6112,7 @@ def run_full_sheet_update(
         *amenity_income_format,
         rent_roll_inserts,
         amenity_income_insert_request_noi,
+        *amenity_income_noi_walk_format_reset,
         amenity_noi_summary_insert_request,
         operating_expenses_clear,
         operating_expenses_insert,
@@ -6008,6 +6147,7 @@ def run_full_sheet_update(
         inflation_updates,
         noi_expense_update,
         market_formula_update,
+        noi_rental_summary_update,
         noi_growth_formula_update,
         growth_formula_update,
         vacancy_formula_update,

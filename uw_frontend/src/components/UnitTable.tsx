@@ -10,6 +10,7 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { NumberInputCell } from './NumberInputCell';
 import { NumberInput } from './NumberInput';
 import { HEADER_FOOTER_HEIGHT, ROW_HEIGHT } from '../utils/constants';
+import { colors } from '../theme';
 
 
 
@@ -41,6 +42,7 @@ interface UnitTableProps {
   growthRatesOnly: boolean;
   vacate: boolean;
   activeStepTitle: string;
+  allowAddUnit?: boolean;
 }
 
 interface SelectedCell {
@@ -77,7 +79,7 @@ const RentTypeDropdown: React.FC<{ value: string; onChange: (value: string) => v
   );
 };
 
-const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssumptions, showMarketRentAssumptions, showMarketRentLayouts, setMarketRentAssumptions, showGrowthRates, setGrowthRates, growthRates,modelDetails, highlightedFields, growthRatesOnly, vacate, activeStepTitle }) => {
+const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssumptions, showMarketRentAssumptions, showMarketRentLayouts, setMarketRentAssumptions, showGrowthRates, setGrowthRates, growthRates,modelDetails, highlightedFields, growthRatesOnly, vacate, activeStepTitle, allowAddUnit = true }) => {
   const [unitCount, setUnitCount] = useState(units.length || 1);
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [isPasteOperation, setIsPasteOperation] = useState(false);
@@ -189,12 +191,14 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       editable: false,
       renderHeader: () => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="caption" sx={{ fontWeight: 700, fontSize: 15, color: 'text.primary' }}>Unit</Typography>
-          <Tooltip title="Add unit" arrow>
-            <IconButton size="small" onClick={addSingleUnit} sx={{ p: 0.25 }}>
-              <AddIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 14.5, color: '#1f2937' }}>Unit</Typography>
+          {allowAddUnit && (
+            <Tooltip title="Add unit" arrow>
+              <IconButton size="small" onClick={addSingleUnit} sx={{ p: 0.25 }}>
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       ),
       renderCell: (params) => (
@@ -223,7 +227,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       cellClassName: showMarketRentAssumptions ? 'u-noneditable-cell' : 'u-editable-cell',
       renderHeader: () => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="caption" sx={{ fontWeight: 700, fontSize: 15, color: 'text.primary' }}>Layout</Typography>
+          <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 14.5, color: '#1f2937' }}>Layout</Typography>
           <Tooltip title="Edit layouts" arrow>
             <IconButton size="small" onClick={handleOpenModal} sx={{ p: 0.25 }}>
               <EditIcon fontSize="small" />
@@ -233,7 +237,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       ),
       renderCell: (params) => (
         showMarketRentAssumptions ? (
-          <span style={{ color: '#777' }}>{params.value}</span>
+          <span className="u-muted">{params.value}</span>
         ) : (
           <div className="u-select-wrap" style={{ position: 'relative', width: '100%' }}>
             <select
@@ -268,7 +272,10 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       cellClassName: showMarketRentAssumptions ? 'u-noneditable-cell' : 'u-editable-cell',
       renderCell: (params) => (
         showMarketRentAssumptions ? (
-          <span style={{ color: '#777' }}>{Number(params.value ?? 0).toLocaleString()} sf</span>
+          <span>
+            <span className="u-value u-muted">{Number(params.value ?? 0).toLocaleString()}</span>{' '}
+            <span className="u-unit u-muted">sf</span>
+          </span>
         ) : (
           <NumberInputCell
             params={params}
@@ -285,7 +292,10 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       cellClassName: showMarketRentAssumptions ? 'u-noneditable-cell' : 'u-editable-cell',
       renderCell: (params) => (
         showMarketRentAssumptions ? (
-          <span style={{ color: '#777' }}>$ {Number(params.value ?? 0).toLocaleString()} / month</span>
+          <span>
+            <span className="u-value u-muted">$ {Number(params.value ?? 0).toLocaleString()}</span>{' '}
+            <span className="u-unit u-muted">/ month</span>
+          </span>
         ) : (
           <NumberInputCell
             params={params}
@@ -306,7 +316,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       cellClassName: showMarketRentAssumptions ? 'u-noneditable-cell' : 'u-editable-cell',
       renderHeader: () => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="caption" sx={{ fontWeight: 700, fontSize: 15, color: 'text.primary' }}>Rent Type</Typography>
+          <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 14.5, color: '#1f2937' }}>Rent Type</Typography>
           <Tooltip title="Edit rent types & growth" arrow>
             <IconButton size="small" onClick={handleOpenGrowthModal} sx={{ p: 0.25 }}>
               <EditIcon fontSize="small" />
@@ -316,7 +326,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       ),
       renderCell: (params) => (
         showMarketRentAssumptions ? (
-          <span style={{ color: '#777' }}>{params.value}</span>
+          <span className="u-muted">{params.value}</span>
         ) : (
           <RentTypeDropdown
             value={params.value}
@@ -337,7 +347,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
             cellClassName: 'u-noneditable-cell',
             renderHeader: () => (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="caption" sx={{ fontWeight: 700, fontSize: 15, color: 'text.primary' }}>Growth %</Typography>
+                <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 14.5, color: '#1f2937' }}>Growth %</Typography>
                 <Tooltip title="Edit rent types & growth" arrow>
                   <IconButton size="small" onClick={handleOpenGrowthModal} sx={{ p: 0.25 }}>
                     <EditIcon fontSize="small" />
@@ -346,7 +356,10 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
               </Box>
             ),
             renderCell: (params) => (
-              <span>{Number(params.value ?? 0).toLocaleString()}%</span>
+              <span>
+                <span className="u-value">{Number(params.value ?? 0).toLocaleString()}</span>
+                <span className="u-unit">%</span>
+              </span>
             )
           }
         }
@@ -358,6 +371,8 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       width: 200,
       editable: false,
       cellClassName: 'u-editable-cell',
+      headerAlign: 'center',
+      align: 'center',
       renderCell: (params) => {
         const v = params.value !== undefined && params.value !== null ? Number(params.value) : null;
         const tooltipText =
@@ -370,7 +385,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
             : "Select rent change behavior";
         return (
           <Tooltip title={tooltipText} arrow placement="left">
-            <Box component="span" sx={{ display: 'block', width: '100%' }}>
+            <Box component="span" sx={{ display: 'flex', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
         <select
           value={params.value !== undefined && params.value !== null ? params.value : ''}
           onChange={(e) => handleCellChange(params.id, 'vacate_flag', parseInt(e.target.value, 10))}
@@ -379,12 +394,14 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
               e.stopPropagation();
             }
           }}
-          style={{ width: '100%', background: 'transparent', border: 'none', borderRadius: 4, padding: '10px 6px', outline: 'none' }}
+          style={{ width: '100%', background: 'transparent', border: 'none', borderRadius: 4, padding: '8px 28px 8px 8px', outline: 'none', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none', color: 'inherit', fontSize: 14.5, fontWeight: 500, fontFamily: 'inherit', textAlign: 'center', textAlignLast: 'center' }}
+          className="u-select"
         >
                 <option value={0}>Keep Tenant</option>
                 <option value={1}>Vacate & Re-Lease</option>
                 <option value={2}>Market Adjustment</option>
         </select>
+        <span className="u-caret" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>▾</span>
             </Box>
           </Tooltip>
         );
@@ -403,7 +420,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       cellClassName: 'u-noneditable-cell',
       renderHeader: () => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="caption" sx={{ fontWeight: 700, fontSize: 15, color: 'text.primary' }}>Pro Forma Rent</Typography>
+          <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 14.5, color: '#1f2937' }}>Pro Forma Rent</Typography>
           <Tooltip title="Edit Pro Forma Rents" arrow>
             <IconButton size="small" onClick={handleOpenPfModal} sx={{ p: 0.25 }}>
               <EditIcon fontSize="small" />
@@ -413,7 +430,10 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       ),
       type: 'number',
       renderCell: (params) => (
-        <><span style={{ color: 'inherit' }}>$ {Number(params.value ?? 0).toLocaleString()} / month</span></>
+        <span>
+          <span className="u-value">$ {Number(params.value ?? 0).toLocaleString()}</span>{' '}
+          <span className="u-unit">/ month</span>
+        </span>
       ),
     },
      delete: {
@@ -586,22 +606,26 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
 
   const CustomFooter = () => (
     <div style={{ 
-      padding: '16px 16px', 
-      backgroundColor: 'transparent', 
-      borderTop: '1px solid #e0e0e0',
+      padding: '14px 16px', 
+      backgroundColor: '#ffffff', 
+      borderTop: '1px solid #e5e7eb',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      fontSize: 15
+      fontSize: 14.5
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Button variant="contained" size="small" onClick={addSingleUnit}>
-          Add Unit
-        </Button>
-      </div>
-      <div style={{ display: 'flex', gap: '16px', marginLeft: 'auto', justifyContent: 'flex-end', textAlign: 'right' }}>
+      {allowAddUnit ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={addSingleUnit}>
+            Add Unit
+          </Button>
+        </div>
+      ) : (
+        <div />
+      )}
+      <div style={{ display: 'flex', gap: '18px', marginLeft: 'auto', justifyContent: 'flex-end', textAlign: 'right', color: '#1f2937' }}>
         <div style={{ textAlign: 'right' }}>
-          <strong>Total Units:</strong> {units.length}
+          <span style={{ fontWeight: 600 }}>Total Units:</span> {units.length}
         </div>
         {(() => {
           const grossSqFtField = modelDetails?.user_model_field_values.find((field: any) => field.field_key == "Gross Square Feet");
@@ -610,14 +634,14 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
           return (
             <>
               <div style={{ textAlign: 'right' }}>
-                <strong>Total Rentable Square Feet:</strong>{" "}
+                <span style={{ fontWeight: 600 }}>Total Rentable Square Feet:</span>{" "}
                 <span style={isWarning ? { color: "#d32f2f", fontWeight: 600 } : {}}>
                   {totalSquareFeet.toLocaleString()}
                 </span>
               </div>
               {grossSqFtField && (
                 <div style={{ textAlign: 'right' }}>
-                  <strong>Gross Square Feet:</strong>{" "}
+                  <span style={{ fontWeight: 600 }}>Gross Square Feet:</span>{" "}
                   {grossSqFtField.value !== undefined && grossSqFtField.value !== null && !isNaN(Number(grossSqFtField.value))
                     ? Number(grossSqFtField.value).toLocaleString()
                     : "N/A"}
@@ -628,11 +652,11 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
         })()}
 
         <div style={{ textAlign: 'right' }}>
-          <strong>Total Current Rent:</strong> ${totalCurrentRent.toLocaleString()}
+          <span style={{ fontWeight: 600 }}>Total Current Rent:</span> ${totalCurrentRent.toLocaleString()}
         </div>
         {showMarketRentAssumptions && (
           <div style={{ textAlign: 'right' }}>
-            <strong>Total Pro Forma Rent:</strong> ${totalPfRent.toLocaleString()}
+            <span style={{ fontWeight: 600 }}>Total Pro Forma Rent:</span> ${totalPfRent.toLocaleString()}
           </div>
         )}
       </div>
@@ -742,99 +766,149 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
           
         </div>
      */}
-          <DataGrid
-            rows={rows}
-            columns={columns.map((column) => ({ ...column, sortable: false }))}
-            disableRowSelectionOnClick
-            processRowUpdate={processRowUpdate}
-            slots={{
-              footer: CustomFooter
-            }}
-            rowHeight={52}
-           
-            getRowClassName={getRowClassName}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
-            pageSizeOptions={[100]}
-            columnVisibilityModel={{
-              vacate_flag: vacate,
-              vacate_month: vacate,
-            }}
-            hideFooterSelectedRowCount
-            disableColumnMenu
-            disableColumnFilter
-            disableColumnSelector
-            disableColumnSorting
+          <Box
             sx={{
-              minWidth: vacate ? '1160px' : '900px', 
-              background: '#f9fbfe',
-              
-              '& .MuiDataGrid-main': {
-                background: '#f9fbfe',
-              },
-              '& .MuiDataGrid-columnHeaders': {
-                background: '#f9fbfe',
-                minHeight: 52,
-                maxHeight: 52,
-                
-              },
-              '& .MuiDataGrid-columnHeader': {
-                background: '#f9fbfe',
-                minHeight: 52,
-                maxHeight: 52,
-              },
-              '& .MuiDataGrid-columnHeaderTitleContainer': {
-                background: '#f9fbfe',
-              },
-              // Standardize header font across all columns
-              '& .MuiDataGrid-columnHeaderTitle': {
-                fontWeight: 700,
-                fontSize: 15,
-                fontFamily: 'inherit',
-                textTransform: 'none',
-                lineHeight: '52px'
-              },
-              // Cleaner grid appearance
-              // '& .MuiDataGrid-columnSeparator': { display: 'none' },
-              '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(0,0,0,0.06)', background: '#f9fbfe' },
-              '& .MuiDataGrid-cell.u-noneditable-cell': { color: '#777' },
-              '& .MuiDataGrid-cell:not(.u-editable-cell):not(.u-noneditable-cell)': { color: '#777' },
-              '& .u-editable-input': {
-                border: 'none',
-                borderBottom: '2px solid transparent',
-                borderRadius: 0,
-                background: 'transparent',
-              },
-              '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': {
-                borderBottom: '2px solid #1976d2 !important',
-              },
-              '& .MuiDataGrid-row': { background: '#f9fbfe' },
-              '& .u-row-even': { background: '#fafafa' },
-              '& .MuiDataGrid-row:hover': { backgroundColor: '#f5f5f5' },
-              // Row action visibility only on hover/focus
-              '& .u-row-action': {
-                opacity: 0,
-                visibility: 'hidden',
-                pointerEvents: 'none',
-                transition: 'opacity 120ms ease'
-              },
-              '& .MuiDataGrid-row:hover .u-row-action, & .MuiDataGrid-cell:focus-within .u-row-action': {
-                opacity: 1,
-                visibility: 'visible',
-                pointerEvents: 'auto'
-              },
-              // Custom caret via element: hidden by default, shown on row hover or focus
-              '& .u-caret': { opacity: 0, transition: 'opacity 120ms ease', color: 'inherit' },
-              '& .u-select:focus + .u-caret': { opacity: 1 },
-              '& .MuiDataGrid-row:hover .u-caret': { opacity: 1 },
-              '& .MuiDataGrid-virtualScroller': {
-                background: '#f9fbfe',
-              },
-              '& .MuiDataGrid-footerContainer': {
-                background: '#f9fbfe',
-              },
+              width: '100%',
+              overflowX: 'auto',
             }}
-          />
+          >
+            <DataGrid
+              rows={rows}
+              columns={columns.map((column) => ({ ...column, sortable: false }))}
+              autoHeight
+              disableRowSelectionOnClick
+              processRowUpdate={processRowUpdate}
+              slots={{
+                footer: CustomFooter
+              }}
+              rowHeight={52}
+             
+              getRowClassName={getRowClassName}
+              paginationModel={paginationModel}
+              onPaginationModelChange={setPaginationModel}
+              pageSizeOptions={[100]}
+              columnVisibilityModel={{
+                vacate_flag: vacate,
+                vacate_month: vacate,
+              }}
+              hideFooterSelectedRowCount
+              disableColumnMenu
+              disableColumnFilter
+              disableColumnSelector
+              disableColumnSorting
+              sx={{
+                minWidth: vacate ? '1160px' : '900px', 
+                background: '#ffffff',
+                border: '1px solid #e5e7eb',
+                borderRadius: 2,
+                
+                '& .MuiDataGrid-main': {
+                  background: '#ffffff',
+                },
+                '& .MuiDataGrid-columnHeaders': {
+                  background: '#ffffff',
+                  minHeight: 52,
+                  maxHeight: 52,
+                  borderBottom: '1px solid #e5e7eb',
+                  minWidth: vacate ? '1160px' : '900px',
+                },
+                '& .MuiDataGrid-columnHeader': {
+                  background: '#ffffff',
+                  minHeight: 52,
+                  maxHeight: 52,
+                },
+                '& .MuiDataGrid-columnHeaderTitleContainer': {
+                  background: '#ffffff',
+                },
+                // Standardize header font across all columns
+                '& .MuiDataGrid-columnHeaderTitle': {
+                  fontWeight: 600,
+                  fontSize: 14.5,
+                  fontFamily: 'inherit',
+                  textTransform: 'none',
+                  lineHeight: '52px',
+                  color: '#1f2937',
+                  letterSpacing: '0.2px',
+                },
+                // Cleaner grid appearance
+                // '& .MuiDataGrid-columnSeparator': { display: 'none' },
+                '& .MuiDataGrid-cell': { 
+                  borderBottom: '1px solid rgba(15, 23, 42, 0.08)', 
+                  background: '#ffffff',
+                  fontSize: 14.5,
+                  color: '#1f2937',
+                },
+                '& .MuiDataGrid-cell.u-noneditable-cell': { color: '#64748b' },
+                '& .MuiDataGrid-cell:not(.u-editable-cell):not(.u-noneditable-cell)': { color: '#6b7280' },
+                '& .u-editable-input': {
+                  border: 'none',
+                  borderBottom: '1px solid transparent',
+                  borderRadius: 0,
+                  background: 'transparent',
+                },
+                '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': {
+                  borderBottom: '2px solid #4f8bd6 !important',
+                },
+                '& .MuiDataGrid-row': { background: '#ffffff' },
+                '& .u-row-odd': { background: '#ffffff' },
+                '& .u-row-even': { background: '#f9fafb' },
+                '& .MuiDataGrid-row:hover': { backgroundColor: '#f3f6fb' },
+                // Row action visibility only on hover/focus
+                '& .u-row-action': {
+                  opacity: 0,
+                  visibility: 'hidden',
+                  pointerEvents: 'none',
+                  transition: 'opacity 120ms ease'
+                },
+                '& .MuiDataGrid-row:hover .u-row-action, & .MuiDataGrid-cell:focus-within .u-row-action': {
+                  opacity: 1,
+                  visibility: 'visible',
+                  pointerEvents: 'auto'
+                },
+                // Custom caret via element: hidden by default, shown on row hover or focus
+                '& .u-caret': { opacity: 0, transition: 'opacity 120ms ease', color: colors.blue, fontSize: '1.25rem' },
+                '& .u-select:focus + .u-caret': { opacity: 1 },
+                '& .MuiDataGrid-row:hover .u-caret': { opacity: 1 },
+                '& .MuiDataGrid-cell:hover .u-caret': { opacity: 1 },
+                '& .MuiDataGrid-virtualScroller': {
+                  background: '#ffffff',
+                  overflowX: 'auto',
+                },
+                '& .MuiDataGrid-virtualScrollerContent': {
+                  minWidth: vacate ? '1160px' : '900px',
+                },
+                '& .MuiDataGrid-columnHeadersInner': {
+                  minWidth: vacate ? '1160px' : '900px',
+                },
+                '& .MuiDataGrid-footerContainer': {
+                  background: '#ffffff',
+                  borderTop: '1px solid #e5e7eb',
+                },
+                '& .u-select': {
+                  color: '#1f2937',
+                  fontSize: 14.5,
+                  fontFamily: 'inherit',
+                  fontWeight: 500,
+                },
+                '& .u-unit': {
+                  color: '#6b7280',
+                  fontWeight: 500,
+                },
+                '& .u-value': {
+                  color: '#111827',
+                  fontWeight: 600,
+                },
+                '& .u-muted': {
+                  color: '#9aa3b2',
+                  fontWeight: 400,
+                },
+                '& .u-muted .u-select': {
+                  color: '#9aa3b2',
+                  fontWeight: 400,
+                },
+              }}
+            />
+          </Box>
  
       </div>
 
@@ -871,7 +945,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
                   px: 1.5,
                   py: 1,
                   minHeight: 44,
-                  bgcolor: '#f5f5f5',
+                  bgcolor: 'grey.100',
                   borderRadius: 1,
                   mb: 1
                 }}
@@ -1022,13 +1096,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
 
     
 
-      <Dialog
-        open={open}
-        onClose={handleCloseModal}
-        maxWidth={false}
-        fullWidth
-        PaperProps={{ sx: { minWidth: 800 } }}
-      >
+      <Dialog open={open} onClose={handleCloseModal} maxWidth="sm" fullWidth>
         <DialogTitle>Edit Market Rent Assumptions</DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 1 }}>
@@ -1105,6 +1173,8 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       <Dialog
         open={pfOpen}
         onClose={handleClosePfModal}
+        disablePortal
+        container={() => document.getElementById('create-model-content')}
         maxWidth="md"
         fullWidth
         PaperProps={{
@@ -1181,9 +1251,8 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
                   mb: 1.2,
                   px: 1.5,
                   py: 1,
-                  backgroundColor: '#f8f9fa',
+                  backgroundColor: 'grey.100',
                   borderRadius: 1,
-                  border: '1px solid #e0e0e0',
                   minWidth: { xs: 640, sm: 'auto' }
                 }}
               >

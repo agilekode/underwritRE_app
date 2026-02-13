@@ -5,32 +5,70 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
   TextField,
-  Paper,
   Card,
   CardContent,
   CardHeader,
   InputAdornment,
-  Divider,
-  Checkbox,
-  Grid
 } from "@mui/material";
-import { NumberInput, PercentageInput, BasisPointsInput, YearsInput } from './NumberInput';
-import { LIGHT_THEME_COLOR } from "../utils/constants";
+import { NumberInput, PercentageInput, YearsInput } from './NumberInput';
+import { InfoBox } from './StandardLayout';
+import { colors } from "../theme";
 
 // Helper functions
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
 
-const calculateLoanConstant = (interestRate: number, amortizationYears: number) => {
-  const monthlyRate = interestRate / 100 / 12;
-  const totalPayments = amortizationYears * 12;
-  if (monthlyRate === 0) return 1 / totalPayments;
-  const numerator = monthlyRate * Math.pow(1 + monthlyRate, totalPayments);
-  const denominator = Math.pow(1 + monthlyRate, totalPayments) - 1;
-  return (numerator / denominator) * 12; // Annual constant
+const formatCurrencySafe = (value: any) => {
+  if (value === undefined || value === null || value === "" || value === "N/A") return "—";
+  const num = Number(String(value).replace(/[^0-9.-]/g, ""));
+  if (!Number.isFinite(num)) return String(value);
+  return formatCurrency(num);
 };
+
+const SectionHeader = ({ title, description }: { title: string; description: string }) => (
+  <Box
+    sx={{
+      display: "flex",
+      flexDirection: { xs: "column", sm: "row" },
+      alignItems: { xs: "flex-start", sm: "baseline" },
+      gap: { xs: 0.5, sm: 2 },
+      mb: 2,
+    }}
+  >
+    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+      {title}
+    </Typography>
+    <Typography
+      variant="body2"
+      sx={{
+        color: colors.grey[600],
+        maxWidth: 520,
+        lineHeight: 1.4,
+      }}
+    >
+      {description}
+    </Typography>
+  </Box>
+);
+
+const InlineHeader = ({ title, description }: { title: string; description: string }) => (
+  <Box
+    sx={{
+      display: "flex",
+      flexDirection: { xs: "column", sm: "row" },
+      alignItems: { xs: "flex-start", sm: "baseline" },
+      gap: { xs: 0.5, sm: 2 },
+    }}
+  >
+    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+      {title}
+    </Typography>
+    <Typography variant="body2" sx={{ color: colors.grey[600], lineHeight: 1.4 }}>
+      {description}
+    </Typography>
+  </Box>
+);
 
 export default function RefinancingSection({
   modelDetails,
@@ -71,135 +109,196 @@ export default function RefinancingSection({
   const [modelRefinancing, setModelRefinancing] = useState(getFieldValue("Permanent Loan Issued?", ""));
   const [refinancingMonth, setRefinancingMonth] = useState(getFieldValue("Refinancing Month", ""));
   const [currentPrincipalOutstanding, setCurrentPrincipalOutstanding] = useState(variables?.["Acquisition Loan Balance Outstanding"] ?? "N/A");
-  
+
   useEffect(() => {
     setCurrentPrincipalOutstanding(variables?.["Acquisition Loan Balance Outstanding"] ?? "N/A");
     const fieldId = getFieldId("Refinancing: Fixed Interest Rate");
-  const existing = modelDetails?.user_model_field_values?.find(
-    (f: any) => f.field_key === "Refinancing: Fixed Interest Rate"
-  )?.value;
+    const existing = modelDetails?.user_model_field_values?.find(
+      (f: any) => f.field_key === "Refinancing: Fixed Interest Rate"
+    )?.value;
 
-  const parsed = parseNumber(variables?.["Refi: Fixed Interest Rate"], "");
-  if (fieldId && (existing === "" || existing === undefined || existing === null) && parsed !== "") {
-    handleFieldChangeRef.current(fieldId, "Refinancing: Fixed Interest Rate", parsed);
-  }
+    const parsed = parseNumber(variables?.["Refi: Fixed Interest Rate"], "");
+    if (fieldId && (existing === "" || existing === undefined || existing === null) && parsed !== "") {
+      handleFieldChangeRef.current(fieldId, "Refinancing: Fixed Interest Rate", parsed);
+    }
   }, [variables]);
 
   // Sync main fields to parent
   useEffect(() => {
     handleFieldChange(getFieldId("Permanent Loan Issued?"), "Permanent Loan Issued?", modelRefinancing);
   }, [modelRefinancing]);
-  
+
   useEffect(() => {
     handleFieldChange(getFieldId("Refinancing Month"), "Refinancing Month", refinancingMonth);
   }, [refinancingMonth]);
 
+  const refiMonthNumber = Number(parseNumber(refinancingMonth, 0));
+  const showRefiInputs = modelRefinancing === "Yes" && refiMonthNumber > 0;
+
+  const refiLtv = Number(parseNumber(variables?.["Refi: LTV calculation"], 0));
+  const refiDscr = Number(parseNumber(variables?.["Refi: DSCR calculation"], 0));
+  const refiDebtYield = Number(parseNumber(variables?.["Refi: Debt Yield calculation"], 0));
+  const refiMaxPermLoan = Number(parseNumber(variables?.["Refi: Max Perm Loan"], 0));
+
+  const loanOptions = [
+    { label: "LTV", value: refiLtv },
+    { label: "DSCR", value: refiDscr },
+    { label: "Debt Yield", value: refiDebtYield },
+  ];
+  const nonZeroOptions = loanOptions.filter((opt) => opt.value > 0);
+  const minOption = nonZeroOptions.reduce(
+    (min, curr) => (curr.value < min.value ? curr : min),
+    nonZeroOptions[0] || { label: "Selected", value: 0 }
+  );
+  const maxLoanValue = refiMaxPermLoan > 0 ? refiMaxPermLoan : minOption.value;
+  const maxLoanMethod =
+    refiMaxPermLoan === refiLtv
+      ? "LTV"
+      : refiMaxPermLoan === refiDscr
+      ? "DSCR"
+      : refiMaxPermLoan === refiDebtYield
+      ? "Debt Yield"
+      : minOption.label;
+
+  const formatPercent = (val: any) => {
+    const num = parseNumber(val, "");
+    if (num === "" || num === null || num === undefined) return "—";
+    return `${num}%`;
+  };
+
+  const formatYears = (val: any) => {
+    const num = parseNumber(val, "");
+    if (num === "" || num === null || num === undefined) return "—";
+    return `${num} years`;
+  };
+
+  const MetricRow = ({ label, value }: { label: string; value: string }) => (
+    <Box sx={{ py: 0.5 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.65rem' }}>
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        {value}
+      </Typography>
+    </Box>
+  );
+
+  const summaryMetrics = showRefiInputs
+    ? [
+        { label: "Refinancing Month", value: `Month ${refiMonthNumber}` },
+        { label: "Current Principal", value: formatCurrencySafe(currentPrincipalOutstanding) },
+        { label: "Interest Rate", value: formatPercent(getFieldValue("Refinancing: Fixed Interest Rate", "")) },
+        { label: "Amortization", value: formatYears(getFieldValue("Refi Amortization", "")) },
+        { label: "Origination Cost", value: formatPercent(getFieldValue("Origination Cost (Includes Title)", "")) },
+        { label: "SOFR Spread", value: `${variables?.["Refi: SOFR Spread at Origination"] ?? "N/A"}` },
+        { label: `Annualized NOI in Month ${refiMonthNumber}`, value: formatCurrencySafe(variables?.["Refi: Annualized NOI in Month"]) },
+        { label: "Loan Factor", value: `${variables?.["Refi: Loan Factor"] ?? "N/A"}` },
+        { label: "Refi Proceeds Net of Fees", value: formatCurrencySafe(variables?.["Refi: Loan Proceeds net of fees"]) },
+        { label: "Proceeds from Cashout", value: formatCurrencySafe(variables?.["Refi: Proceeds from Cashout"]) },
+        { label: "Annual Debt Service", value: formatCurrencySafe(variables?.["Refi: Annual Debt Service"]) },
+        { label: "Monthly Debt Service", value: formatCurrencySafe(variables?.["Refi: Monthly Debt Service"]) },
+      ]
+    : [];
+
   return (
-    <Box sx={{ maxWidth: 1200, mx: "auto", p: { xs: 1.5, sm: 2 }, borderRadius: 2, border: "1px solid #e0e0e0" }}>
-      {/* <Typography variant="h6" fontWeight={700} gutterBottom>
-        Refinancing
-      </Typography> */}
-      {/* <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-        Model refinancing options for your acquisition loan
-      </Typography> */}
-
-      <Box sx={{ mt: 0 }}>
-        <Typography fontWeight={600} sx={{ mb: 1 }}>
-          Would you like to model in a refinancing of the acquisition loan?
-        </Typography>
-        <FormControl fullWidth sx={{ maxWidth: 300 }}>
-          <Select
-            value={modelRefinancing}
-            onChange={(e) => setModelRefinancing(e.target.value)}
-            size="medium"
+    <Box sx={{ maxWidth: 1400, mx: "auto", px: 4, pb: 4 }}>
+      <Box sx={{ display: 'flex', gap: 3, alignItems: 'flex-start', flexDirection: { xs: 'column', lg: 'row' } }}>
+        {/* LEFT COLUMN: Inputs */}
+        <Box sx={{ flex: '0 0 65%', minWidth: 0, width: '100%' }}>
+          <Card
+            elevation={0}
+            sx={{
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 2,
+              mb: 3,
+            }}
           >
-            <MenuItem value="Yes">Yes</MenuItem>
-            <MenuItem value="No">No</MenuItem>
-          </Select>
-        </FormControl>
-      </Box>
+            <CardContent sx={{ p: 3 }}>
+              <SectionHeader
+                title="Refinancing Options"
+                description="Model refinancing options for your acquisition loan."
+              />
 
-      {modelRefinancing === "Yes" && (
-        <>
-          <Box sx={{ mt: 4 }}>
-            <Typography fontWeight={600} sx={{ mb: 1 }}>
-              What month is the refinancing to take place?
-            </Typography>
-            <NumberInput
-              value={refinancingMonth}
-              onChange={(value: number | string) => setRefinancingMonth(value)}
-              placeholder="Enter month number"
-              min={1}
-              step={1}
-              startAdornment={<InputAdornment position="start">Month</InputAdornment>}
-              sx={{ maxWidth: 300 }}
-            />
-          </Box>
-          {refinancingMonth !== "" && (
-            <>
-              <Paper
-                sx={{
-                  mt: 4,
-                  p: 3,
-                  background: "#f5f5f5",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: { xs: "flex-start", sm: "center" },
-                  flexDirection: { xs: "column", sm: "row" },
-                  fontWeight: 700,
-                  fontSize: "1.1rem",
-                  gap: { xs: 0.5, sm: 0 },
-                }}
-                elevation={0}
-              >
-                <span>Current Principal Outstanding of Acquisition Loan:</span>
-                <span style={{ fontWeight: 900, fontSize: "1.3rem" }}>
-                  {currentPrincipalOutstanding === "N/A" ? "N/A" : '$' + currentPrincipalOutstanding}
-                </span>
-              </Paper>
-              
-              {/* General Refinancing Inputs */}
-              <Box sx={{ mt: 4, display: 'grid', gap: { xs: 2, sm: 3 }, gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' } }}>
-                <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Model a refinancing?
+                  </Typography>
+                  <FormControl fullWidth size="small">
+                    <Select
+                      value={modelRefinancing}
+                      onChange={(e) => setModelRefinancing(e.target.value)}
+                      size="small"
+                    >
+                      <MenuItem value="Yes">Yes</MenuItem>
+                      <MenuItem value="No">No</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Refinancing month
+                  </Typography>
+                  <NumberInput
+                    value={modelRefinancing === "Yes" ? refinancingMonth : ""}
+                    onChange={(value: number | string) => setRefinancingMonth(value)}
+                    placeholder="Enter month number"
+                    min={1}
+                    step={1}
+                    startAdornment={<InputAdornment position="start">Month</InputAdornment>}
+                    size="small"
+                    fullWidth
+                    disabled={modelRefinancing !== "Yes"}
+                  />
+                </Box>
+              </Box>
+
+              {modelRefinancing === "Yes" && refiMonthNumber <= 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                  Enter the month number to unlock refinancing calculations.
+                </Typography>
+              )}
+            </CardContent>
+          </Card>
+
+          {modelRefinancing === "Yes" && (
+            <Card
+              elevation={0}
+              sx={{
+                border: `1px solid ${colors.grey[300]}`,
+                borderRadius: 2,
+                mb: 3,
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <SectionHeader
+                  title="Refinancing Terms"
+                  description="Core interest, amortization, and closing inputs."
+                />
+
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+                    gap: 2,
+                  }}
+                >
                   <PercentageInput
                     label="Fixed Interest Rate"
                     value={getFieldValue(
                       "Refinancing: Fixed Interest Rate",
-                    variables?.["Refi: Fixed Interest Rate"] ?? ""
+                      variables?.["Refi: Fixed Interest Rate"] ?? ""
                     )}
                     onChange={(value: number | string) => {
                       handleFieldChange(
                         getFieldId("Refinancing: Fixed Interest Rate"),
                         "Refinancing: Fixed Interest Rate",
-                      value === "" ? "" : value
+                        value === "" ? "" : value
                       );
                     }}
                     fullWidth
+                    size="small"
                   />
-
-
-
-
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
-
-
-           
-
-                <Box sx={{ display: 'flex', alignItems: 'center', mt: 0, border: 1, borderColor: 'primary.main', padding: 2, borderRadius: 2 }}>
-                  <span style={{ fontWeight: 500, fontSize: "1rem", marginRight: 8 }}>
-                    SOFR Spread at Origination:
-                  </span>
-                  <span style={{ fontWeight: 700, fontSize: "1.1rem" }}>
-                    {variables?.["Refi: SOFR Spread at Origination"] !== undefined && variables?.["Refi: SOFR Spread at Origination"] !== null
-                      ? variables["Refi: SOFR Spread at Origination"]
-                      : "N/A"}
-                  </span>
-                </Box>
-
-
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
                   <YearsInput
                     label="Amortization"
                     value={getFieldValue("Refi Amortization", "")}
@@ -207,163 +306,148 @@ export default function RefinancingSection({
                       handleFieldChange(getFieldId("Refi Amortization"), "Refi Amortization", value === "" ? "" : Number(value));
                     }}
                     fullWidth
+                    size="small"
                   />
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0, width: '100%' }}>
-                  <TextField
+                  <PercentageInput
                     label="Origination Cost (Includes Title)"
-                    type="number"
-                    className="no-spinner"
                     value={getFieldValue("Origination Cost (Includes Title)", "")}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                        handleFieldChange(getFieldId("Origination Cost (Includes Title)"), "Origination Cost (Includes Title)", value === "" ? "" : Number(value));
-                      }
-                    }}
-                    InputProps={{
-                      endAdornment: <InputAdornment position="end">%</InputAdornment>
+                    onChange={(value: number | string) => {
+                      handleFieldChange(getFieldId("Origination Cost (Includes Title)"), "Origination Cost (Includes Title)", value === "" ? "" : Number(value));
                     }}
                     fullWidth
+                    size="small"
                   />
-                </Box>
-                {/* <Box sx={{ flex: 1, minWidth: 250 }}>
-                  <TextField
-                    label="Share of Equity from Sponsor"
-                    type="number"
-                    className="no-spinner"
-                    value={getFieldValue("Share of Equity from Sponsor", "")}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value === "" || /^\d*\.?\d*$/.test(value)) {
-                        handleFieldChange(getFieldId("Share of Equity from Sponsor"), "Share of Equity from Sponsor", value === "" ? "" : Number(value));
-                      }
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      border: `1px solid ${colors.grey[300]}`,
+                      borderRadius: 1,
+                      px: 1.5,
+                      py: 0.25,
+                      backgroundColor: colors.grey[50],
+                      minHeight: 34,
                     }}
-                    InputProps={{
-                      endAdornment: <InputAdornment position="end">%</InputAdornment>
-                    }}
-                    fullWidth
-                  />
-                </Box> */}
-              </Box>
-            </>
-          )}
-        </>
-      )}
-        {modelRefinancing === "Yes" && refinancingMonth !== "" && (
-          <>
-      <Box sx={{ mt: 2, display: 'grid', gap: 3, gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, alignItems: 'stretch' }}>
-        <Box sx={{ display: 'flex', minWidth: 0, width: '100%'}}>
-          <LtvCalculationColumn
-            modelDetails={modelDetails}
-            handleFieldChange={handleFieldChange}
-            variables={variables}
-          />
-        </Box>
-        <Box sx={{ display: 'flex', minWidth: 0, width: '100%' }}>
-          <DscrCalculationColumn
-            modelDetails={modelDetails}
-            handleFieldChange={handleFieldChange}
-            variables={variables}
-            refinancingMonth={refinancingMonth}
-          />
-        </Box>
-        <Box sx={{ display: 'flex', minWidth: 0, width: '100%' }}>
-          <DebtYieldMinColumn
-            modelDetails={modelDetails}
-            handleFieldChange={handleFieldChange}
-            variables={variables}
-            refinancingMonth={refinancingMonth}
-          />
-        </Box>
-      </Box>
-      </>
-    )}
-    {modelRefinancing === "Yes" && refinancingMonth !== "" && (
-      <Box sx={{ mt: 4 }}>
-        <Card>
-          <CardContent>
-            
-            {/* Calculate max loan and which method */}
-            {(() => {
-              // All methods are always enabled
-              const loanOptions = [
-                { value: variables?.["Refi: LTV calculation"] || 0, label: "LTV calculation" },
-                { value: variables?.["Refi: DSCR calculation"] || 0, label: "DSCR calculation" },
-                { value: variables?.["Refi: Debt Yield calculation"] || 0, label: "Debt Yield calculation" }
-              ];
-              const minLoan = loanOptions.reduce((min, curr) => curr.value < min.value ? curr : min, loanOptions[0]);
-              
-              return (
-                <Box sx={{ display: 'flex', gap: { xs: 2, sm: 4 }, flexWrap: 'wrap', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'flex-start', backgroundColor: '#fdfdfe' }}>
-                  {/* Left: Max Loan */}
-                  <Box sx={{ flex: 1, minWidth: 0, width: { xs: '100%', sm: 'auto' } }}>
-                  <Typography variant="h5" fontWeight={700}>Maximum Refinancing Loan Summary</Typography>
-            <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
-              Based on the smallest loan size from the selected calculation methods
-            </Typography>
-                    <Paper sx={{ p: 2, mb: 2, background: "#f5f5f5" }} elevation={0}>
-                      <Typography fontWeight={700} fontSize="1.2rem">
-                        Max Refinancing Loan Size:
-                      </Typography>
-                      <Box sx={{ display: "flex", alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: "space-between", flexDirection: { xs: 'column', sm: 'row' } }}>
-                        <Typography color="text.secondary" fontSize="1rem" sx={{ mb: { xs: 0.5, sm: 0 } }}>
-                          Based on {(() => {
-                            if (variables?.["Refi: Max Perm Loan"] == variables?.["Refi: LTV calculation"]) {
-                              return "LTV Loan"
-                            } else if (variables?.["Refi: Max Perm Loan"] == variables?.["Refi: DSCR calculation"]) {
-                              return "DSCR Loan"
-                            } else if (variables?.["Refi: Max Perm Loan"] == variables?.["Refi: Debt Yield calculation"]) {
-                                return "Debt Yield Loan"
-                            } else {
-                              return "calculation"
-                            }
-                          })()}
-                        </Typography>
-                        <Typography fontWeight={900} fontSize={{ xs: '1.6rem', sm: '2rem' }} sx={{ alignSelf: { xs: 'flex-start', sm: 'auto' } }}>
-                          ${variables?.["Refi: Max Perm Loan"] || 0}
-                        </Typography>
-                      </Box>
-                    </Paper>
-                  </Box>
-                  {/* Right: All Methods */}
-                  <Box sx={{ flex: 1, minWidth: 0, width: { xs: '100%', sm: 'auto' } }}>
-                    <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: `1px solid ${LIGHT_THEME_COLOR}`, background: '#fff' }}>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' } }}>
-                    <Typography fontWeight={700}>Annualized NOI in Month {refinancingMonth}:</Typography>
-                    <Typography fontWeight={700} sx={{ mt: { xs: 0.5, sm: 0 } }}>${variables?.["Refi: Annualized NOI in Month"] || 0}</Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' } }}>
-                    <Typography fontWeight={700}>Loan Factor:</Typography>
-                    <Typography fontWeight={700} sx={{ mt: { xs: 0.5, sm: 0 } }}>{variables?.["Refi: Loan Factor"] !== undefined ? variables["Refi: Loan Factor"] : "-"}</Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' } }}>
-                    <Typography fontWeight={700}>Refi Loan Proceeds net of fees:</Typography>
-                    <Typography fontWeight={700} sx={{ mt: { xs: 0.5, sm: 0 } }}>${variables?.["Refi: Loan Proceeds net of fees"] || 0}</Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' } }}>
-                    <Typography fontWeight={700}>Proceeds from Cashout:</Typography>
-                    <Typography fontWeight={700} sx={{ mt: { xs: 0.5, sm: 0 } }}>${variables?.["Refi: Proceeds from Cashout"] || 0}</Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' } }}>
-                    <Typography fontWeight={700}>Annual Debt Service:</Typography>
-                    <Typography fontWeight={700} sx={{ mt: { xs: 0.5, sm: 0 } }}>${variables?.["Refi: Annual Debt Service"] || 0}</Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2, flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' } }}>
-                    <Typography fontWeight={700}>Monthly Debt Service:</Typography>
-                    <Typography fontWeight={700} sx={{ mt: { xs: 0.5, sm: 0 } }}>${variables?.["Refi: Monthly Debt Service"] || 0}</Typography>
-                  </Box>
-                    </Paper>
+                  >
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      SOFR Spread at Origination
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+                      {variables?.["Refi: SOFR Spread at Origination"] !== undefined && variables?.["Refi: SOFR Spread at Origination"] !== null
+                        ? variables["Refi: SOFR Spread at Origination"]
+                        : "N/A"}
+                    </Typography>
                   </Box>
                 </Box>
-              );
-            })()}
-            <Divider sx={{ my: 3 }} />
 
-          </CardContent>
-        </Card>
+                {showRefiInputs && (
+                  <Box
+                    sx={{
+                      mt: 2,
+                      borderRadius: 1,
+                      border: `1px solid ${colors.grey[300]}`,
+                      backgroundColor: colors.grey[50],
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      px: 1.5,
+                      py: 0.25,
+                      minHeight: 34,
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Current principal outstanding
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                      {formatCurrencySafe(currentPrincipalOutstanding)}
+                    </Typography>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {showRefiInputs && (
+            <Box>
+              <SectionHeader
+                title="Calculation Methods"
+                description="We compute three loan sizes and use the smallest for the refinance."
+              />
+
+              <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: '1fr' }}>
+                <LtvCalculationColumn
+                  modelDetails={modelDetails}
+                  handleFieldChange={handleFieldChange}
+                  variables={variables}
+                />
+                <DscrCalculationColumn
+                  modelDetails={modelDetails}
+                  handleFieldChange={handleFieldChange}
+                  variables={variables}
+                  refinancingMonth={refiMonthNumber}
+                />
+                <DebtYieldMinColumn
+                  modelDetails={modelDetails}
+                  handleFieldChange={handleFieldChange}
+                  variables={variables}
+                  refinancingMonth={refiMonthNumber}
+                />
+              </Box>
+            </Box>
+          )}
+        </Box>
+
+        {/* RIGHT COLUMN: Summary */}
+        <Box
+          sx={{
+            flex: '0 0 32%',
+            minWidth: 0,
+            width: '100%',
+            position: { xs: 'static', lg: 'sticky' },
+            top: 20,
+            alignSelf: 'flex-start',
+          }}
+        >
+          <Card
+            elevation={0}
+            sx={{
+              backgroundColor: colors.white,
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 2,
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <InlineHeader
+                title="Refinancing Summary"
+                description={showRefiInputs ? `Based on ${maxLoanMethod} calculation` : ""}
+              />
+
+              <Box sx={{ mb: 3 }}>
+                <InfoBox
+                  label="Max Refinance Loan"
+                  value={showRefiInputs ? formatCurrencySafe(maxLoanValue) : "—"}
+                  variant="primary"
+                />
+              </Box>
+
+              {!showRefiInputs && (
+                <Typography variant="body2" color="text.secondary">
+                  Select "Yes" and enter a refinancing month to see loan calculations.
+                </Typography>
+              )}
+
+              {showRefiInputs && (
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, columnGap: 2, rowGap: 1.5 }}>
+                  {summaryMetrics.map((metric) => (
+                    <MetricRow key={metric.label} label={metric.label} value={metric.value} />
+                  ))}
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Box>
       </Box>
-    )}
     </Box>
   );
 }
@@ -375,7 +459,7 @@ export function LtvCalculationColumn({ modelDetails, handleFieldChange, variable
 }) {
   // Memoize the handleFieldChange function to prevent infinite loops
   const memoizedHandleFieldChange = useCallback(handleFieldChange, [handleFieldChange]);
-  
+
   const handleFieldChangeRef = useRef(memoizedHandleFieldChange);
   handleFieldChangeRef.current = memoizedHandleFieldChange;
 
@@ -391,47 +475,57 @@ export function LtvCalculationColumn({ modelDetails, handleFieldChange, variable
   const [appliedCapRate, setAppliedCapRate] = useState(getFieldValue("Applied Cap Rate for Valuation at Refi", 6));
   const [ltvMax, setLtvMax] = useState(getFieldValue("LTV Max", 75));
 
-  useEffect(() => { 
-    handleFieldChange(getFieldId("Applied Cap Rate for Valuation at Refi"), "Applied Cap Rate for Valuation at Refi", appliedCapRate); 
+  useEffect(() => {
+    handleFieldChange(getFieldId("Applied Cap Rate for Valuation at Refi"), "Applied Cap Rate for Valuation at Refi", appliedCapRate);
   }, [appliedCapRate]);
-  useEffect(() => { 
-    handleFieldChange(getFieldId("LTV Max"), "LTV Max", ltvMax); 
+  useEffect(() => {
+    handleFieldChange(getFieldId("LTV Max"), "LTV Max", ltvMax);
   }, [ltvMax]);
 
-  // Format currency
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
-
   return (
-    <Card sx={{ borderRadius: 3, boxShadow: 1, height: '100%', minHeight: { xs: 320, sm: 300 }, display: 'flex', flexDirection: 'column', width: '100%', backgroundColor: '#fdfdfe' }}>
-      <CardHeader
-        title={
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Box>
-              <Typography variant="h6" fontWeight={700}>LTV Calculation</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Calculate loan based on property value
-              </Typography>
-            </Box>
-          </Box>
-        }
-        sx={{ pb: 0 }}
-      />
-      <CardContent sx={{ opacity: 1, pointerEvents: "auto", flexGrow: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <Card sx={{ borderRadius: 2, border: `1px solid ${colors.grey[300]}`, boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', width: '100%', backgroundColor: colors.white }}>
+      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
+        <InlineHeader
+          title="LTV Calculation"
+          description="Calculate loan based on property value"
+        />
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+            gap: 2,
+            alignItems: 'stretch',
+          }}
+        >
           <TextField
             label="Applied Cap Rate for Valuation at Refi"
             type="number"
             className="no-spinner"
             value={appliedCapRate}
             onChange={e => setAppliedCapRate(Number(e.target.value))}
+            size="small"
+            fullWidth
             InputProps={{
               endAdornment: <InputAdornment position="end">%</InputAdornment>
             }}
           />
-           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography fontWeight={700}>Implied Valuation:</Typography>
-            <Typography>
+          <Box
+            sx={{
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 1,
+              px: 1.5,
+              py: 0.25,
+              backgroundColor: colors.grey[50],
+              minHeight: 34,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+              Implied Valuation
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
               {(() => {
                 const rawNoi = variables?.["Refi: Annualized NOI in Month"];
                 const noi =
@@ -442,7 +536,6 @@ export function LtvCalculationColumn({ modelDetails, handleFieldChange, variable
                   typeof appliedCapRate === "number"
                     ? appliedCapRate
                     : Number(String(appliedCapRate ?? "").replace(/[^0-9.-]/g, "")) || 0;
-                // Normalize: if provided as percent (e.g., 7.5), convert to decimal
                 if (rate > 0) rate = rate / 100;
                 if (!isFinite(noi) || !isFinite(rate) || rate <= 0) return "-";
                 const implied = noi / rate;
@@ -456,20 +549,20 @@ export function LtvCalculationColumn({ modelDetails, handleFieldChange, variable
             className="no-spinner"
             value={ltvMax}
             onChange={e => setLtvMax(Number(e.target.value))}
+            size="small"
+            fullWidth
             InputProps={{
               endAdornment: <InputAdornment position="end">%</InputAdornment>
             }}
           />
-          <br />
-          <br />
-          <Box sx={{ position: 'absolute', left: 16, right: 16, bottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e0e0e0", paddingTop: 2 }}>
-            <Typography fontWeight={700}>Max LTV Loan:</Typography>
-            <Typography fontWeight={900} fontSize="1.3rem">
-              {variables && "Refi: LTV calculation" in variables
-                ? `$${variables["Refi: LTV calculation"]}`
-                : ''}
-            </Typography>
-          </Box>
+        </Box>
+        <Box sx={{ mt: 1, pt: 2, borderTop: `1px solid ${colors.grey[300]}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography fontWeight={700}>Max LTV Loan:</Typography>
+          <Typography fontWeight={900} fontSize="1.2rem">
+            {variables && "Refi: LTV calculation" in variables
+              ? formatCurrencySafe(variables["Refi: LTV calculation"])
+              : "—"}
+          </Typography>
         </Box>
       </CardContent>
     </Card>
@@ -480,7 +573,7 @@ export function LtvCalculationColumn({ modelDetails, handleFieldChange, variable
 function DscrCalculationColumn({ modelDetails, handleFieldChange, variables, refinancingMonth }: any) {
   // Memoize the handleFieldChange function to prevent infinite loops
   const memoizedHandleFieldChange = useCallback(handleFieldChange, [handleFieldChange]);
-  
+
   const handleFieldChangeRef = useRef(memoizedHandleFieldChange);
   handleFieldChangeRef.current = memoizedHandleFieldChange;
 
@@ -495,53 +588,62 @@ function DscrCalculationColumn({ modelDetails, handleFieldChange, variables, ref
 
   const [minDscr, setMinDscr] = useState(getFieldValue("Minimum Debt-Service-Coverage Ratio", 1.25));
 
-  useEffect(() => { 
-    handleFieldChange(getFieldId("Minimum Debt-Service-Coverage Ratio"), "Minimum Debt-Service-Coverage Ratio", minDscr); 
+  useEffect(() => {
+    handleFieldChange(getFieldId("Minimum Debt-Service-Coverage Ratio"), "Minimum Debt-Service-Coverage Ratio", minDscr);
   }, [minDscr]);
 
-  // Format currency
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
-
   return (
-    <Card sx={{ borderRadius: 3, boxShadow: 1, height: '100%', minHeight: { xs: 320, sm: 300 }, display: 'flex', flexDirection: 'column', position: 'relative', backgroundColor: '#fdfdfe' }}>
-      <CardHeader
-        title={
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Box>
-              <Typography variant="h6" fontWeight={700}>Debt-Service Coverage Ratio Calculation</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Calculate loan based on DSCR requirements
-              </Typography>
-            </Box>
-          </Box>
-        }
-        sx={{ pb: 0 }}
-      />
-      <CardContent sx={{ opacity: 1, pointerEvents: "auto", flexGrow: 1, display: 'flex', flexDirection: 'column', pb: 8 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <Card sx={{ borderRadius: 2, border: `1px solid ${colors.grey[300]}`, boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: colors.white }}>
+      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
+        <InlineHeader
+          title="Debt-Service Coverage Ratio"
+          description="Calculate loan based on DSCR requirements"
+        />
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+            gap: 2,
+          }}
+        >
           <TextField
             label="Minimum Debt-Service-Coverage Ratio"
             type="number"
             className="no-spinner"
             value={minDscr}
             onChange={e => setMinDscr(Number(e.target.value))}
+            size="small"
+            fullWidth
             InputProps={{
               endAdornment: <InputAdornment position="end">x</InputAdornment>
             }}
           />
-          <Box sx={{ position: 'absolute', left: 16, right: 16, bottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e0e0e0", paddingTop: 2  }}>
-            <Typography fontWeight={700}>Max DSCR Loan:</Typography>
-            <Typography fontWeight={900} fontSize="1.3rem">
-              ${variables?.["Refi: DSCR calculation"] || 0}
+          <Box
+            sx={{
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 1,
+              px: 1.5,
+              py: 0.25,
+              backgroundColor: colors.grey[50],
+              minHeight: 34,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+              Annualized NOI in Month {refinancingMonth}
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {formatCurrencySafe(variables?.["Refi: Annualized NOI in Month"]) }
             </Typography>
           </Box>
         </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, marginTop: 2 }}>
-            <Typography fontWeight={700}>Annualized NOI in Month {refinancingMonth}</Typography>
-            <Typography>
-              ${variables?.["Refi: Annualized NOI in Month"] || 0}
-            </Typography>
+        <Box sx={{ mt: 1, pt: 2, borderTop: `1px solid ${colors.grey[300]}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography fontWeight={700}>Max DSCR Loan:</Typography>
+          <Typography fontWeight={900} fontSize="1.2rem">
+            {formatCurrencySafe(variables?.["Refi: DSCR calculation"]) }
+          </Typography>
         </Box>
       </CardContent>
     </Card>
@@ -552,7 +654,7 @@ function DscrCalculationColumn({ modelDetails, handleFieldChange, variables, ref
 function DebtYieldMinColumn({ modelDetails, handleFieldChange, variables, refinancingMonth }: any) {
   // Memoize the handleFieldChange function to prevent infinite loops
   const memoizedHandleFieldChange = useCallback(handleFieldChange, [handleFieldChange]);
-  
+
   const handleFieldChangeRef = useRef(memoizedHandleFieldChange);
   handleFieldChangeRef.current = memoizedHandleFieldChange;
 
@@ -567,53 +669,62 @@ function DebtYieldMinColumn({ modelDetails, handleFieldChange, variables, refina
 
   const [debtYieldMin, setDebtYieldMin] = useState(getFieldValue("Debt Yield Min", 8.75));
 
-  useEffect(() => { 
-    handleFieldChange(getFieldId("Debt Yield Min"), "Debt Yield Min", debtYieldMin); 
+  useEffect(() => {
+    handleFieldChange(getFieldId("Debt Yield Min"), "Debt Yield Min", debtYieldMin);
   }, [debtYieldMin]);
 
-  // Format currency
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
-
   return (
-    <Card sx={{ borderRadius: 3, boxShadow: 1, height: '100%', minHeight: { xs: 320, sm: 300 }, display: 'flex', flexDirection: 'column', position: 'relative', backgroundColor: '#fdfdfe' }}>
-      <CardHeader
-        title={
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Box>
-              <Typography variant="h6" fontWeight={700}>Debt Yield Min</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Calculate loan based on debt yield requirements
-              </Typography>
-            </Box>
-          </Box>
-        }
-        sx={{ pb: 0 }}
-      />
-      <CardContent sx={{ opacity: 1, pointerEvents: "auto", flexGrow: 1, display: 'flex', flexDirection: 'column', pb: 8 }}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <Card sx={{ borderRadius: 2, border: `1px solid ${colors.grey[300]}`, boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: colors.white }}>
+      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
+        <InlineHeader
+          title="Debt Yield Min"
+          description="Calculate loan based on debt yield requirements"
+        />
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+            gap: 2,
+          }}
+        >
           <TextField
             label="Debt Yield Min"
             type="number"
             className="no-spinner"
             value={debtYieldMin}
             onChange={e => setDebtYieldMin(Number(e.target.value))}
+            size="small"
+            fullWidth
             InputProps={{
               endAdornment: <InputAdornment position="end">%</InputAdornment>
             }}
           />
-          <Box sx={{ position: 'absolute', left: 16, right: 16, bottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e0e0e0", paddingTop: 2 }}>
-            <Typography fontWeight={700}>Max Loan:</Typography>
-            <Typography fontWeight={900} fontSize="1.3rem">
-              ${variables?.["Refi: Debt Yield calculation"] || 0}
+          <Box
+            sx={{
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 1,
+              px: 1.5,
+              py: 0.25,
+              backgroundColor: colors.grey[50],
+              minHeight: 34,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+              Annualized NOI in Month {refinancingMonth}
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {formatCurrencySafe(variables?.["Refi: Annualized NOI in Month"]) }
             </Typography>
           </Box>
         </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, marginTop: 2 }}>
-            <Typography fontWeight={700}>Annualized NOI in Month {refinancingMonth}:</Typography>
-            <Typography>
-              ${variables?.["Refi: Annualized NOI in Month"] || 0}
-            </Typography>
+        <Box sx={{ mt: 1, pt: 2, borderTop: `1px solid ${colors.grey[300]}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography fontWeight={700}>Max Loan:</Typography>
+          <Typography fontWeight={900} fontSize="1.2rem">
+            {formatCurrencySafe(variables?.["Refi: Debt Yield calculation"]) }
+          </Typography>
         </Box>
       </CardContent>
     </Card>

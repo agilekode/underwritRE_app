@@ -33,7 +33,6 @@ const ExitInlineNumberInputBase: React.FC<ExitNumberInputProps> = ({
   const isTypingRef = useRef<boolean>(false);
 
   useEffect(() => {
-    // Don't sync down parent value while the user is actively typing; this prevents focus/caret blips
     if (isTypingRef.current) return;
     if (value === null || value === undefined) {
       setLocalValue('');
@@ -43,7 +42,6 @@ const ExitInlineNumberInputBase: React.FC<ExitNumberInputProps> = ({
       setLocalValue(value);
       return;
     }
-    // If typing a trailing '.', do not format – preserve localValue
     if (localValue.endsWith('.')) return;
     setLocalValue(String(value));
   }, [value]);
@@ -53,7 +51,6 @@ const ExitInlineNumberInputBase: React.FC<ExitNumberInputProps> = ({
     const cursorPos = e.target.selectionStart ?? 0;
     const original = e.target.value;
 
-    // Strip commas for processing
     const raw = input.replace(/,/g, '');
     const regex = allowDecimal ? /^-?\d*(?:\.\d*)?$/ : /^-?\d*$/;
     if (raw === '' || regex.test(raw)) {
@@ -68,7 +65,6 @@ const ExitInlineNumberInputBase: React.FC<ExitNumberInputProps> = ({
       setLocalValue(processed);
       onChange(processed);
 
-      // restore cursor (without thousands formatting)
       setTimeout(() => {
         if (e.target) {
           const before = (original.substring(0, cursorPos).match(/,/g) || []).length;
@@ -85,7 +81,6 @@ const ExitInlineNumberInputBase: React.FC<ExitNumberInputProps> = ({
   };
   const handleBlur = () => {
     isTypingRef.current = false;
-    // On blur, ensure local mirrors latest prop if parent changed while typing
     if (value !== undefined && value !== null) {
       setLocalValue(typeof value === 'string' ? value : String(value));
     }
@@ -118,15 +113,19 @@ const ExitInlineNumberInputBase: React.FC<ExitNumberInputProps> = ({
       type="text"
       sx={{
         ...sx,
-        // TextField sx targets the root; apply fontSize to the actual input element
         "& .MuiInputBase-input": {
-          fontSize: { xs: "1.125rem", sm: "1.25rem" }
+          fontSize: 14,
+          fontWeight: 600,
+          fontFamily: 'inherit'
         },
-        // Match adornment (prefix/suffix) font size to input
         "& .MuiInputAdornment-root": {
-          fontSize: { xs: "1.125rem", sm: "1.25rem" },
+          fontSize: 14,
+          fontWeight: 600,
+          fontFamily: 'inherit',
           "& .MuiTypography-root": {
-            fontSize: { xs: "1.125rem", sm: "1.25rem" }
+            fontSize: 14,
+            fontWeight: 600,
+            fontFamily: 'inherit'
           }
         }
       }}
@@ -149,5 +148,4 @@ export const ExitInlinePercentageInput: React.FC<Omit<ExitNumberInputProps, 'suf
 export const ExitInlineMonthsInput: React.FC<Omit<ExitNumberInputProps, 'suffix'>> = React.memo((props) => (
   <ExitInlineNumberInput {...props} allowDecimal={false} suffix={<span>months</span>} />
 ));
-
 

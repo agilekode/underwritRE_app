@@ -73,7 +73,8 @@ export const NumberDecimalInputCell = ({ params, handleCellChange, field, prefix
             transform: 'translateY(-50%)',
             color: '#888',
             pointerEvents: 'none',
-            fontSize: 14
+            fontSize: 14,
+            fontWeight: 500
           }}
         >
           {prefix}
@@ -88,7 +89,8 @@ export const NumberDecimalInputCell = ({ params, handleCellChange, field, prefix
             transform: 'translateY(-50%)',
             color: '#888',
             pointerEvents: 'none',
-            fontSize: 14
+            fontSize: 14,
+            fontWeight: 500
           }}
         >
           {suffix}
@@ -168,6 +170,8 @@ export const NumberDecimalInputCell = ({ params, handleCellChange, field, prefix
           outline: 'none',
           borderRadius: 0,
           fontSize: 14,
+          fontWeight: 600,
+          fontFamily: 'inherit',
           textAlign: 'right'
         }}
       />

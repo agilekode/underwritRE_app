@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Tooltip, RadioGroup, FormControlLabel, Radio, TextField, ClickAwayListener, Select, MenuItem } from '@mui/material';
 import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
+import { StandardInput, CurrencyInput, PercentInput, NumberInput, YearInput, MonthInput } from './StandardInput';
 // Removed external date pickers/adapters per request
 
 
@@ -50,20 +51,16 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
   // Shared container styles for each field row
   const rowContainerSx = {
     display: 'grid',
-    gridTemplateColumns: { xs: '1fr', sm: '220px 1fr 260px' },
-    alignItems: 'start',
+    gridTemplateColumns: { xs: '1fr', sm: '200px 1fr 240px' },
+    alignItems: 'center',
     gap: { xs: 1, sm: 0 },
     px: { xs: 1, sm: 2 },
-    pt: 0,
-    mt: { xs: 2, sm: 4 },
-    mb: { xs: 3, sm: 6 },
+    py: 1.5,
     maxWidth: 1200,
     mx: 'auto',
-    borderBottom: 1,
-    borderColor: 'rgba(0,0,0,0.12)'
   } as const;
   return (
-    <Box key={field.id} sx={{ mt: 2 }}>
+    <Box key={field.id}>
   {field.field_type === 'yes_no' ? (
     <Box sx={{ ...rowContainerSx }}>
       <Box
@@ -74,11 +71,11 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
           gap: 1,
         }}
       >
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: { xs: '1rem', sm: '1.125rem' }, whiteSpace: { xs: 'normal', sm: 'nowrap' }, position: 'relative', zIndex: 1 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: { xs: 'normal', sm: 'nowrap' }, position: 'relative', zIndex: 1 }}>
           {field.field_title}
         </Typography>
         {field.description && field.field_type !== 'select_options' && (
-          <InfoHint title={<Typography sx={{ fontSize: "0.95rem", lineHeight: 1.4 }}>{field.description}</Typography>} />
+          <InfoHint title={<Typography sx={{ fontSize: "0.875rem", lineHeight: 1.4, color: 'white' }}>{field.description}</Typography>} />
         )}
       </Box>
       <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
@@ -112,11 +109,11 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
           gap: 1,
         }}
       >
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: { xs: '1rem', sm: '1.125rem' }, whiteSpace: { xs: 'normal', sm: 'nowrap' }, position: 'relative', zIndex: 1 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: { xs: 'normal', sm: 'nowrap' }, position: 'relative', zIndex: 1 }}>
           {field.field_title}
         </Typography>
         {field.description && field.field_type !== 'select_options' && (
-          <InfoHint title={<Typography sx={{ fontSize: "0.95rem", lineHeight: 1.4 }}>{field.description}</Typography>} />
+          <InfoHint title={<Typography sx={{ fontSize: "0.875rem", lineHeight: 1.4, color: 'white' }}>{field.description}</Typography>} />
         )}
       </Box>
       <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
@@ -200,18 +197,15 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
               required={field.required}
               className="no-spinner"
               type="text"
-              placeholder="Enter acres"
-              sx={{ width: 180, minWidth: 160 }}
-              variant="standard"
+              label="Acre"
+              placeholder="1"
+              sx={{ width: 140, '& .MuiOutlinedInput-root': { height: 36 } }}
+              variant="outlined"
+              size="small"
+              InputLabelProps={{ shrink: true }}
               InputProps={{
-                disableUnderline: true,
-                sx: { textAlign: 'left' },
-                inputProps: { style: { textAlign: 'left' }, inputMode: 'decimal', pattern: '[0-9]*\\.?[0-9]*' },
-                endAdornment: (
-                  <span style={{ marginLeft: 4 }}>
-                    {(Number(fieldValue) || 0) > 1 ? 'acres' : 'acre'}
-                  </span>
-                ),
+                sx: { textAlign: 'right', fontSize: '0.875rem', height: 36 },
+                inputProps: { style: { textAlign: 'right' }, inputMode: 'decimal', pattern: '[0-9]*\\.?[0-9]*' },
               }}
             />
             <TextField
@@ -260,61 +254,49 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
               }}
               required={field.required}
               type="text"
-              placeholder="Enter sq feet"
-              sx={{ width: 200, minWidth: 160 }}
-              variant="standard"
+              label="SF"
+              placeholder="43,560"
+              sx={{ width: 160, '& .MuiOutlinedInput-root': { height: 36 } }}
+              variant="outlined"
+              size="small"
+              InputLabelProps={{ shrink: true }}
               InputProps={{
-                disableUnderline: true,
-                sx: { textAlign: 'left' },
-                inputProps: { style: { textAlign: 'left' }, inputMode: 'numeric', pattern: '[0-9]*', min: 0 },
-                endAdornment: <span style={{ marginLeft: 4 }}>SF</span>,
+                sx: { textAlign: 'right', fontSize: '0.875rem', height: 36 },
+                inputProps: { style: { textAlign: 'right' }, inputMode: 'numeric', pattern: '[0-9]*', min: 0 },
               }}
             />
           </>
         ) : (
-        <TextField
-          value={fieldValue}
-          onChange={(e) => handleFieldChange(field.id, field.field_key, e.target.value)}
-          required={field.required}
-          className="no-spinner"
-          type={['number','percent','year','month','dollars','acres'].includes(field.field_type) ? 'number' : 'text'}
-          placeholder={
-            field.field_type === 'dollars'
-              ? 'Enter dollar amount'
-              : field.field_type === 'number_no_commas'
-                ? `Enter ${(field.field_title ?? field.field_key ?? 'value').toLowerCase()}`
-                : `Enter a ${field.field_type}`
-          }
-          sx={{ flex: 1, minWidth: 160 }}
-          variant="standard"
-          InputProps={{
-            disableUnderline: true,
-            sx: { textAlign: 'left' }, // Aligns input text to the left
-            inputProps: { 
-              style: { textAlign: 'left' },
-              ...(field.field_type === 'percent' || field.field_type === 'acres' ? { step: 'any' } : {})
-            }, // For native input alignment
-            startAdornment: field.field_type === 'dollars' ? (
-              <span style={{ marginRight: 4 }}>$</span>
-            ) : field.field_type === 'month' ? (
-              <span style={{ marginRight: 4 }}>Month</span>
-            ) : undefined,
-            endAdornment: field.field_type === 'percent' ? (
-              <span style={{ marginLeft: 4 }}>%</span>
-            ) : field.field_type === 'year' ? (
-              <span style={{ marginLeft: 4 }}>years</span>
-            ) : field.field_type === 'acres' ? (
-              <span style={{ marginLeft: 4 }}>acres</span>
-            ) : undefined,
-          }}
-        />
+          (() => {
+            const timePhasedProps = {
+              value: String(fieldValue ?? ''),
+              onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+                handleFieldChange(field.id, field.field_key, e.target.value),
+              required: field.required,
+              placeholder: `Enter ${field.field_title?.toLowerCase() || field.field_type}`,
+              sx: { flex: 1, minWidth: 160 },
+              rightAlign: false,
+            };
+
+            switch (field.field_type) {
+              case 'dollars':
+                return <CurrencyInput {...timePhasedProps} />;
+              case 'percent':
+                return <PercentInput {...timePhasedProps} />;
+              case 'year':
+                return <YearInput {...timePhasedProps} />;
+              case 'month':
+                return <MonthInput {...timePhasedProps} />;
+              case 'number':
+                return <NumberInput {...timePhasedProps} allowDecimals />;
+              default:
+                return <StandardInput {...timePhasedProps} />;
+            }
+          })()
         )}
-        <TextField
+        <NumberInput
           label="Start Month"
-          className="no-spinner"
-          type="number"
-          inputProps={{ min: 0, style: { textAlign: 'left' } }}
-          value={startMonth}
+          value={String(startMonth ?? '')}
           onChange={(e) =>
             handleFieldChange(
               field.id,
@@ -324,17 +306,14 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
               'start_month'
             )
           }
-          placeholder="Enter start month"
+          placeholder="Start"
           sx={{ width: 120 }}
-          variant="standard"
-          InputProps={{ disableUnderline: true, sx: { textAlign: 'left' } }}
+          rightAlign={false}
+          min={0}
         />
-        <TextField
+        <NumberInput
           label="End Month"
-          type="number"
-          className="no-spinner"
-          inputProps={{ min: 0, style: { textAlign: 'left' } }}
-          value={endMonth}
+          value={String(endMonth ?? '')}
           onChange={(e) =>
             handleFieldChange(
               field.id,
@@ -344,10 +323,10 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
               'end_month'
             )
           }
-          placeholder="Enter end month"
+          placeholder="End"
           sx={{ width: 120 }}
-          variant="standard"
-          InputProps={{ disableUnderline: true, sx: { textAlign: 'left' } }}
+          rightAlign={false}
+          min={0}
         />
       </Box>
     </Box>
@@ -362,11 +341,11 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
             gap: 1,
           }}
         >
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: '1.125rem', whiteSpace: 'nowrap', position: 'relative', zIndex: 1 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap', position: 'relative', zIndex: 1 }}>
             {field.field_title}
           </Typography>
           {field.description && (
-            <Tooltip title={<Typography sx={{ fontSize: "0.95rem", lineHeight: 1.4 }}>{field.description}</Typography>} arrow>
+            <Tooltip title={<Typography sx={{ fontSize: "0.875rem", lineHeight: 1.4, color: 'white' }}>{field.description}</Typography>} arrow>
               <span>
                 <InfoOutlineIcon sx={{ fontSize: 18, color: 'text.secondary', ml: 1, cursor: 'pointer', verticalAlign: 'middle' }} />
               </span>
@@ -384,24 +363,19 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
             pl: { xs: 0, sm: 2 },
           }}
         >
-          <TextField
+          <StandardInput
             defaultValue={initialDateValue}
             onChange={(e) => {
               const raw = e.target.value;
-              // Only push up when a valid yyyy-MM-dd is present; letting the browser manage caret & value
+              // Only push up when a valid yyyy-MM-dd is present
               if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
                 handleFieldChange(field.id, field.field_key, raw, false, undefined, field.field_type);
               }
             }}
             required={field.required}
             type="date"
-            sx={{ width: 240, textAlign: 'right' }}
-            variant="standard"
-            InputProps={{
-              disableUnderline: true,
-              sx: { textAlign: 'right' },
-              inputProps: { style: { textAlign: 'right' } },
-            }}
+            sx={{ width: 240 }}
+            rightAlign
           />
     
         </Box>
@@ -417,11 +391,11 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
           gap: 1,
         }}
       >
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, fontSize: { xs: '1rem', sm: '1.125rem' }, whiteSpace: 'nowrap', position: 'relative', zIndex: 1 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap', position: 'relative', zIndex: 1 }}>
           {field.field_title}
         </Typography>
         {field.description && field.field_type !== 'select_options' && (
-          <InfoHint title={<Typography sx={{ fontSize: "0.95rem", lineHeight: 1.4 }}>{field.description}</Typography>} />
+          <InfoHint title={<Typography sx={{ fontSize: "0.875rem", lineHeight: 1.4, color: 'white' }}>{field.description}</Typography>} />
         )}
       </Box>
       <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
@@ -504,18 +478,15 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
               }}
               required={field.required}
               type="text"
-              placeholder="Enter acres"
-              sx={{ width: 120, textAlign: 'right' }}
-              variant="standard"
+              label="Acre"
+              placeholder="1"
+              sx={{ width: 140, '& .MuiOutlinedInput-root': { height: 36 } }}
+              variant="outlined"
+              size="small"
+              InputLabelProps={{ shrink: true }}
               InputProps={{
-                disableUnderline: true,
-                sx: { textAlign: 'right' },
+                sx: { textAlign: 'right', fontSize: '0.875rem', height: 36 },
                 inputProps: { style: { textAlign: 'right' }, inputMode: 'decimal', pattern: '[0-9]*\\.?[0-9]*' },
-                endAdornment: (
-                  <span style={{ marginLeft: 4 }}>
-                    {(Number(fieldValue) || 0) > 1 ? 'acres' : 'acre'}
-                  </span>
-                ),
               }}
             />
             <TextField
@@ -564,120 +535,50 @@ export const SectionFields = ({ field, fieldValue, startMonth, endMonth, handleF
               }}
               required={field.required}
               type="text"
-              placeholder="Enter sq feet"
-              sx={{ width: 140, textAlign: 'right' }}
-              variant="standard"
+              label="SF"
+              placeholder="43,560"
+              sx={{ width: 160, '& .MuiOutlinedInput-root': { height: 36 } }}
+              variant="outlined"
+              size="small"
+              InputLabelProps={{ shrink: true }}
               InputProps={{
-                disableUnderline: true,
-                sx: { textAlign: 'right' },
+                sx: { textAlign: 'right', fontSize: '0.875rem', height: 36 },
                 inputProps: { style: { textAlign: 'right' }, inputMode: 'numeric', pattern: '[0-9]*', min: 0 },
-                endAdornment: <span style={{ marginLeft: 4 }}>SF</span>,
               }}
             />
           </Box>
         ) : (
-        <TextField
-          value={
-            ['number', 'year', 'month', 'dollars', 'acres'].includes(field.field_type) && fieldValue
-              ? Number(fieldValue).toLocaleString()
-              : String(fieldValue ?? '')
-          }
+          (() => {
+            const commonProps = {
+              value: String(fieldValue ?? ''),
+              onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+                handleFieldChange(field.id, field.field_key, e.target.value),
+              required: field.required,
+              placeholder: `Enter ${field.field_title?.toLowerCase() || field.field_type}`,
+              sx: { width: { xs: '100%', sm: 260 } },
+            };
 
-          className="no-spinner"
-          onChange={(e) => {
-            const rawValue = e.target.value.replace(/,/g, ''); // Remove commas for processing
-            const cursorPosition = e.target.selectionStart ?? 0; // Handle null case
-            const originalValue = e.target.value;
-            
-            handleFieldChange(field.id, field.field_key, rawValue);
-            
-            // Restore cursor position after state update
-              if (field.field_type !== 'number_no_commas') {
-            setTimeout(() => {
-              if (e.target) {
-                const newValue = ['number', 'year', 'month', 'dollars', 'acres'].includes(field.field_type) && rawValue
-                  ? Number(rawValue).toLocaleString()
-                  : rawValue;
-                
-                // Calculate new cursor position accounting for added/removed commas
-                const commasBefore = (originalValue.substring(0, cursorPosition).match(/,/g) || []).length;
-                const commasAfter = (newValue.substring(0, cursorPosition).match(/,/g) || []).length;
-                const newCursorPosition = cursorPosition + (commasAfter - commasBefore);
-                
-                e.target.setSelectionRange(newCursorPosition, newCursorPosition);
-              }
-            }, 0);
-              }
-          }}
-          onKeyDown={(e) => {
-              const numericTypes = ['number', 'number_no_commas', 'percent', 'year', 'month', 'months', 'dollars', 'dollars_per_sf', 'acres'];
-            if (!numericTypes.includes(field.field_type)) return;
-            const allowDecimal = ['number', 'percent', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type);
-            const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'];
-            if (e.ctrlKey || e.metaKey) return; // allow shortcuts
-            if (allowedKeys.includes(e.key)) return;
-            if (allowDecimal && e.key === '.') {
-              const raw = ((e.target as HTMLInputElement).value || '').replace(/,/g, '');
-              if (raw.includes('.')) e.preventDefault();
-              return;
+            switch (field.field_type) {
+              case 'dollars':
+                return <CurrencyInput {...commonProps} />;
+              case 'dollars_per_sf':
+                return <CurrencyInput {...commonProps} suffix="/sf" />;
+              case 'percent':
+                return <PercentInput {...commonProps} />;
+              case 'year':
+                return <YearInput {...commonProps} />;
+              case 'month':
+                return <MonthInput {...commonProps} />;
+              case 'months':
+                return <NumberInput {...commonProps} suffix="months" />;
+              case 'number':
+                return <NumberInput {...commonProps} allowDecimals />;
+              case 'number_no_commas':
+                return <NumberInput {...commonProps} noCommas />;
+              default:
+                return <StandardInput {...commonProps} />;
             }
-            if (!/^[0-9]$/.test(e.key)) e.preventDefault();
-          }}
-          onPaste={(e) => {
-              const numericTypes = ['number', 'number_no_commas', 'percent', 'year', 'month', 'months', 'dollars', 'dollars_per_sf', 'acres'];
-            if (!numericTypes.includes(field.field_type)) return;
-            const allowDecimal = ['number', 'percent', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type);
-            const text = e.clipboardData.getData('text');
-            const raw = text.replace(/,/g, '');
-            const ok = allowDecimal ? /^\d*(?:\.\d*)?$/.test(raw) : /^\d*$/.test(raw);
-            if (!ok) e.preventDefault();
-          }}
-          required={field.required}
-          type={
-            ['number', 'percent', 'year', 'month', 'dollars', 'acres'].includes(field.field_type)
-              ? 'text'
-              : 'text'
-          }
-          placeholder={
-            field.field_type === 'dollars'
-              ? 'Enter dollar amount'
-              : field.field_type === 'number_no_commas'
-                ? `Enter ${(field.field_title ?? field.field_key ?? 'value').toLowerCase()}`
-                : `Enter a ${field.field_type}`
-          }
-          sx={{ width: { xs: '100%', sm: 260 }, textAlign: 'right' }}
-          variant="standard"
-          InputProps={{
-            disableUnderline: true,
-            sx: { textAlign: 'right' }, // Aligns input text to the right
-            inputProps: { 
-              style: { textAlign: 'right' }, // For native input alignment
-                ...( ['number', 'number_no_commas', 'percent', 'year', 'month', 'months', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type) ? { min: 0 } : {} ),
-                inputMode: ['number', 'percent', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type) ? 'decimal'
-                  : (['year', 'month', 'months', 'number_no_commas'].includes(field.field_type) ? 'numeric' : undefined),
-                pattern: ['number', 'percent', 'dollars', 'dollars_per_sf', 'acres'].includes(field.field_type) ? '[0-9]*\\.?[0-9]*'
-                  : (['year', 'month', 'months', 'number_no_commas'].includes(field.field_type) ? '[0-9]*' : undefined)
-            },
-            startAdornment: field.field_type === 'dollars' ? (
-              <span style={{ marginRight: 4 }}>$</span>
-            ) : field.field_type === 'month' ? (
-              <span style={{ marginRight: 4 }}>Month</span>
-            ) : field.field_type === 'dollars_per_sf' ? (
-              <span style={{ marginRight: 4 }}>$</span>
-            ) : undefined,
-            endAdornment: field.field_type === 'percent' ? (
-              <span style={{ marginLeft: 4 }}>%</span>
-            ) : field.field_type === 'year' ? (
-              <span style={{ marginLeft: 4 }}>years</span>
-            ) : field.field_type === 'months' ? (
-              <span style={{ marginLeft: 4 }}>months</span>
-            ) : field.field_type === 'dollars_per_sf' ? (
-              <span style={{ marginLeft: 4 }}>$\/sf</span>
-            ) : field.field_type === 'acres' ? (
-              <span style={{ marginLeft: 4 }}>acres</span>
-            ) : undefined,
-          }}
-        />
+          })()
         )}
       </Box>
     </Box>

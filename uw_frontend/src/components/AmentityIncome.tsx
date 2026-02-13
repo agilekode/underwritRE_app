@@ -178,9 +178,9 @@ const AmenityIncomeTable: React.FC<{ amenityIncome: AmenityIncome[]; setAmenityI
      
       editable: false,
       type: 'number',
-      cellClassName: 'non-editable-cell',
+      cellClassName: 'u-noneditable-cell',
       renderCell: (params) => (
-        <span style={{ color: '#888' }}>{params.value} Units</span>
+        <span className="u-muted">{params.value} Units</span>
       ),
       headerClassName: 'non-editable-header'
     }),
@@ -201,12 +201,12 @@ const AmenityIncomeTable: React.FC<{ amenityIncome: AmenityIncome[]; setAmenityI
      
       editable: false,
       type: 'number',
-      cellClassName: 'non-editable-cell',
+      cellClassName: 'u-noneditable-cell',
       renderCell: (params) => {
         const raw = params.value;
         const num = typeof raw === 'number' ? raw : Number(String(raw ?? '').replace(/,/g, '').trim()) || 0;
         return (
-          <span style={{ color: '#888' }}>
+          <span className="u-muted">
             ${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </span>
         );
@@ -220,12 +220,12 @@ const AmenityIncomeTable: React.FC<{ amenityIncome: AmenityIncome[]; setAmenityI
      
       editable: false,
       type: 'number',
-      cellClassName: 'non-editable-cell',
+      cellClassName: 'u-noneditable-cell',
       renderCell: (params) => {
         const raw = params.value;
         const num = typeof raw === 'number' ? raw : Number(String(raw ?? '').replace(/,/g, '').trim()) || 0;
         return (
-          <span style={{ color: '#888' }}>
+          <span className="u-muted">
             ${num.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </span>
         );
@@ -445,24 +445,30 @@ const AmenityIncomeTable: React.FC<{ amenityIncome: AmenityIncome[]; setAmenityI
         hideFooterSelectedRowCount
         sx={{
           minWidth: "1000px",
-          background: '#f9fbfe',
-          '& .MuiDataGrid-main': { background: '#f9fbfe' },
-          '& .MuiDataGrid-columnHeaders': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-          '& .MuiDataGrid-columnHeader': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-          '& .MuiDataGrid-columnHeaderTitleContainer': { background: '#f9fbfe' },
+          background: '#ffffff',
+          border: '1px solid #e5e7eb',
+          borderRadius: 2,
+          '& .MuiDataGrid-main': { background: '#ffffff' },
+          '& .MuiDataGrid-columnHeaders': { background: '#ffffff', minHeight: 52, maxHeight: 52, borderBottom: '1px solid #e5e7eb' },
+          '& .MuiDataGrid-columnHeader': { background: '#ffffff', minHeight: 52, maxHeight: 52 },
+          '& .MuiDataGrid-columnHeaderTitleContainer': { background: '#ffffff' },
           '& .MuiDataGrid-columnHeaderTitle': {
-            fontWeight: 700,
-            fontSize: 15,
+            fontWeight: 600,
+            fontSize: 14.5,
             fontFamily: 'inherit',
             textTransform: 'none',
-            lineHeight: '52px'
+            lineHeight: '52px',
+            color: '#1f2937',
+            letterSpacing: '0.2px',
           },
-          '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(0,0,0,0.06)', background: '#f9fbfe' },
-          '& .u-editable-input': { border: 'none', borderBottom: '2px solid transparent', borderRadius: 0, background: 'transparent' },
-          '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: '2px solid #1976d2 !important' },
-          '& .MuiDataGrid-row': { background: '#f9fbfe' },
-          '& .u-row-even': { background: '#fafafa' },
-          '& .MuiDataGrid-row:hover': { backgroundColor: '#f5f5f5' },
+          '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(15, 23, 42, 0.08)', background: '#ffffff', fontSize: 14.5, color: '#1f2937' },
+          '& .MuiDataGrid-cell.u-noneditable-cell': { color: '#9aa3b2' },
+          '& .u-editable-input': { border: 'none', borderBottom: '1px solid transparent', borderRadius: 0, background: 'transparent', fontWeight: 600, color: '#111827' },
+          '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: '2px solid #4f8bd6 !important' },
+          '& .MuiDataGrid-row': { background: '#ffffff' },
+          '& .u-row-odd': { background: '#ffffff' },
+          '& .u-row-even': { background: '#f9fafb' },
+          '& .MuiDataGrid-row:hover': { backgroundColor: '#f3f6fb' },
           '& .u-row-action': {
             opacity: 0,
             visibility: 'hidden',
@@ -474,8 +480,9 @@ const AmenityIncomeTable: React.FC<{ amenityIncome: AmenityIncome[]; setAmenityI
             visibility: 'visible',
             pointerEvents: 'auto'
           },
-          '& .MuiDataGrid-virtualScroller': { background: '#f9fbfe' },
-          '& .MuiDataGrid-footerContainer': { background: '#f9fbfe' }
+          '& .MuiDataGrid-virtualScroller': { background: '#ffffff' },
+          '& .MuiDataGrid-footerContainer': { background: '#ffffff', borderTop: '1px solid #e5e7eb' },
+          '& .u-muted': { color: '#9aa3b2', fontWeight: 400 },
         }}
       />
     </div>

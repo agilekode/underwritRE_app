@@ -10,6 +10,7 @@ import { HEADER_FOOTER_HEIGHT, ROW_HEIGHT } from '../utils/constants';
 import { calculateEGI } from "../utils/egi";
 import { NumberDecimalInputCell } from './NumberDecimalInputCell';
 import { OperatingExpensesSuggested, OperatingExpensesBasic } from '../utils/newModelConstants';
+import { colors } from '../theme';
 
 interface OperatingExpense {
   id: string;
@@ -85,7 +86,7 @@ const OperatingExpensesTable: React.FC<{
     { field: 'name', headerName: 'Name', editable: false, flex: flexByField.name, minWidth: 140,
       renderHeader: () => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="caption" sx={{ fontWeight: 700, fontSize: 15, color: 'text.primary' }}>Name</Typography>
+          <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 14.5, color: '#1f2937' }}>Name</Typography>
           <Tooltip title="Add Operating Expense" arrow>
             <IconButton size="small" onClick={addRow} sx={{ p: 0.25 }}>
               <AddIcon fontSize="small" />
@@ -188,7 +189,11 @@ const OperatingExpensesTable: React.FC<{
                 outline: 'none',
                 appearance: 'none',
                 WebkitAppearance: 'none',
-                MozAppearance: 'none'
+                MozAppearance: 'none',
+                color: 'inherit',
+                fontSize: 14.5,
+                fontWeight: 500,
+                fontFamily: 'inherit'
               }}
               className="u-select"
             >
@@ -275,7 +280,7 @@ const OperatingExpensesTable: React.FC<{
       minWidth: 120,
       editable: false, 
       type: 'number',
-      cellClassName: 'greyed-out-cell',
+      cellClassName: 'u-noneditable-cell',
       renderCell: (params) => {
         const row = params.row;
         let value = null;
@@ -344,7 +349,7 @@ const OperatingExpensesTable: React.FC<{
 
 
         return (
-          <span style={{ color: '#888' }}>
+          <span className="u-muted">
             {value !== null && value !== undefined
               ? (row.cost_per === 'Percent of EGI'
                   ? `${adornment}${value}`
@@ -361,7 +366,7 @@ const OperatingExpensesTable: React.FC<{
       minWidth: 110, 
       editable: false, 
       type: 'number',
-      cellClassName: 'greyed-out-cell',
+      cellClassName: 'u-noneditable-cell',
       renderCell: (params) => {
         const row = params.row;
         let value: number | string = 0;
@@ -385,7 +390,7 @@ const OperatingExpensesTable: React.FC<{
         }
         value = value?.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); // format with commas
         return (
-          <span style={{ color: '#888' }}>${value}</span>
+          <span className="u-muted">${value}</span>
         );
       },
     },
@@ -396,7 +401,7 @@ const OperatingExpensesTable: React.FC<{
       minWidth: 110, 
       editable: false, 
       type: 'number',
-      cellClassName: 'greyed-out-cell',
+      cellClassName: 'u-noneditable-cell',
       renderCell: (params) => {
         const row = params.row;
         let value: number | string = 0;
@@ -422,7 +427,7 @@ const OperatingExpensesTable: React.FC<{
         value = value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); // format with commas
 
         return (
-          <span style={{ color: '#888' }}>${value}</span>
+          <span className="u-muted">${value}</span>
         );
       },
     },
@@ -567,13 +572,13 @@ const OperatingExpensesTable: React.FC<{
 
     return (
       <div style={{ 
-        padding: '16px 16px',
-        backgroundColor: 'transparent',
-        borderTop: '1px solid #e0e0e0',
+        padding: '14px 16px',
+        backgroundColor: '#ffffff',
+        borderTop: '1px solid #e5e7eb',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        fontSize: 15
+        fontSize: 14.5
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Autocomplete
@@ -628,12 +633,12 @@ const OperatingExpensesTable: React.FC<{
             Add Operating Expense
           </Button>
         </div>
-        <div style={{ display: 'flex', gap: '24px', justifyContent: 'flex-end', width: '100%' }}>
+        <div style={{ display: 'flex', gap: '24px', justifyContent: 'flex-end', width: '100%', color: '#1f2937' }}>
           <div style={{ textAlign: 'right' }}>
-            <strong>Total Monthly Expenses:</strong> ${totalMonthlyExpenses.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            <span style={{ fontWeight: 600 }}>Total Monthly Expenses:</span> ${totalMonthlyExpenses.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <strong>Total Annual Expenses:</strong> ${totalAnnualExpenses.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            <span style={{ fontWeight: 600 }}>Total Annual Expenses:</span> ${totalAnnualExpenses.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </div>
           {/* <div style={{ textAlign: 'right' }}>
             <strong>Total Broker:</strong> ${totalBroker.toLocaleString()}
@@ -672,24 +677,30 @@ const OperatingExpensesTable: React.FC<{
           hideFooterSelectedRowCount
           sx={{
             minWidth: "900px",
-            background: '#f9fbfe',
-            '& .MuiDataGrid-main': { background: '#f9fbfe' },
-            '& .MuiDataGrid-columnHeaders': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-            '& .MuiDataGrid-columnHeader': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-            '& .MuiDataGrid-columnHeaderTitleContainer': { background: '#f9fbfe' },
+            background: '#ffffff',
+            border: '1px solid #e5e7eb',
+            borderRadius: 2,
+            '& .MuiDataGrid-main': { background: '#ffffff' },
+            '& .MuiDataGrid-columnHeaders': { background: '#ffffff', minHeight: 52, maxHeight: 52, borderBottom: '1px solid #e5e7eb' },
+            '& .MuiDataGrid-columnHeader': { background: '#ffffff', minHeight: 52, maxHeight: 52 },
+            '& .MuiDataGrid-columnHeaderTitleContainer': { background: '#ffffff' },
             '& .MuiDataGrid-columnHeaderTitle': {
-              fontWeight: 700,
-              fontSize: 15,
+              fontWeight: 600,
+              fontSize: 14.5,
               fontFamily: 'inherit',
               textTransform: 'none',
-              lineHeight: '52px'
+              lineHeight: '52px',
+              color: '#1f2937',
+              letterSpacing: '0.2px',
             },
-            '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(0,0,0,0.06)', background: '#f9fbfe' },
-            '& .u-editable-input': { border: 'none', borderBottom: '2px solid transparent', borderRadius: 0, background: 'transparent' },
-            '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: '2px solid #1976d2 !important' },
-            '& .MuiDataGrid-row': { background: '#f9fbfe' },
-            '& .u-row-even': { background: '#fafafa' },
-            '& .MuiDataGrid-row:hover': { backgroundColor: '#f5f5f5' },
+            '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(15, 23, 42, 0.08)', background: '#ffffff', fontSize: 14.5, color: '#1f2937' },
+            '& .MuiDataGrid-cell.u-noneditable-cell': { color: '#9aa3b2' },
+            '& .u-editable-input': { border: 'none', borderBottom: '1px solid transparent', borderRadius: 0, background: 'transparent', fontWeight: 600, color: '#111827' },
+            '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: '2px solid #4f8bd6 !important' },
+            '& .MuiDataGrid-row': { background: '#ffffff' },
+            '& .u-row-odd': { background: '#ffffff' },
+            '& .u-row-even': { background: '#f9fafb' },
+            '& .MuiDataGrid-row:hover': { backgroundColor: '#f3f6fb' },
             '& .u-row-action': {
               opacity: 0,
               visibility: 'hidden',
@@ -702,11 +713,12 @@ const OperatingExpensesTable: React.FC<{
               pointerEvents: 'auto'
             },
             // Hover-only caret for custom selects
-            '& .u-caret': { opacity: 0, transition: 'opacity 120ms ease', color: 'inherit' },
+            '& .u-caret': { opacity: 0, transition: 'opacity 120ms ease', color: colors.blue, fontSize: '1.25rem' },
             '& .u-select:focus + .u-caret': { opacity: 1 },
             '& .MuiDataGrid-row:hover .u-caret': { opacity: 1 },
-            '& .MuiDataGrid-virtualScroller': { background: '#f9fbfe' },
-            '& .MuiDataGrid-footerContainer': { background: '#f9fbfe' }
+            '& .MuiDataGrid-virtualScroller': { background: '#ffffff' },
+            '& .MuiDataGrid-footerContainer': { background: '#ffffff', borderTop: '1px solid #e5e7eb' },
+            '& .u-muted': { color: '#9aa3b2', fontWeight: 400 },
           }}
         />
       </div>

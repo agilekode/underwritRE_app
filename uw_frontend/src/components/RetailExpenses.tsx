@@ -1,12 +1,11 @@
 import React, { useMemo } from "react";
 import { DataGrid, GridColDef, GridRowId } from "@mui/x-data-grid";
-import { Box, Button, Typography, IconButton, Paper, Tooltip } from "@mui/material";
+import { Box, Button, IconButton, Tooltip } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Expense } from "../utils/interface";
 import { TextInputCell } from "./TextInputCell";
-import { NumberInputCell } from "./NumberInputCell";
-import { HEADER_FOOTER_HEIGHT, ROW_HEIGHT } from "../utils/constants";
 import { NumberDecimalInputCell } from "./NumberDecimalInputCell";
+import { colors, typography } from "../theme";
 
 export const RetailExpenses = ({
   expenses,
@@ -73,7 +72,7 @@ export const RetailExpenses = ({
       },
       {
         field: "cost_per",
-        headerName: "$ / SF / Year”",
+        headerName: "$ / SF / Year",
         flex: flexByField.cost_per,
         minWidth: 130,
         editable: false,
@@ -101,7 +100,7 @@ export const RetailExpenses = ({
         renderCell: (params: any) => {
           const cost = Number(params?.row?.cost_per || 0);
           const annual = cost * Number(totalRetailSF || 0);
-          return <span style={{ color: "#555" }}>${Number(annual).toLocaleString()}</span>;
+          return <span style={{ color: colors.grey[600] }}>${Number(annual).toLocaleString()}</span>;
         },
       },
       {
@@ -133,32 +132,38 @@ export const RetailExpenses = ({
   const CustomFooter = () => {
     const totalAnnual = (filteredExpenses || []).reduce((sum, row) => sum + (Number(row.cost_per || 0) * Number(totalRetailSF || 0)), 0);
     return (
-      <div style={{
-        padding: '16px 16px',
-        backgroundColor: 'transparent',
-        borderTop: '1px solid #e0e0e0',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        fontSize: 15
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Button variant="contained" size="small" onClick={addRow} sx={{ whiteSpace: 'nowrap', minWidth: 220 }}>
+      <Box
+        sx={{
+          p: 2,
+          backgroundColor: colors.white,
+          borderTop: `1px solid ${colors.grey[300]}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 2,
+          fontSize: 14.5,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Button variant="contained" size="small" onClick={addRow} sx={{ whiteSpace: 'nowrap', minWidth: 200 }}>
             Add Retail Expense
           </Button>
-        </div>
-        <div style={{ display: 'flex', gap: '24px', justifyContent: 'flex-end', width: '100%' }}>
-          <div style={{ textAlign: 'right' }}>
-            <strong>Total Retail Expenses:</strong> ${totalAnnual.toLocaleString()}
-          </div>
-        </div>
-      </div>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 3, justifyContent: 'flex-end', width: '100%', color: colors.grey[700] }}>
+          <Box sx={{ textAlign: 'right', fontWeight: 600 }}>
+            Total Retail Expenses:{' '}
+            <Box component="span" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+              ${totalAnnual.toLocaleString()}
+            </Box>
+          </Box>
+        </Box>
+      </Box>
     );
   };
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Paper variant="outlined" sx={{ p: 0, mb: 2 }}>
+      <Box sx={{ mb: 2 }}>
           <DataGrid 
             disableColumnMenu
             disableColumnFilter
@@ -173,26 +178,35 @@ export const RetailExpenses = ({
             getRowClassName={getRowClassName}
             hideFooterSelectedRowCount
             sx={{
-              background: '#f9fbfe',
+              background: colors.white,
               minWidth: '900px',
-              '& .MuiDataGrid-main': { background: '#f9fbfe' },
-              '& .MuiDataGrid-columnHeaders': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-              '& .MuiDataGrid-columnHeader': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-              '& .MuiDataGrid-columnHeaderTitleContainer': { background: '#f9fbfe' },
-              '& .MuiDataGrid-columnHeaderTitle': {
-                fontWeight: 700,
-                fontSize: 15,
-                fontFamily: 'inherit',
-                textTransform: 'none',
-                lineHeight: '52px'
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 2,
+              fontFamily: typography.fontFamily,
+              fontSize: 14.5,
+              '& .MuiDataGrid-cell, & .MuiDataGrid-columnHeader, & .MuiDataGrid-columnHeaderTitle, & .MuiDataGrid-cellContent': {
+                fontFamily: typography.fontFamily,
+                fontSize: 14.5,
               },
-              '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(0,0,0,0.06)', background: '#f9fbfe' },
+              '& .MuiDataGrid-main': { background: colors.white },
+              '& .MuiDataGrid-columnHeaders': { background: colors.white, minHeight: 52, maxHeight: 52, borderBottom: `1px solid ${colors.grey[300]}` },
+              '& .MuiDataGrid-columnHeader': { background: colors.white, minHeight: 52, maxHeight: 52 },
+              '& .MuiDataGrid-columnHeaderTitleContainer': { background: colors.white },
+              '& .MuiDataGrid-columnHeaderTitle': {
+                fontWeight: 600,
+                fontSize: 14.5,
+                fontFamily: typography.fontFamily,
+                textTransform: 'none',
+                lineHeight: '52px',
+                color: colors.grey[900],
+              },
+              '& .MuiDataGrid-cell': { borderBottom: `1px solid ${colors.grey[300]}`, background: colors.white, fontSize: 14.5, color: colors.grey[900] },
               // Hover underline for editable inputs
-              '& .u-editable-input': { border: 'none', borderBottom: '2px solid transparent', borderRadius: 0, background: 'transparent' },
-              '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: '2px solid #1976d2 !important' },
-              '& .MuiDataGrid-row': { background: '#f9fbfe' },
-              '& .u-row-even': { background: '#fafafa' },
-              '& .MuiDataGrid-row:hover': { backgroundColor: '#f5f5f5' },
+              '& .u-editable-input': { border: 'none', borderBottom: '2px solid transparent', borderRadius: 0, background: 'transparent', fontWeight: 600 },
+              '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: `2px solid ${colors.blue} !important` },
+              '& .MuiDataGrid-row': { background: colors.white },
+              '& .u-row-even': { background: colors.grey[50] },
+              '& .MuiDataGrid-row:hover': { backgroundColor: colors.blueTint },
               '& .u-row-action': {
                 opacity: 0,
                 visibility: 'hidden',
@@ -204,11 +218,12 @@ export const RetailExpenses = ({
                 visibility: 'visible',
                 pointerEvents: 'auto'
               },
-              '& .MuiDataGrid-virtualScroller': { background: '#f9fbfe' },
-              '& .MuiDataGrid-footerContainer': { background: '#f9fbfe' }
+              '& .MuiDataGrid-virtualScroller': { background: colors.white },
+              '& .MuiDataGrid-footerContainer': { background: colors.white }
             }}
           />
-      </Paper>
+      </Box>
     </Box>
   );
 };
+

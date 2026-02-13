@@ -57,7 +57,9 @@ export const TextInputCell = ({ params, handleCellChange, field }: {
             outline: 'none',
             borderRadius: 4,
             marginTop: 4,
-            fontSize: 14, 
+            fontSize: 14,
+            fontWeight: 600,
+            fontFamily: 'inherit',
             textAlign: 'left'
           }}
 

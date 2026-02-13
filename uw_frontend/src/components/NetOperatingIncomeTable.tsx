@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Tooltip } from "@mui/material";
-import { MID_DARK_THEME_COLOR, LIGHT_THEME_COLOR } from "../utils/constants";
+import { colors, typography } from "../theme";
 
 export const NetOperatingIncomeTable = ({
   finalMetricsCalculating,
@@ -80,7 +80,14 @@ export const NetOperatingIncomeTable = ({
         </Box>
       ) : (
       <Box sx={{ overflowX: "auto" }}>
-        <table style={{ borderCollapse: "collapse", width: "100%" }}>
+        <table style={{
+          borderCollapse: "separate",
+          borderSpacing: 0,
+          width: "100%",
+          border: `1px solid ${colors.grey[300]}`,
+          borderRadius: 8,
+          overflow: "hidden",
+        }}>
           <tbody>
             {rowsToRender.map((row, ri) => {
               const firstCell = row?.[0];
@@ -92,23 +99,43 @@ export const NetOperatingIncomeTable = ({
               const isYieldOnCost = !(
                 ri === 0
               ) && label === "Yield on Cost";
+              const isVacancyPercent = label === "Vacancy" && row.some((c) => {
+                const s = String(c ?? "");
+                return s.includes("%");
+              });
+              const isOperatingExpensesHeader = label === "Operating Expenses";
               const isNoiHighlight = label === "Multifamily NOI" || label === "Retail NOI";
+              const isLastRow = ri === rowsToRender.length - 1;
+              const isFirstRow = ri === 0;
               return (
               <tr key={`r-${ri}`}>
-                {row.map((cell, ci) => (
+                {row.map((cell, ci) => {
+                  const isFirstCol = ci === 0;
+                  const isLastCol = ci === row.length - 1;
+                  // Determine border radius for corners
+                  let borderRadius: string | undefined;
+                  if (isFirstRow && isFirstCol) borderRadius = "7px 0 0 0";
+                  else if (isFirstRow && isLastCol) borderRadius = "0 7px 0 0";
+                  else if (isLastRow && isFirstCol) borderRadius = "0 0 0 7px";
+                  else if (isLastRow && isLastCol) borderRadius = "0 0 7px 0";
+
+                  return (
                   <td
                     key={`c-${ci}`}
                     style={{
-                      padding: "8px 12px",
-                        borderBottom: isNoiHighlight ? "2px solid #e0e0e0" : "1px solid #e0e0e0",
-                        borderTop: emphasize && ri !== 0 ? "2px solid #e0e0e0" : undefined,
-                      height: 18,
+                      padding: "6px 16px",
+                      borderBottom: isLastRow ? "none" : (isNoiHighlight ? `2px solid ${colors.grey[300]}` : `1px solid ${colors.grey[300]}`),
+                      borderTop: (emphasize || isYieldOnCost) && !isFirstRow ? `2px solid ${colors.grey[300]}` : undefined,
                       verticalAlign: "middle",
-                        textAlign: ci === 0 ? "left" : "right",
-                        fontWeight: ri === 0 ? (700 as any) : ((emphasize || isNoiHighlight) ? (700 as any) : 400),
-                        fontStyle: isYieldOnCost ? "italic" : undefined,
-                        backgroundColor: ri === 0 ? MID_DARK_THEME_COLOR : (isNoiHighlight ? LIGHT_THEME_COLOR : undefined),
-                      color: ri === 0 ? "#fff" : undefined,
+                      textAlign: ci === 0 ? "left" : "right",
+                      fontFamily: typography.fontFamily,
+                      fontSize: typography.fontSize.sm,
+                      fontWeight: isFirstRow ? typography.fontWeight.bold : ((emphasize || isNoiHighlight || isOperatingExpensesHeader) ? typography.fontWeight.semibold : typography.fontWeight.regular),
+                      fontStyle: (isYieldOnCost || isVacancyPercent) ? "italic" : undefined,
+                      backgroundColor: isFirstRow ? colors.navy : (isNoiHighlight ? colors.grey[50] : colors.white),
+                      color: isFirstRow ? colors.white : colors.grey[900],
+                      lineHeight: typography.lineHeight.normal,
+                      borderRadius,
                     }}
                   >
                     {(() => {
@@ -130,17 +157,18 @@ export const NetOperatingIncomeTable = ({
                                   style={{
                                     fontStyle: "normal",
                                     cursor: "help",
-                                    color: "#64748b",
-                                    border: "1px solid #cbd5e1",
+                                    color: colors.grey[600],
+                                    border: `1px solid ${colors.grey[300]}`,
                                     borderRadius: "50%",
                                     width: 14,
                                     height: 14,
                                     display: "inline-flex",
                                     alignItems: "center",
                                     justifyContent: "center",
-                                    fontSize: 10,
+                                    fontSize: typography.fontSize.xs,
                                     lineHeight: "12px",
-                                    background: "#f8fafc",
+                                    background: colors.grey[50],
+                                    fontFamily: typography.fontFamily,
                                   }}
                                   aria-label="Yield on Cost info"
                                 >
@@ -153,7 +181,8 @@ export const NetOperatingIncomeTable = ({
                         return display;
                     })()}
                   </td>
-                ))}
+                  );
+                })}
               </tr>
               );
             })}

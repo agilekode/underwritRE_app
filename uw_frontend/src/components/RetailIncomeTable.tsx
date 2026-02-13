@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { DataGrid, GridColDef, GridRowId } from '@mui/x-data-grid';
-import { Button, IconButton, Tooltip, Typography, Select, MenuItem } from '@mui/material';
+import { Button, IconButton, Tooltip, Select, MenuItem, Box } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { TextInputCell } from './TextInputCell';
 import { NumberInputCell } from './NumberInputCell';
 import { NumberDecimalInputCell } from './NumberDecimalInputCell';
 import { HEADER_FOOTER_HEIGHT, ROW_HEIGHT } from '../utils/constants';
+import { colors, typography } from '../theme';
 
 interface RetailIncome {
   id: string;
@@ -289,7 +290,17 @@ const RetailIncomeTable: React.FC<{
           value={params.value ?? 'Gross'}
           onChange={(e) => handleCellChange(params.id as string, 'rent_type', e.target.value)}
           displayEmpty
-          sx={{ background: 'transparent' }}
+          variant="standard"
+          disableUnderline
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          sx={{
+            background: 'transparent',
+            fontFamily: typography.fontFamily,
+            fontSize: 14.5,
+            fontWeight: 600,
+            '& .MuiSelect-select': { textAlign: 'left', py: 0.5 },
+          }}
         >
           <MenuItem value="Gross">Gross</MenuItem>
           <MenuItem value="NNN">NNN</MenuItem>
@@ -326,7 +337,7 @@ const RetailIncomeTable: React.FC<{
         const annualRent = row.rent_per_square_foot_per_year * row.square_feet;
         const formattedAnnualRent = annualRent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         return (
-          <span style={{ color: '#888' }}>${formattedAnnualRent}</span>
+          <span style={{ color: colors.grey[600] }}>${formattedAnnualRent}</span>
         );
       },
     },
@@ -409,46 +420,51 @@ const RetailIncomeTable: React.FC<{
     const exceedsGross = grossSqFtValue !== null && combinedSqFt > grossSqFtValue;
 
     return (
-      <div style={{ 
-        padding: '16px 16px', 
-        backgroundColor: 'transparent', 
-        borderTop: '1px solid #e0e0e0',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Button variant="contained" size="small" onClick={addRow} sx={{ minWidth: '200px' }}>
+      <Box
+        sx={{
+          p: 2,
+          backgroundColor: colors.white,
+          borderTop: `1px solid ${colors.grey[300]}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 2,
+          fontSize: 14.5,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Button variant="contained" size="small" onClick={addRow} sx={{ minWidth: 200 }}>
             Add Retail Unit
           </Button>
-        </div>
-        <div style={{ display: 'flex', gap: '24px', justifyContent: 'flex-end', width: '100%', alignItems: 'center' }}>
-          <div style={{ textAlign: 'right' }}>
-            <strong>Total Retail SF:</strong> <span style={exceedsGross ? { color: '#d32f2f', fontWeight: 700 } : {}}>{totalSquareFeet.toLocaleString()}</span>
-          </div>
-          
+        </Box>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'flex-end', width: '100%', alignItems: 'center', color: colors.grey[700] }}>
+          <Box sx={{ textAlign: 'right' }}>
+            <Box component="span" sx={{ fontWeight: 600 }}>Total Retail SF:</Box>{' '}
+            <Box component="span" sx={exceedsGross ? { color: colors.error, fontWeight: 700 } : {}}>
+              {totalSquareFeet.toLocaleString()}
+            </Box>
+          </Box>
           {grossSqFtValue !== null && (
             <>
-            {!showIndustrialColumns && (
-
-<div style={{ textAlign: 'right', color: exceedsGross ? '#d32f2f' : '#555', fontWeight: exceedsGross ? 700 : 500 }}>
-                <strong>Combined SF:</strong> {combinedSqFt.toLocaleString()}
-              </div>
-            )}
-              
-              <div style={{ textAlign: 'right', color: exceedsGross ? '#d32f2f' : '#555', fontWeight: exceedsGross ? 700 : 500 }}>
-                <strong>Gross SF:</strong> {grossSqFtValue.toLocaleString()}
-              </div>
+              {!showIndustrialColumns && (
+                <Box sx={{ textAlign: 'right', color: exceedsGross ? colors.error : colors.grey[700], fontWeight: exceedsGross ? 700 : 500 }}>
+                  <Box component="span" sx={{ fontWeight: 600 }}>Combined SF:</Box> {combinedSqFt.toLocaleString()}
+                </Box>
+              )}
+              <Box sx={{ textAlign: 'right', color: exceedsGross ? colors.error : colors.grey[700], fontWeight: exceedsGross ? 700 : 500 }}>
+                <Box component="span" sx={{ fontWeight: 600 }}>Gross SF:</Box> {grossSqFtValue.toLocaleString()}
+              </Box>
             </>
           )}
-          <div style={{ textAlign: 'right' }}>
-            <strong>Total Monthly Rent:</strong> ${totalMonthlyRent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <strong>Total Annual Rent:</strong> ${totalAnnualRent.toLocaleString()}
-          </div>
-        </div>
-      </div>
+          <Box sx={{ textAlign: 'right' }}>
+            <Box component="span" sx={{ fontWeight: 600 }}>Total Monthly Rent:</Box>{' '}
+            ${totalMonthlyRent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </Box>
+          <Box sx={{ textAlign: 'right' }}>
+            <Box component="span" sx={{ fontWeight: 600 }}>Total Annual Rent:</Box> ${totalAnnualRent.toLocaleString()}
+          </Box>
+        </Box>
+      </Box>
     );
   };
 
@@ -474,25 +490,30 @@ const RetailIncomeTable: React.FC<{
           getRowClassName={(params) => params.indexRelativeToCurrentPage % 2 === 0 ? 'u-row-odd' : 'u-row-even'}
           sx={{
             minWidth: '1000px',
-            background: '#f9fbfe',
-            '& .MuiDataGrid-main': { background: '#f9fbfe' },
-            '& .MuiDataGrid-columnHeaders': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-            '& .MuiDataGrid-columnHeader': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-            '& .MuiDataGrid-columnHeaderTitleContainer': { background: '#f9fbfe' },
+            background: colors.white,
+            border: `1px solid ${colors.grey[300]}`,
+            borderRadius: 2,
+            fontFamily: typography.fontFamily,
+            fontSize: 14.5,
+            '& .MuiDataGrid-main': { background: colors.white },
+            '& .MuiDataGrid-columnHeaders': { background: colors.white, minHeight: 52, maxHeight: 52, borderBottom: `1px solid ${colors.grey[300]}` },
+            '& .MuiDataGrid-columnHeader': { background: colors.white, minHeight: 52, maxHeight: 52 },
+            '& .MuiDataGrid-columnHeaderTitleContainer': { background: colors.white },
             '& .MuiDataGrid-columnHeaderTitle': {
-              fontWeight: 700,
-              fontSize: 14,
-              fontFamily: 'inherit',
+              fontWeight: 600,
+              fontSize: 14.5,
+              fontFamily: typography.fontFamily,
               textTransform: 'none',
-              lineHeight: '52px'
+              lineHeight: '52px',
+              color: colors.grey[900],
             },
-            '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(0,0,0,0.06)', background: '#f9fbfe' },
-            '& .greyed-out-cell': { color: '#888' },
-            '& .u-editable-input': { border: 'none', borderBottom: '2px solid transparent', borderRadius: 0, background: 'transparent' },
-            '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: '2px solid #1976d2 !important' },
-            '& .MuiDataGrid-row': { background: '#f9fbfe' },
-            '& .u-row-even': { background: '#fafafa' },
-            '& .MuiDataGrid-row:hover': { backgroundColor: '#f5f5f5' },
+            '& .MuiDataGrid-cell': { borderBottom: `1px solid ${colors.grey[300]}`, background: colors.white, fontSize: 14.5, color: colors.grey[900] },
+            '& .greyed-out-cell': { color: colors.grey[600] },
+            '& .u-editable-input': { border: 'none', borderBottom: '2px solid transparent', borderRadius: 0, background: 'transparent', fontWeight: 600 },
+            '& .u-editable-input input': { fontWeight: 600 },
+            '& .MuiDataGrid-row': { background: colors.white },
+            '& .u-row-even': { background: colors.grey[50] },
+            '& .MuiDataGrid-row:hover': { backgroundColor: colors.blueTint },
             '& .u-row-action': {
               opacity: 0,
               visibility: 'hidden',
@@ -504,8 +525,8 @@ const RetailIncomeTable: React.FC<{
               visibility: 'visible',
               pointerEvents: 'auto'
             },
-            '& .MuiDataGrid-virtualScroller': { background: '#f9fbfe' },
-            '& .MuiDataGrid-footerContainer': { background: '#f9fbfe' }
+            '& .MuiDataGrid-virtualScroller': { background: colors.white },
+            '& .MuiDataGrid-footerContainer': { background: colors.white },
           }}
         />
     </div>

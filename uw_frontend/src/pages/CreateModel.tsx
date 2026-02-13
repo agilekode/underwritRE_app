@@ -2,6 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Container, Box, Button, Stepper, Step, StepLabel, Typography, TextField, MenuItem, FormControl, RadioGroup, FormLabel, FormControlLabel, Radio, Tooltip, Divider } from '@mui/material';
+import { StandardInput, PercentInput } from '../components/StandardInput';
+import { FormRow, ContentCard } from '../components/StandardLayout';
+import { colors } from '../theme';
 import { useUser } from '../context/UserContext';
 import UnitTable from '../components/UnitTable';
 import OperatingExpensesTable from '../components/OperatingExpenses';
@@ -106,6 +109,34 @@ interface CreateModelProps {
   existingModel?: boolean;
   modelId?: string;
 }
+
+const RetailSectionHeader = ({ title, description }: { title: string; description?: string }) => (
+  <Box
+    sx={{
+      display: "flex",
+      flexDirection: { xs: "column", sm: "row" },
+      alignItems: { xs: "flex-start", sm: "baseline" },
+      gap: { xs: 0.5, sm: 2 },
+      mb: 1.5,
+    }}
+  >
+    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+      {title}
+    </Typography>
+    {description && (
+      <Typography
+        variant="body2"
+        sx={{
+          color: colors.grey[600],
+          maxWidth: 520,
+          lineHeight: 1.4,
+        }}
+      >
+        {description}
+      </Typography>
+    )}
+  </Box>
+);
 
 
 export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
@@ -347,8 +378,6 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
 
 
 
-  let called = false;
-
   useEffect(() => {
 
 
@@ -368,7 +397,6 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
 
       // setIntroStepComplete(true);
       setModelCreationStarted(true);
-      setCompletedSteps(Array.from({ length: PRIMARY_STEPS.length + SECONDARY_STEPS.length }, (_, i) => i + 1));
 
       const fetchModelDetails = async () => {
 
@@ -403,10 +431,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
           console.error('Error fetching model details:', err);
         }
       };
-      if (!called) {
-        fetchModelDetails();
-        called = true;
-      }
+      fetchModelDetails();
     }
 
     // Cleanup function to reset global flag when dependencies change
@@ -456,8 +481,9 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
 
     // Mark next step as completed only if not already completed
     setCompletedSteps(prev => {
-      if (!prev.includes(nextStep)) {
-        return [...prev, nextStep];
+      const stepNumber = nextStep + 1;
+      if (!prev.includes(stepNumber)) {
+        return [...prev, stepNumber];
       }
       return prev;
     });
@@ -479,6 +505,12 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     }
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
+
+  useEffect(() => {
+    if (existingModel && steps.length > 0) {
+      setCompletedSteps(Array.from({ length: steps.length }, (_, i) => i + 1));
+    }
+  }, [existingModel, steps.length]);
 
 
 
@@ -944,12 +976,16 @@ const isStepComplete = (step: number) => {
     const maxWait = 20000; // 20 seconds
     const interval = 500; // 0.5 seconds
     setFinalMetricsCalculating2(true);
+    setFinalMetricsCalculating(true);
 
     // Helper to wait for google_sheet_url to exist
     const waitForGoogleSheetUrl = () => {
       return new Promise<void>((resolve, reject) => {
         const check = () => {
-          if (modelDetails.google_sheet_url) {
+          if (googleUrlRef.current || (window as any).__generatedSheetUrl) {
+            if (!googleUrlRef.current) {
+              googleUrlRef.current = (window as any).__generatedSheetUrl;
+            }
             resolve();
           } else if (waited >= maxWait) {
             reject(new Error("Timeout: google_sheet_url not set after 20 seconds"));
@@ -966,7 +1002,7 @@ const isStepComplete = (step: number) => {
       await waitForGoogleSheetUrl();
       const token = await getAccessTokenSilently();
       const data = prepareDataForPostRequest();
-
+        data.google_sheet_url = googleUrlRef.current;
 
       const response = await fetch(BACKEND_URL + '/api/user_models_intermediate', {
         method: 'POST',
@@ -993,8 +1029,12 @@ const isStepComplete = (step: number) => {
       }
     } catch (err) {
       console.error('Error during model creation:', err);
+      setFinalMetricsCalculating(false);
+      setFinalMetricsCalculating2(false);
     } finally {
       setIsCreating(false);
+      setFinalMetricsCalculating(false);
+      setFinalMetricsCalculating2(false);
     }
   }
 
@@ -1159,11 +1199,13 @@ const isStepComplete = (step: number) => {
 
       const data = await response.json();
       if (response.ok) {
+        googleUrlRef.current = data.sheet_url;
         setModelDetails(prevDetails => ({
           ...prevDetails,
           google_sheet_url: data.sheet_url
         }));
         console.log("google sheet url", data.sheet_url);
+        (window as any).__generatedSheetUrl = data.sheet_url;
       } else {
         console.error('Error generating Google Sheet:', data.error);
       }
@@ -1274,77 +1316,54 @@ const isStepComplete = (step: number) => {
           retailSqFtTotal={retailIncome.reduce((acc, r) => acc + (r.square_feet || 0), 0)}
         >
           {steps[activeStep] === "Property Address" && (
-            <Box
-              sx={{
-                p: { xs: 1.5, sm: 2, md: 3 },
-                px: { xs: 1.5, sm: 3, md: 4 },
-                pb: { xs: 2, sm: 3, md: 4 },
-                borderRadius: { xs: 1.5, sm: 2 },
-                maxWidth: "1200px",
-                mx: "auto"
-              }}
-            >
-              <Typography variant="subtitle1" sx={{ fontWeight: "bolder", fontSize: { xs: "1rem", sm: "1.125rem" } }}>Property Name</Typography>
-              <TextField
-                placeholder="e.g., Downtown Apartment Building"
-                value={modelDetails.name}
-                disabled={false}
-                onChange={(e) => setModelDetails({ ...modelDetails, name: e.target.value })}
-                fullWidth
-                sx={{ mt: 1, mb: { xs: 1.5, sm: 2 } }}
-              />
+            <>
+              <Box sx={{ maxWidth: "800px", mx: "auto", px: { xs: 2, sm: 4 }, pb: 4 }}>
+                <ContentCard>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <StandardInput
+                    label="Property Name"
+                    placeholder="e.g., Downtown Apartment Building"
+                    value={modelDetails.name}
+                    onChange={(e) => setModelDetails({ ...modelDetails, name: e.target.value })}
+                    fullWidth
+                  />
 
-              <Typography variant="subtitle1" sx={{ fontWeight: "bolder", fontSize: { xs: "1rem", sm: "1.125rem" } }}>Address</Typography>
-              <TextField
-                placeholder="Street address"
-                disabled={false}
-                value={modelDetails.street_address}
-                onChange={(e) => setModelDetails({ ...modelDetails, street_address: e.target.value })}
-                fullWidth
-                sx={{ mt: 1, mb: { xs: 1.5, sm: 2 } }}
-                required
-              />
+                  <StandardInput
+                    label="Address"
+                    placeholder="Street address"
+                    value={modelDetails.street_address}
+                    onChange={(e) => setModelDetails({ ...modelDetails, street_address: e.target.value })}
+                    fullWidth
+                    required
+                  />
 
-              <Box sx={{ display: "flex", gap: { xs: 1.5, sm: 2 }, flexDirection: { xs: 'column', sm: 'row' } }}>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: "bolder", fontSize: { xs: "1rem", sm: "1.125rem" } }}>City</Typography>
-                  <TextField
-                    placeholder="City"
-                    disabled={false}
-                    value={modelDetails.city}
-                    onChange={(e) => setModelDetails({ ...modelDetails, city: e.target.value })}
-                    fullWidth
-                    sx={{ mt: 1 }}
-                    required
-                  />
+                  <FormRow>
+                    <StandardInput
+                      label="City"
+                      placeholder="City"
+                      value={modelDetails.city}
+                      onChange={(e) => setModelDetails({ ...modelDetails, city: e.target.value })}
+                      required
+                    />
+                    <StandardInput
+                      label="State"
+                      placeholder="State"
+                      value={modelDetails.state}
+                      onChange={(e) => setModelDetails({ ...modelDetails, state: e.target.value })}
+                      required
+                    />
+                    <StandardInput
+                      label="Zip Code"
+                      placeholder="Zip Code"
+                      value={modelDetails.zip_code}
+                      onChange={(e) => setModelDetails({ ...modelDetails, zip_code: e.target.value })}
+                      required
+                    />
+                  </FormRow>
                 </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: "bolder", fontSize: { xs: "1rem", sm: "1.125rem" } }}>State</Typography>
-                  <TextField
-                    placeholder="State"
-                    disabled={false}
-                    value={modelDetails.state}
-                    onChange={(e) => setModelDetails({ ...modelDetails, state: e.target.value })}
-                    fullWidth
-                    sx={{ mt: 1 }}
-                    required
-                  />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: "bolder", fontSize: { xs: "1rem", sm: "1.125rem" } }}>Zip Code</Typography>
-                  <TextField
-                    placeholder="Zip Code"
-                    disabled={false}
-                    value={modelDetails.zip_code}
-                    onChange={(e) => setModelDetails({ ...modelDetails, zip_code: e.target.value })}
-                    fullWidth
-                    sx={{ mt: 1 }}
-                    required
-                  />
-                </Box>
+              </ContentCard>
               </Box>
-
-            </Box>
+            </>
           )}
           {steps[activeStep] === "Rental Unit Growth Rates" && (
             <Box sx={{ width: "100%", mx: "auto" }}>
@@ -1515,7 +1534,7 @@ const isStepComplete = (step: number) => {
 
           )}
           {steps[activeStep] === "Market Rent Assumptions" && (
-            <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
+            <Box sx={{ maxWidth: "1400px", width: "100%", mx: "auto" }}>
               {/* <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Market Rent Assumptions</Typography> */}
               {/* <Box sx={{ mt: 0 }}>
                 {marketRentAssumptions
@@ -1596,13 +1615,14 @@ const isStepComplete = (step: number) => {
                 growthRatesOnly={false}
                 vacate={true}
                 activeStepTitle={steps[activeStep]}
+                allowAddUnit={false}
               />
 
             </Box>
           )}
           {steps[activeStep] === "Residential Rental Units" && (
             <Box sx={{ maxWidth: "1200px", mx: "auto" }}>
-              {/* <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Residential Rental Units</Typography> */}
+                {/* <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Residential Rental Units</Typography> */}
               <UnitTable
                 highlightedFields={[ 'layout', 'square_feet', 'current_rent']}
                 units={units}
@@ -1624,78 +1644,98 @@ const isStepComplete = (step: number) => {
           )}
 
 {steps[activeStep] === "Retail Income" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === true && (
-            <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: "bolder", fontSize: { xs: "1rem", sm: "1.125rem" } }}>Base Retail Income</Typography>
+            <Box sx={{ maxWidth: "1200px", mx: "auto", px: { xs: 2, md: 0 }, pb: 4 }}>
+              <Box sx={{ display: "grid", gap: 3 }}>
+                <Box>
+                  <RetailSectionHeader
+                    title="Base Retail Income"
+                    description="Lease terms, rent type, and start months per suite."
+                  />
+                  <RetailIncomeTable
+                    retailIncome={retailIncome}
+                    setRetailIncome={setRetailIncome}
+                    modelDetails={modelDetails}
+                    unitsTotalSqFt={units.reduce((acc, u) => acc + (u.square_feet || 0), 0)}
+                    showIndustrialColumns={true}
+                  />
+                </Box>
 
-              <RetailIncomeTable
-                retailIncome={retailIncome}
-                setRetailIncome={setRetailIncome}
-                modelDetails={modelDetails}
-                unitsTotalSqFt={units.reduce((acc, u) => acc + (u.square_feet || 0), 0)}
-                showIndustrialColumns={true}
-              />
-              
-              <Divider sx={{ my: 2 }} />
-
-              <Typography variant="subtitle1" sx={{ fontWeight: "bolder", mt: 2, mb: 2, fontSize: { xs: "1rem", sm: "1.125rem" } }}>Recovery Income</Typography>
-
+                <Box>
+                  <RetailSectionHeader
+                    title="Recovery Income"
+                    description="Recovery timing, pro-rata share, and annual recovery per suite."
+                  />
                   <RecoveryIncomeTable expenses={expenses} retailIncome={retailIncome as any[]} setRetailIncome={setRetailIncome as any} />
-          
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: "bolder", mt: 2, mb: 0, fontSize: { xs: "1rem", sm: "1.125rem" } }}>Gross Potential Retail Income</Typography>
+                </Box>
+
+                <Box>
+                  <RetailSectionHeader
+                    title="Gross Potential Retail Income"
+                    description="Base income plus recoveries, adjusted for vacancy and bad debt."
+                  />
                   <GrossPotentialRetailIncomeTable retailIncome={retailIncome as any[]} expenses={expenses} modelDetails={modelDetails} handleFieldChange={handleFieldChange} />
+                </Box>
 
-                  <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: "bolder", mt: 2, mb: 2, fontSize: { xs: "1rem", sm: "1.125rem", mt: 2  } }}>Recoverable Retail Operating Expenses</Typography>
-
-
+                <Box>
+                  <RetailSectionHeader
+                    title="Recoverable Retail Operating Expenses"
+                    description="Recoverable expenses per SF and totals."
+                  />
                   <RetailExpenses expenses={expenses} setExpenses={setExpenses} step={steps[activeStep]} totalRetailSF={retailIncome.reduce((acc, curr) => acc + curr.square_feet, 0)} />
 
-                <Box sx={{ mt: 2, width: '100%' }}>
-                {growthRates
-                  .filter((rate: any) => rate.type === 'retail')
-                  .map((rate: any, idx: number) => (
+                  <Box sx={{ mt: 2 }}>
+                    <RetailSectionHeader
+                      title="Retail Expense Inflation"
+                      description="Annual growth rates applied to recoverable expenses."
+                    />
                     <Box
-                      key={idx}
                       sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        mb: 1,
-                        width: '100%',
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" },
+                        gap: 2,
                       }}
                     >
-                      <Box sx={{ flex: '0 0 auto', fontWeight: 500, color: 'text.secondary', pr: 2, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {rate.name} (%)
-                      </Box>
-                      <TextField
-                        type="number"
-                        value={rate.value}
-                        onChange={(e) => {
-                          const newGrowthRates = growthRates.map((r: any) =>
-                            r.name === rate.name && r.type === 'retail'
-                              ? { ...r, value: Number(e.target.value) }
-                              : r
-                          );
-                          setGrowthRates(newGrowthRates);
-                        }}
-                        size="small"
-                        sx={{ flex: 1, minWidth: 120 }}
-                        inputProps={{ style: { textAlign: 'right' } }}
-                        variant="outlined"
-                        fullWidth
-                      />
+                      {growthRates
+                        .filter((rate: any) => rate.type === "retail")
+                        .map((rate: any) => (
+                          <PercentInput
+                            key={rate.name}
+                            label={rate.name}
+                            value={rate.value}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              const newGrowthRates = growthRates.map((r: any) =>
+                                r.name === rate.name && r.type === "retail"
+                                  ? { ...r, value: raw === "" ? 0 : Number(raw) }
+                                  : r
+                              );
+                              setGrowthRates(newGrowthRates);
+                            }}
+                            size="small"
+                            fullWidth
+                          />
+                        ))}
                     </Box>
-                  ))}
-              </Box>
+                  </Box>
+                </Box>
 
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="subtitle1" sx={{ fontWeight: "bolder", mt: 2, mb: 2, fontSize: { xs: "1rem", sm: "1.125rem", mt: 2  } }}>Calculate the Leasing Cost Reserves</Typography>
+                <Box>
+                  <RetailSectionHeader
+                    title="Leasing Cost Reserves"
+                    description="Assumptions and calculated reserves for new and renewal leases."
+                  />
                   <LeasingCostReserves modelDetails={modelDetails} handleFieldChange={handleFieldChange} retailIncome={retailIncome as any[]} />
+                </Box>
+              </Box>
             </Box>
           )}
 
           {steps[activeStep] === "Base Income" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === false && (
-            <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
+            <Box sx={{ maxWidth: "1200px", mx: "auto", px: { xs: 2, md: 0 }, pb: 4 }}>
+              <RetailSectionHeader
+                title="Base Retail Income"
+                description="Lease terms, rent type, and start months per suite."
+              />
               <RetailIncomeTable
                 retailIncome={retailIncome}
                 setRetailIncome={setRetailIncome}
@@ -1706,7 +1746,11 @@ const isStepComplete = (step: number) => {
             </Box>
           )}
           {steps[activeStep] === "Recoverable Operating Expenses" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === false && (
-            <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
+            <Box sx={{ maxWidth: "1200px", mx: "auto", px: { xs: 2, md: 0 }, pb: 4 }}>
+              <RetailSectionHeader
+                title="Recoverable Retail Operating Expenses"
+                description="Recoverable expenses per SF and totals."
+              />
               <RetailExpensesIndustrial
                 expenses={expenses}
                 setExpenses={setExpenses}
@@ -1714,54 +1758,68 @@ const isStepComplete = (step: number) => {
                 totalRetailSF={retailIncome.reduce((acc, curr) => acc + curr.square_feet, 0)}
                 retailIncome={retailIncome as any[]}
               />
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ mt: 2, width: '100%' }}>
-                {growthRates
-                  .filter((rate: any) => rate.type === 'retail')
-                  .map((rate: any, idx: number) => (
-                    <Box
-                      key={idx}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        mb: 1,
-                        width: '100%',
-                      }}
-                    >
-                      <Box sx={{ flex: '0 0 auto', fontWeight: 500, color: 'text.secondary', pr: 2, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {rate.name} (%)
-                      </Box>
-                      <TextField
-                        type="number"
+              <Box sx={{ mt: 2 }}>
+                <RetailSectionHeader
+                  title="Retail Expense Inflation"
+                  description="Annual growth rates applied to recoverable expenses."
+                />
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(3, minmax(0, 1fr))" },
+                    gap: 2,
+                  }}
+                >
+                  {growthRates
+                    .filter((rate: any) => rate.type === "retail")
+                    .map((rate: any) => (
+                      <PercentInput
+                        key={rate.name}
+                        label={rate.name}
                         value={rate.value}
                         onChange={(e) => {
+                          const raw = e.target.value;
                           const newGrowthRates = growthRates.map((r: any) =>
-                            r.name === rate.name && r.type === 'retail'
-                              ? { ...r, value: Number(e.target.value) }
+                            r.name === rate.name && r.type === "retail"
+                              ? { ...r, value: raw === "" ? 0 : Number(raw) }
                               : r
                           );
                           setGrowthRates(newGrowthRates);
                         }}
                         size="small"
-                        sx={{ flex: 1, minWidth: 120 }}
-                        inputProps={{ style: { textAlign: 'right' } }}
-                        variant="outlined"
                         fullWidth
                       />
-                    </Box>
-                  ))}
+                    ))}
+                </Box>
               </Box>
             </Box>
           )}
           {steps[activeStep] === "Recovery and Gross Potential Income" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === false && (
-            <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
-              <RecoveryIncomeTableIndustrial retailIncome={retailIncome as any[]} setRetailIncome={setRetailIncome as any} expenses={expenses} />
-              <Divider sx={{ my: 2 }} />
-              <GrossPotentialRetailIncomeTableIndustrial retailIncome={retailIncome as any[]} expenses={expenses} modelDetails={modelDetails} handleFieldChange={handleFieldChange} />
+            <Box sx={{ maxWidth: "1200px", mx: "auto", px: { xs: 2, md: 0 }, pb: 4 }}>
+              <Box sx={{ display: "grid", gap: 3 }}>
+                <Box>
+                  <RetailSectionHeader
+                    title="Recovery Income"
+                    description="Recovery timing, pro-rata share, and annual recovery per suite."
+                  />
+                  <RecoveryIncomeTableIndustrial retailIncome={retailIncome as any[]} setRetailIncome={setRetailIncome as any} expenses={expenses} />
+                </Box>
+                <Box>
+                  <RetailSectionHeader
+                    title="Gross Potential Retail Income"
+                    description="Base income plus recoveries, adjusted for vacancy and bad debt."
+                  />
+                  <GrossPotentialRetailIncomeTableIndustrial retailIncome={retailIncome as any[]} expenses={expenses} modelDetails={modelDetails} handleFieldChange={handleFieldChange} />
+                </Box>
+              </Box>
             </Box>
           )}
           {steps[activeStep] === "Leasing Cost Reserves" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === false && (
-            <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
+            <Box sx={{ maxWidth: "1200px", mx: "auto", px: { xs: 2, md: 0 }, pb: 4 }}>
+              <RetailSectionHeader
+                title="Leasing Cost Reserves"
+                description="Assumptions and calculated reserves for new and renewal leases."
+              />
               <LeasingCostReserves modelDetails={modelDetails} handleFieldChange={handleFieldChange} retailIncome={retailIncome as any[]} />
             </Box>
           )}
@@ -2005,9 +2063,12 @@ const isStepComplete = (step: number) => {
               activeStep === steps.indexOf("General Property Assumptions")
             ) {
               return (
-                <Box key={section.id} sx={{ p: 2, px:4, borderRadius: 2, maxWidth: "1200px", mx: "auto" }}>
-                  
-                  {section.fields.filter(field => field.active === true).map((field: Field) => {
+                <Box key={section.id}>
+                  {/* Content Area */}
+                  <Box sx={{ maxWidth: 800, mx: 'auto', px: { xs: 2, sm: 4 }, pb: 4 }}>
+                  <ContentCard>
+                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                      {section.fields.filter(field => field.active === true).map((field: Field) => {
                     const fieldValue = modelDetails.user_model_field_values.find((fv: any) => fv.field_id === field.id)?.value || '';
                     const startMonth = modelDetails.user_model_field_values.find((fv: any) => fv.field_id === field.id)?.start_month ?? '';
                     const endMonth = modelDetails.user_model_field_values.find((fv: any) => fv.field_id === field.id)?.end_month ?? '';
@@ -2016,13 +2077,15 @@ const isStepComplete = (step: number) => {
                       <SectionFields key={field.id} field={field} fieldValue={fieldValue} startMonth={startMonth} endMonth={endMonth} handleFieldChange={handleFieldChange} />
  
                     );
-                  })}
- 
+                      })}
+                    </Box>
+                  </ContentCard>
+                  </Box>
                 </Box>
               );
             }
- 
- 
+
+
             // Only show the current section that matches the current step
             if (
               steps[activeStep] === section.name && section.name !== "General Property Assumptions" 

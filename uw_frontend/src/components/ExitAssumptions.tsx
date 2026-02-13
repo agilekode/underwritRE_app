@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Box, Card, CardContent, Typography } from "@mui/material";
-import { MonthsInput, PercentageInput } from "./NumberInput";
-import { ExitInlineMonthsInput, ExitInlinePercentageInput } from "./ExitInlineNumberInput";
-import { LIGHT_THEME_COLOR, MID_DARK_THEME_COLOR, MID_LIGHT_THEME_COLOR, MID_THEME_COLOR, THEME_GREEN, THEME_LIGHT_GREEN, THEME_LIGHT_GREY } from "../utils/constants";
+import { Box, Typography } from "@mui/material";
+import { NumberInput, PercentInput } from "./StandardInput";
+import { ContentCard } from "./StandardLayout";
+import { colors } from "../theme";
 
 export default function ExitAssumptions({
   modelDetails,
@@ -23,8 +23,6 @@ export default function ExitAssumptions({
   variables?: any;
   numUnits?: number;
 }) {
-
-
   // Exact field_key strings (must match backend)
   const K = {
     mfExitMonth: "Multifamily Exit Month",
@@ -59,7 +57,6 @@ export default function ExitAssumptions({
     if (typeof val === "number") return val;
     const s = String(val).trim();
     const hasParens = /^\(.*\)$/.test(s);
-    // Strip common adornments including parentheses and commas before numeric parse
     const cleaned = s.replace(/[(),]/g, "");
     const n = Number(cleaned.replace(/[^0-9.+-]/g, ""));
     if (!Number.isFinite(n)) return fallback;
@@ -76,7 +73,7 @@ export default function ExitAssumptions({
   const formatCurrencyParens = (n: number) =>
     n < 0 ? `(${formatCurrency(Math.abs(n))})` : formatCurrency(n);
 
-  // Local state for editable fields (mirrors Refinancing/Acquisition pattern)
+  // Local state for editable fields
   const [mfExitMonth, setMfExitMonth] = useState<string>(String(getFieldValue(K.mfExitMonth, "60")));
   const [mfCapRate, setMfCapRate] = useState<string>(String(getFieldValue(K.mfCapRate, "6")));
   const [mfSelling, setMfSelling] = useState<string>(String(getFieldValue(K.mfSellingCosts, "3")));
@@ -93,7 +90,6 @@ export default function ExitAssumptions({
     setRtSelling(String(getFieldValue(K.rtSellingCosts, "3")));
   }, [modelDetails, getFieldValue]);
 
-  // Commit helpers (send to parent only on blur/commit) and sync local state
   const commit = (fieldKey: string) => (value: number | string) => {
     const v = typeof value === 'number' ? String(value) : value;
     switch (fieldKey) {
@@ -108,348 +104,303 @@ export default function ExitAssumptions({
     handleFieldChange(id, fieldKey, v);
   };
 
-  // Do not update parent/local state on each keypress to avoid re-render blips
-  const onNum = useCallback((fieldKey: string) => (value: number | string) => {
-    const v = typeof value === 'number' ? String(value) : value;
-    switch (fieldKey) {
-      case K.mfExitMonth: setMfExitMonth(v); break;
-      case K.mfCapRate: setMfCapRate(v); break;
-      case K.mfSellingCosts: setMfSelling(v); break;
-      case K.rtExitMonth: setRtExitMonth(v); break;
-      case K.rtCapRate: setRtCapRate(v); break;
-      case K.rtSellingCosts: setRtSelling(v); break;
-    }
-    const id = getFieldId(fieldKey);
-    handleFieldChange(id, fieldKey, v);
-  }, [getFieldId, handleFieldChange]);
-
-  const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <Typography
-      variant="h6"
-      component="h3"
-      sx={{
-        fontWeight: 700,
-        fontSize: { xs: "1.25rem", sm: "1.5rem" },
-        lineHeight: 1.35,
-        letterSpacing: 0.15,
-        color: "white",
-        borderBottom: "1px solid #bdbdbd",
-        backgroundColor: MID_DARK_THEME_COLOR,
-        px: 2,
-        py: 4,
-      }}
-    >
-      {children}
-    </Typography>
-  );
-
-  const Row = ({
-    label,
-    control,
-  }: {
-    label: string;
-    control: React.ReactNode;
-  }) => (
+  const SectionHeader = ({ title, description }: { title: string; description: string }) => (
     <Box
       sx={{
         display: "flex",
-        alignItems: { xs: "flex-start", sm: "center" },
         flexDirection: { xs: "column", sm: "row" },
-        borderBottom: "1px solid #bdbdbd",
-        px: 1.5,
-        py: 1.5,
-        minHeight: { xs: 56, sm: 56 },
+        alignItems: { xs: "flex-start", sm: "baseline" },
+        gap: { xs: 0.5, sm: 2 },
+        mb: 1.5,
       }}
     >
+      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+        {title}
+      </Typography>
       <Typography
-        variant="body1"
-        fontWeight={400}
+        variant="body2"
         sx={{
-          mr: { xs: 0, sm: 2 },
-          minWidth: { xs: "100%", sm: 200, md: 240 },
-          mb: { xs: 0.5, sm: 0 },
-          fontSize: { xs: "1.125rem", sm: "1.25rem" },
+          color: colors.grey[600],
+          lineHeight: 1.4,
+          maxWidth: 520,
         }}
       >
-        {label}
+        {description}
       </Typography>
-      <Box sx={{ flex: 1, minWidth: 80, width: { xs: "100%", sm: "100%" },fontSize: { xs: "1.125rem", sm: "1.25rem" }, pr: { xs: 0, sm: 1 } }}>{control}</Box>
     </Box>
   );
 
-  const CardShell: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-    <Card
-      variant="outlined"
-      elevation={0}
-      sx={{
-        background: "linear-gradient(135deg, rgba(255,255,255,0.65), rgba(255,255,255,0.45))",
-        backdropFilter: "blur(10px) saturate(130%)",
-        WebkitBackdropFilter: "blur(10px) saturate(130%)",
-        border: 1,
-        borderColor: "rgba(255,255,255,0.4)",
-        borderRadius: 3,
-        py: 0,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.55)",
-      }}
-    >
-      <CardContent sx={{ py: 0, px: 0, display: "flex", flexDirection: "column", gap: 0, pb: "0 !important"}}>
-        <SectionTitle>{title}</SectionTitle>
-        <Box sx={{ px: 0, py: 0 }}>{children}</Box>
-      </CardContent>
-    </Card>
-  );
+  const rowShellSx = {
+    display: "flex",
+    alignItems: { xs: "flex-start", sm: "center" },
+    flexDirection: { xs: "column", sm: "row" },
+    justifyContent: "space-between",
+    gap: { xs: 0.5, sm: 2 },
+    py: 1,
+  } as const;
 
-  const ReadonlyRow = ({ label, value, bgColor, valueColor, labelFontWeight }: { label: string; value: React.ReactNode; bgColor?: string; valueColor?: string; labelFontWeight?: number }) => (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: { xs: "flex-start", sm: "center" },
-        flexDirection: { xs: "column", sm: "row" },
-        borderBottom: "1px solid #bdbdbd",
-        px: 1.5,
-        py: 1,
-        minHeight: { xs: 56, sm: 56 },
-        backgroundColor: bgColor ?? 'rgba(33,150,243,0.06)',
-      }}
-    >
-      <Typography
-        variant="body1"
-        fontWeight={labelFontWeight ?? 400}
-        sx={{
-          mr: { xs: 0, sm: 2 },
-          minWidth: { xs: "100%", sm: 200, md: 240 },
-          mb: { xs: 0, sm: 0 },
-          fontSize: { xs: "1.125rem", sm: "1.25rem" },
-        }}
-      >
+  const listSx = {
+    "& > *:not(:last-child)": {
+      borderBottom: `1px solid ${colors.grey[300]}`,
+    }
+  } as const;
+
+  const InputRow = ({ label, control }: { label: string; control: React.ReactNode }) => (
+    <Box sx={rowShellSx}>
+      <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
         {label}
       </Typography>
-      <Box sx={{ flex: 1, minWidth: 80, width: "100%", display: "flex", justifyContent: { xs: "flex-start", sm: "flex-end" }, pr: { xs: 0, sm: 1 } }}>
-        <Typography sx={{ fontWeight: 400, fontSize: { xs: "1.125rem", sm: "1.25rem" }, color: "#000000" }}>{value}</Typography>
+      <Box sx={{ minWidth: { sm: 160 }, width: { xs: "100%", sm: "auto" }, textAlign: { xs: "left", sm: "right" } }}>
+        {control}
       </Box>
     </Box>
   );
 
-  const space_type =
-  (modelDetails?.user_model_field_values || []).find((f: any) => {
-    const k = String(f.field_key || '');
-    return k === 'space_type' || k.trim() === 'space_type';
-  })?.value ?? 'Retail';
+  const ValueRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <Box sx={rowShellSx}>
+      <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+        {value}
+      </Typography>
+    </Box>
+  );
 
-  return (
+  const MetricTile = ({ label, value, highlight = false }: { label: string; value: React.ReactNode; highlight?: boolean }) => (
     <Box
       sx={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 3,
-        width: "calc(100% - 60px)",
-        maxWidth: 1140,
-        mx: "auto",
-        padding: "30px",
-        backgroundColor: "transparent",
+        border: `1px solid ${colors.grey[300]}`,
+        borderRadius: 1,
+        px: 1.5,
+        py: 1,
+        backgroundColor: highlight ? colors.blueTint : colors.grey[50],
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
       }}
-
     >
+      <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+        {value}
+      </Typography>
+    </Box>
+  );
+
+  const space_type =
+    (modelDetails?.user_model_field_values || []).find((f: any) => {
+      const k = String(f.field_key || '');
+      return k === 'space_type' || k.trim() === 'space_type';
+    })?.value ?? 'Retail';
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3, maxWidth: 1200, mx: "auto", width: "100%" }}>
       {showRentalUnits && (
-      <CardShell title="Multifamily Exit Assumptions">
-        {/* Read-only rows fed from variables */}
-        <ReadonlyRow
-          label={`Forward NOI in ${variables?.["Deal Time Horizon"] ?? ""}`}
-          value={formatCurrency(
-            parseNumber(variables?.["Forward NOI in Month"], 0)
-          )}
-          bgColor="#fafbff"
-          valueColor="#000000"
-        />
-        <Row
-          label="Multifamily Exit Month"
-          control={
-            <ExitInlineMonthsInput
-              value={mfExitMonth}
-              onChange={onNum(K.mfExitMonth)}
-              onCommit={commit(K.mfExitMonth)}
-              min={1}
-              max={130}
-              step={1}
-              sx={{ width: '100%' }}
-            />
-          }
-        />
-        <Row
-          label="Multifamily Applied Exit Cap Rate"
-          control={
-            <ExitInlinePercentageInput
-              value={mfCapRate}
-              onChange={onNum(K.mfCapRate)}
-              onCommit={commit(K.mfCapRate)}
-              min={0}
-              max={100}
-              step={0.01}
-              sx={{ width: '100%' }}
-            />
-          }
-        />
-        <ReadonlyRow
-          label="Implied Valuation at Exit"
-          value={formatCurrency(
-            parseNumber(variables?.["Implied Valuation at Exit"], 0)
-          )}
-        />
-        <ReadonlyRow
-          label="Implied Valuation per Unit"
-          value={(() => {
-            const totalVal = parseNumber(variables?.["Implied Valuation at Exit"], 0);
-            const perUnit = numUnits > 0 ? Math.round(totalVal / numUnits) : 0;
-            return formatCurrency(perUnit);
-          })()}
-        />
-        <Row
-          label="Multifamily Less: Selling Costs"
-          control={
-            <ExitInlinePercentageInput
-              value={mfSelling}
-              onChange={onNum(K.mfSellingCosts)}
-              onCommit={commit(K.mfSellingCosts)}
-              min={0}
-              max={100}
-              step={0.01}
-              sx={{ width: '100%' }}
-            />
-          }
-        />
-        <ReadonlyRow
-          label="Selling Costs"
-          value={formatCurrencyParens(
-            parseNumber(variables?.["Selling Costs"], 0)
-          )}
-        />
-        <ReadonlyRow
-          label="Net Reversion Proceeds"
-          value={formatCurrency(
-            parseNumber(variables?.["Net Reversion Proceeds"], 0)
-          )}
-        />
-      </CardShell>
+        <ContentCard title="Multifamily Exit Assumptions">
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+            <Box>
+              <SectionHeader title="Assumptions" description="Exit timing and pricing inputs." />
+              <Box sx={listSx}>
+                <InputRow
+                  label="Multifamily Exit Month"
+                  control={
+                    <NumberInput
+                      value={mfExitMonth}
+                      onChange={(e) => setMfExitMonth(e.target.value)}
+                      onBlur={() => commit(K.mfExitMonth)(mfExitMonth)}
+                      suffix="months"
+                      allowDecimals={false}
+                      noCommas
+                      fullWidth
+                      inputProps={{ min: 1, max: 130 }}
+                    />
+                  }
+                />
+                <InputRow
+                  label="Multifamily Applied Exit Cap Rate"
+                  control={
+                    <PercentInput
+                      value={mfCapRate}
+                      onChange={(e) => setMfCapRate(e.target.value)}
+                      onBlur={() => commit(K.mfCapRate)(mfCapRate)}
+                      fullWidth
+                      inputProps={{ min: 0, max: 100, step: 0.01 }}
+                    />
+                  }
+                />
+                <InputRow
+                  label="Multifamily Less: Selling Costs"
+                  control={
+                    <PercentInput
+                      value={mfSelling}
+                      onChange={(e) => setMfSelling(e.target.value)}
+                      onBlur={() => commit(K.mfSellingCosts)(mfSelling)}
+                      fullWidth
+                      inputProps={{ min: 0, max: 100, step: 0.01 }}
+                    />
+                  }
+                />
+              </Box>
+            </Box>
+            <Box>
+              <SectionHeader title="Results" description="Implied valuation and proceeds." />
+              <Box sx={listSx}>
+                <ValueRow
+                  label={`Forward NOI in ${variables?.["Deal Time Horizon"] ?? ""}`}
+                  value={formatCurrency(parseNumber(variables?.["Forward NOI in Month"], 0))}
+                />
+                <ValueRow
+                  label="Implied Valuation at Exit"
+                  value={formatCurrency(parseNumber(variables?.["Implied Valuation at Exit"], 0))}
+                />
+                <ValueRow
+                  label="Implied Valuation per Unit"
+                  value={(() => {
+                    const totalVal = parseNumber(variables?.["Implied Valuation at Exit"], 0);
+                    const perUnit = numUnits > 0 ? Math.round(totalVal / numUnits) : 0;
+                    return formatCurrency(perUnit);
+                  })()}
+                />
+                <ValueRow
+                  label="Selling Costs"
+                  value={formatCurrencyParens(parseNumber(variables?.["Selling Costs"], 0))}
+                />
+                <ValueRow
+                  label="Net Reversion Proceeds"
+                  value={formatCurrency(parseNumber(variables?.["Net Reversion Proceeds"], 0))}
+                />
+              </Box>
+            </Box>
+          </Box>
+        </ContentCard>
       )}
 
       {showRetail && (
-        <CardShell title={space_type + " Exit Assumptions"}>
-          <ReadonlyRow
-            label={`Forward NOI in ${variables?.["Deal Time Horizon"] ?? ""}`}
-            value={formatCurrency(parseNumber(variables?.["Retail: Forward NOI in Month"], 0))}
-          />
-          <Row
-            label={space_type + " Exit Month"}
-            control={
-              <ExitInlineMonthsInput
-                value={rtExitMonth}
-                onChange={onNum(K.rtExitMonth)}
-                onCommit={commit(K.rtExitMonth)}
-                min={0}
-                step={1}
-                sx={{ width: '100%' }}
-              />
-            }
-          />
-          <Row
-            label={space_type + " Applied Exit Cap Rate"}
-            control={
-              <ExitInlinePercentageInput
-                value={rtCapRate}
-                onChange={onNum(K.rtCapRate)}
-                onCommit={commit(K.rtCapRate)}
-                min={0}
-                max={100}
-                step={0.01}
-                sx={{ width: '100%' }}
-              />
-            }
-          />
-          <ReadonlyRow
-            label="Implied Valuation at Exit"
-            value={formatCurrency(parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0))}
-          />
-          {numUnits > 0 && (
-          <ReadonlyRow
-            label="Implied Valuation per Unit"
-            value={(() => {
-              const totalVal = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
-              const perUnit = numUnits > 0 ? Math.round(totalVal / numUnits) : 0;
-              return formatCurrency(perUnit);
-            })()}
-          />
-          )}
-          { numUnits === 0 && (
-                      <ReadonlyRow
-                      label="Implied Valuation per SF"
-                      value={(() => {
-                        const totalVal = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
-                        const SF = getFieldValue("Gross Square Feet", 0)
-                        const perSF = totalVal / SF;
-                        return formatCurrency(perSF) + " / SF";
-                      })()}
-          />
-          )}
-
-          <Row
-            label={space_type + " Less: Selling Costs"}
-            control={
-              <ExitInlinePercentageInput
-                value={rtSelling}
-                onChange={onNum(K.rtSellingCosts)}
-                onCommit={commit(K.rtSellingCosts)}
-                min={0}
-                max={100}
-                step={0.01}
-                sx={{ width: '100%' }}
-              />
-            }
-          />
-          <ReadonlyRow
-            label="Selling Costs"
-            value={formatCurrencyParens(parseNumber(variables?.["Retail: Selling Costs"], 0))}
-          />
-          <ReadonlyRow
-            label="Net Reversion Proceeds"
-            value={formatCurrency(parseNumber(variables?.["Retail: Net Reversion Proceeds"], 0))}
-          />
-        </CardShell>
+        <ContentCard title={`${space_type} Exit Assumptions`}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
+            <Box>
+              <SectionHeader title="Assumptions" description="Exit timing and pricing inputs." />
+              <Box sx={listSx}>
+                <InputRow
+                  label={`${space_type} Exit Month`}
+                  control={
+                    <NumberInput
+                      value={rtExitMonth}
+                      onChange={(e) => setRtExitMonth(e.target.value)}
+                      onBlur={() => commit(K.rtExitMonth)(rtExitMonth)}
+                      suffix="months"
+                      allowDecimals={false}
+                      noCommas
+                      fullWidth
+                      inputProps={{ min: 0, step: 1 }}
+                    />
+                  }
+                />
+                <InputRow
+                  label={`${space_type} Applied Exit Cap Rate`}
+                  control={
+                    <PercentInput
+                      value={rtCapRate}
+                      onChange={(e) => setRtCapRate(e.target.value)}
+                      onBlur={() => commit(K.rtCapRate)(rtCapRate)}
+                      fullWidth
+                      inputProps={{ min: 0, max: 100, step: 0.01 }}
+                    />
+                  }
+                />
+                <InputRow
+                  label={`${space_type} Less: Selling Costs`}
+                  control={
+                    <PercentInput
+                      value={rtSelling}
+                      onChange={(e) => setRtSelling(e.target.value)}
+                      onBlur={() => commit(K.rtSellingCosts)(rtSelling)}
+                      fullWidth
+                      inputProps={{ min: 0, max: 100, step: 0.01 }}
+                    />
+                  }
+                />
+              </Box>
+            </Box>
+            <Box>
+              <SectionHeader title="Results" description="Implied valuation and proceeds." />
+              <Box sx={listSx}>
+                <ValueRow
+                  label={`Forward NOI in ${variables?.["Deal Time Horizon"] ?? ""}`}
+                  value={formatCurrency(parseNumber(variables?.["Retail: Forward NOI in Month"], 0))}
+                />
+                <ValueRow
+                  label="Implied Valuation at Exit"
+                  value={formatCurrency(parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0))}
+                />
+                {numUnits > 0 && (
+                  <ValueRow
+                    label="Implied Valuation per Unit"
+                    value={(() => {
+                      const totalVal = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
+                      const perUnit = numUnits > 0 ? Math.round(totalVal / numUnits) : 0;
+                      return formatCurrency(perUnit);
+                    })()}
+                  />
+                )}
+                {numUnits === 0 && (
+                  <ValueRow
+                    label="Implied Valuation per SF"
+                    value={(() => {
+                      const totalVal = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
+                      const SF = getFieldValue("Gross Square Feet", 0);
+                      const perSF = totalVal / SF;
+                      return formatCurrency(perSF) + " / SF";
+                    })()}
+                  />
+                )}
+                <ValueRow
+                  label="Selling Costs"
+                  value={formatCurrencyParens(parseNumber(variables?.["Retail: Selling Costs"], 0))}
+                />
+                <ValueRow
+                  label="Net Reversion Proceeds"
+                  value={formatCurrency(parseNumber(variables?.["Retail: Net Reversion Proceeds"], 0))}
+                />
+              </Box>
+            </Box>
+          </Box>
+        </ContentCard>
       )}
+
       {showRetail && showRentalUnits && (
-        <CardShell title="Combined Exit Summary">
-          <ReadonlyRow
-            label="Total Implied Property Valuation at Exit"
-            value={(() => {
-              const mfNet = parseNumber(variables?.["Implied Valuation at Exit"], 0);
-              const rtNet = parseNumber(variables?.[space_type + ": Implied Valuation at Exit"], 0);
-              return formatCurrency(mfNet + rtNet);
-            })()}
-            bgColor={THEME_LIGHT_GREEN}
-            valueColor={THEME_GREEN}
-          // labelFontWeight={700}
-          />
-          <ReadonlyRow
-            label="Total NOI at Exit"
-            value={formatCurrency(parseNumber(variables?.["Forward NOI in Month"], 0) + parseNumber(variables?.["Retail: Forward NOI in Month"], 0))}
-            bgColor="#fafbff"
-          valueColor="#000000"
-          />
-                    <ReadonlyRow
-            label="Blended Cap Rate"
-           value={(() => {
-             const mfNOI = parseNumber(variables?.["Forward NOI in Month"], 0);
-             const rtNOI = parseNumber(variables?.["Retail: Forward NOI in Month"], 0);
-             const totalNOI = mfNOI + rtNOI;
-             if (totalNOI <= 0) return "-";
-             const mfCap = parseNumber(mfCapRate, 0); // percent value (e.g., 6.25)
-             const rtCap = parseNumber(rtCapRate, 0);
-             const blended = (mfCap * mfNOI + rtCap * rtNOI) / totalNOI;
-             return `${blended.toFixed(2)}%`;
-           })()}
-            bgColor="#fafbff"
-          valueColor="#000000"
-          />
-        </CardShell>
+        <ContentCard title="Combined Exit Summary">
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+            <MetricTile
+              label="Total Implied Property Valuation at Exit"
+              value={(() => {
+                const mfNet = parseNumber(variables?.["Implied Valuation at Exit"], 0);
+                const rtNet = parseNumber(variables?.[space_type + ": Implied Valuation at Exit"], 0);
+                return formatCurrency(mfNet + rtNet);
+              })()}
+              highlight
+            />
+            <MetricTile
+              label="Total NOI at Exit"
+              value={formatCurrency(parseNumber(variables?.["Forward NOI in Month"], 0) + parseNumber(variables?.["Retail: Forward NOI in Month"], 0))}
+            />
+            <MetricTile
+              label="Blended Cap Rate"
+              value={(() => {
+                const mfNOI = parseNumber(variables?.["Forward NOI in Month"], 0);
+                const rtNOI = parseNumber(variables?.["Retail: Forward NOI in Month"], 0);
+                const totalNOI = mfNOI + rtNOI;
+                if (totalNOI <= 0) return "-";
+                const mfCap = parseNumber(mfCapRate, 0);
+                const rtCap = parseNumber(rtCapRate, 0);
+                const blended = (mfCap * mfNOI + rtCap * rtNOI) / totalNOI;
+                return `${blended.toFixed(2)}%`;
+              })()}
+            />
+          </Box>
+        </ContentCard>
       )}
     </Box>
   );
