@@ -6848,7 +6848,7 @@ def update_inputs(worksheet, row_val, col_val, purchase_price_cell="E62", exit_c
         "valueInputOption": "RAW",
         "data": [
             {"range": f"{worksheet.title}!{purchase_price_ref}", "values": [[clean_number(row_val)]]},
-            {"range": f"{worksheet.title}!{exit_cap_ref}", "values": [[f"{clean_number(col_val)}%"]]},
+            {"range": f"{worksheet.title}!{exit_cap_ref}", "values": [[clean_number(col_val) / 100]]},
         ],
     }
     response = worksheet.spreadsheet.client.session.request("POST", url=url, json=body)
@@ -7131,6 +7131,8 @@ def generate_sensitivity_analysis_tables(sheet_id, max_price, min_cap_rate):
         # Restore original inputs
         update_inputs(assumptions_ws, original_purchase_price, original_exit_cap, purchase_price_cell, exit_cap_cell)
         # print(f"✅ [DEBUG] Sensitivity analysis completed successfully")
+
+        replace_exit_cap_text(assumptions_ws)
         
         # Return the results with headers
         return {
@@ -7152,34 +7154,156 @@ def generate_sensitivity_analysis_tables(sheet_id, max_price, min_cap_rate):
         traceback.print_exc()
         raise e
 
-def update_sensitivity_reference_cells(worksheet, purchase_price_1, purchase_price_2, exit_cap_rate_1, exit_cap_rate_2,
-                                     price_1_cell, price_2_cell, cap_rate_1_cell, cap_rate_2_cell):
-    """Update the sensitivity reference cells with the calculated ranges"""
-    
-    # Extract cell references from full locations (remove sheet name if present)
+def update_sensitivity_reference_cells(worksheet, purchase_price_1, purchase_price_2, exit_cap_rate_1, exit_cap_rate_2, price_1_cell, price_2_cell, cap_rate_1_cell, cap_rate_2_cell):
+    client = worksheet.spreadsheet.client
+    sheet_id = worksheet.id
+    spreadsheet_id = worksheet.spreadsheet.id
+    sheet_title = worksheet.title
+
     def extract_cell_ref(location):
-        if '!' in location:
-            return location.split('!')[1]
-        return location
-    
+        return location.split("!")[-1]
+
+    def a1_to_grid(a1):
+        col = "".join(filter(str.isalpha, a1)).upper()
+        row = int("".join(filter(str.isdigit, a1)))
+        col_index = 0
+        for c in col:
+            col_index = col_index * 26 + (ord(c) - 64)
+        return row - 1, col_index - 1
+
+    def grid_to_a1(row, col):
+        col += 1
+        letters = ""
+        while col:
+            col, r = divmod(col - 1, 26)
+            letters = chr(65 + r) + letters
+        return f"{letters}{row + 1}"
+
+    def batch_update_values(data):
+        url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values:batchUpdate"
+        body = {
+            "valueInputOption": "RAW",
+            "data": data
+        }
+        resp = client.session.post(url, json=body)
+        resp.raise_for_status()
+
     price_1_ref = extract_cell_ref(price_1_cell)
     price_2_ref = extract_cell_ref(price_2_cell)
-    cap_rate_1_ref = extract_cell_ref(cap_rate_1_cell)
-    cap_rate_2_ref = extract_cell_ref(cap_rate_2_cell)
-    
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{worksheet.spreadsheet.id}/values:batchUpdate"
-    body = {
-        "valueInputOption": "RAW",
-        "data": [
-            {"range": f"{worksheet.title}!{price_1_ref}", "values": [[purchase_price_1]]},
-            {"range": f"{worksheet.title}!{price_2_ref}", "values": [[purchase_price_2]]},
-            {"range": f"{worksheet.title}!{cap_rate_1_ref}", "values": [[f"{exit_cap_rate_1}%"]]},
-            {"range": f"{worksheet.title}!{cap_rate_2_ref}", "values": [[f"{exit_cap_rate_2}%"]]},
-        ],
-    }
-    response = worksheet.spreadsheet.client.session.request("POST", url=url, json=body)
-    response.raise_for_status()
-    print(f"✅ [DEBUG] Updated sensitivity reference cells")
+    cap_1_ref = extract_cell_ref(cap_rate_1_cell)
+    cap_2_ref = extract_cell_ref(cap_rate_2_cell)
+
+    base_updates = [
+        {
+            "range": f"{sheet_title}!{price_1_ref}",
+            "values": [[purchase_price_1]],
+        },
+        {
+            "range": f"{sheet_title}!{price_2_ref}",
+            "values": [[purchase_price_2]],
+        },
+        {
+            "range": f"{sheet_title}!{cap_1_ref}",
+            "values": [[exit_cap_rate_1 / 100]],
+        },
+        {
+            "range": f"{sheet_title}!{cap_2_ref}",
+            "values": [[exit_cap_rate_2 / 100]],
+        },
+    ]
+    batch_update_values(base_updates)
+
+    def build_increment_data(start_ref, base_rate, rows=5, step=0.25):
+        start_row, start_col = a1_to_grid(start_ref)
+        data = []
+        for i in range(rows):
+            rate = (base_rate + i * step) / 100
+            cell = grid_to_a1(start_row + i, start_col)
+            data.append({
+                "range": f"{sheet_title}!{cell}",
+                "values": [[rate]]
+            })
+        return data
+
+    increment_data = (
+        build_increment_data(cap_1_ref, exit_cap_rate_1) +
+        build_increment_data(cap_2_ref, exit_cap_rate_2)
+    )
+    batch_update_values(increment_data)
+
+    def format_range(start_ref, rows=5):
+        r, c = a1_to_grid(start_ref)
+        return {
+            "sheetId": sheet_id,
+            "startRowIndex": r,
+            "endRowIndex": r + rows,
+            "startColumnIndex": c,
+            "endColumnIndex": c + 1,
+        }
+
+    format_requests = []
+
+    for ref in (cap_1_ref, cap_2_ref):
+        format_requests.append({
+            "repeatCell": {
+                "range": format_range(ref),
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "PERCENT",
+                            "pattern": "0.00%"
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        })
+
+    format_url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}:batchUpdate"
+    resp = client.session.post(
+        format_url,
+        json={"requests": format_requests}
+    )
+    resp.raise_for_status()
+    print("✅ Applied percentage formatting")
+
+def replace_exit_cap_text(worksheet):
+    old_text = "Exit Cap Rate on Multifamily"
+    new_text = "Exit Cap Rate"
+    try:
+        cells = worksheet.findall(old_text, in_column=None)
+        if not cells:
+            print(f"No cells found containing '{old_text}'")
+            return
+        updates = []
+        for cell in cells:
+            current_value = cell.value
+            if isinstance(current_value, str) and old_text in current_value:
+                new_value = current_value.replace(old_text, new_text)
+                updates.append({
+                    'range': f'{cell.address}',
+                    'values': [[new_value]]
+                })
+        if updates:
+            spreadsheet_id = worksheet.spreadsheet.id
+            sheet_title = worksheet.title
+            formatted_updates = [
+                {
+                    'range': f"'{sheet_title}'!{update['range']}",
+                    'values': update['values']
+                }
+                for update in updates
+            ]
+            url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values:batchUpdate"
+            body = {
+                "valueInputOption": "RAW",
+                "data": formatted_updates
+            }
+            response = worksheet.spreadsheet.client.session.post(url, json=body)
+            response.raise_for_status()
+            print(f"✅ Replaced '{old_text}' with '{new_text}' in {len(updates)} cell(s)")
+    except Exception as e:
+        print(f"⚠️ Error replacing text: {e}")
 
 def get_rent_roll_vacancy_formula_updates(rent_roll_ws, rental_assumptions_json, rental_growth_json,
                                           base_start_row=14, start_col_index=10, num_columns=131, units_start_row=7):
