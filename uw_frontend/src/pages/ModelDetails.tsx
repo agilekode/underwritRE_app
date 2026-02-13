@@ -631,7 +631,12 @@ const ModelDetails = () => {
         startPolling();
       } else if (!isCalculating && modelDetails.google_sheet_url) {
         let maxPrice = getFieldValue("Acquisition Price", "");
-        let minCapRate = getFieldValue("Multifamily Applied Exit Cap Rate", "");
+        let minCapRate;
+        if (modelDetails?.model_type.name === "Industrial") {
+          minCapRate = getFieldValue("Retail Applied Exit Cap Rate", "");
+        } else {
+          minCapRate = getFieldValue("Multifamily Applied Exit Cap Rate", "");
+        }
         handleGenerate(maxPrice, minCapRate);
       }
       return;
