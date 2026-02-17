@@ -1,8 +1,96 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Typography } from "@mui/material";
 import { NumberInput, PercentInput } from "./StandardInput";
 import { ContentCard } from "./StandardLayout";
 import { colors } from "../theme";
+
+// ── Static sub-components (defined OUTSIDE the main component to preserve
+//    stable React identity across re-renders and prevent focus loss) ──
+
+const rowShellSx = {
+  display: "flex",
+  alignItems: { xs: "flex-start", sm: "center" },
+  flexDirection: { xs: "column", sm: "row" },
+  justifyContent: "space-between",
+  gap: { xs: 0.5, sm: 2 },
+  py: 1,
+} as const;
+
+const listSx = {
+  "& > *:not(:last-child)": {
+    borderBottom: `1px solid ${colors.grey[300]}`,
+  }
+} as const;
+
+const SectionHeader = ({ title, description }: { title: string; description: string }) => (
+  <Box
+    sx={{
+      display: "flex",
+      flexDirection: { xs: "column", sm: "row" },
+      alignItems: { xs: "flex-start", sm: "baseline" },
+      gap: { xs: 0.5, sm: 2 },
+      mb: 1.5,
+    }}
+  >
+    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+      {title}
+    </Typography>
+    <Typography
+      variant="body2"
+      sx={{
+        color: colors.grey[600],
+        lineHeight: 1.4,
+        maxWidth: 520,
+      }}
+    >
+      {description}
+    </Typography>
+  </Box>
+);
+
+const InputRow = ({ label, control }: { label: string; control: React.ReactNode }) => (
+  <Box sx={rowShellSx}>
+    <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
+      {label}
+    </Typography>
+    <Box sx={{ minWidth: { sm: 160 }, width: { xs: "100%", sm: "auto" }, textAlign: { xs: "left", sm: "right" } }}>
+      {control}
+    </Box>
+  </Box>
+);
+
+const ValueRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
+  <Box sx={rowShellSx}>
+    <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
+      {label}
+    </Typography>
+    <Typography variant="body2" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+      {value}
+    </Typography>
+  </Box>
+);
+
+const MetricTile = ({ label, value, highlight = false }: { label: string; value: React.ReactNode; highlight?: boolean }) => (
+  <Box
+    sx={{
+      border: `1px solid ${colors.grey[300]}`,
+      borderRadius: 1,
+      px: 1.5,
+      py: 1,
+      backgroundColor: highlight ? colors.blueTint : colors.grey[50],
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    }}
+  >
+    <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
+      {label}
+    </Typography>
+    <Typography variant="body2" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+      {value}
+    </Typography>
+  </Box>
+);
 
 export default function ExitAssumptions({
   modelDetails,
@@ -81,113 +169,43 @@ export default function ExitAssumptions({
   const [rtExitMonth, setRtExitMonth] = useState<string>(String(getFieldValue(K.rtExitMonth, "60")));
   const [rtCapRate, setRtCapRate] = useState<string>(String(getFieldValue(K.rtCapRate, "8")));
   const [rtSelling, setRtSelling] = useState<string>(String(getFieldValue(K.rtSellingCosts, "3")));
+
+  // Track the last known model values so we only reset when they actually change
+  const lastModelValuesRef = useRef<string>("");
+  // Track whether the user is actively editing to prevent stale resets
+  const editingRef = useRef(false);
+
   useEffect(() => {
+    if (editingRef.current) return;
+
+    const snapshot = JSON.stringify([
+      getFieldValue(K.mfExitMonth, "60"),
+      getFieldValue(K.mfCapRate, "6"),
+      getFieldValue(K.mfSellingCosts, "3"),
+      getFieldValue(K.rtExitMonth, "60"),
+      getFieldValue(K.rtCapRate, "8"),
+      getFieldValue(K.rtSellingCosts, "3"),
+    ]);
+
+    if (snapshot === lastModelValuesRef.current) return;
+    lastModelValuesRef.current = snapshot;
+
     setMfExitMonth(String(getFieldValue(K.mfExitMonth, "60")));
     setMfCapRate(String(getFieldValue(K.mfCapRate, "6")));
     setMfSelling(String(getFieldValue(K.mfSellingCosts, "3")));
     setRtExitMonth(String(getFieldValue(K.rtExitMonth, "60")));
     setRtCapRate(String(getFieldValue(K.rtCapRate, "8")));
     setRtSelling(String(getFieldValue(K.rtSellingCosts, "3")));
-  }, [modelDetails, getFieldValue]);
+  }, [modelDetails]);
 
-  const commit = (fieldKey: string) => (value: number | string) => {
-    const v = typeof value === 'number' ? String(value) : value;
-    switch (fieldKey) {
-      case K.mfExitMonth: setMfExitMonth(v); break;
-      case K.mfCapRate: setMfCapRate(v); break;
-      case K.mfSellingCosts: setMfSelling(v); break;
-      case K.rtExitMonth: setRtExitMonth(v); break;
-      case K.rtCapRate: setRtCapRate(v); break;
-      case K.rtSellingCosts: setRtSelling(v); break;
-    }
+  const handleFocus = () => { editingRef.current = true; };
+  const handleEditBlur = (fieldKey: string, value: string) => {
+    const v = value;
     const id = getFieldId(fieldKey);
     handleFieldChange(id, fieldKey, v);
+    // Allow time for the committed value to propagate back through modelDetails
+    setTimeout(() => { editingRef.current = false; }, 500);
   };
-
-  const SectionHeader = ({ title, description }: { title: string; description: string }) => (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: { xs: "column", sm: "row" },
-        alignItems: { xs: "flex-start", sm: "baseline" },
-        gap: { xs: 0.5, sm: 2 },
-        mb: 1.5,
-      }}
-    >
-      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: colors.grey[900] }}>
-        {title}
-      </Typography>
-      <Typography
-        variant="body2"
-        sx={{
-          color: colors.grey[600],
-          lineHeight: 1.4,
-          maxWidth: 520,
-        }}
-      >
-        {description}
-      </Typography>
-    </Box>
-  );
-
-  const rowShellSx = {
-    display: "flex",
-    alignItems: { xs: "flex-start", sm: "center" },
-    flexDirection: { xs: "column", sm: "row" },
-    justifyContent: "space-between",
-    gap: { xs: 0.5, sm: 2 },
-    py: 1,
-  } as const;
-
-  const listSx = {
-    "& > *:not(:last-child)": {
-      borderBottom: `1px solid ${colors.grey[300]}`,
-    }
-  } as const;
-
-  const InputRow = ({ label, control }: { label: string; control: React.ReactNode }) => (
-    <Box sx={rowShellSx}>
-      <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
-        {label}
-      </Typography>
-      <Box sx={{ minWidth: { sm: 160 }, width: { xs: "100%", sm: "auto" }, textAlign: { xs: "left", sm: "right" } }}>
-        {control}
-      </Box>
-    </Box>
-  );
-
-  const ValueRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <Box sx={rowShellSx}>
-      <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
-        {label}
-      </Typography>
-      <Typography variant="body2" sx={{ fontWeight: 700, color: colors.grey[900] }}>
-        {value}
-      </Typography>
-    </Box>
-  );
-
-  const MetricTile = ({ label, value, highlight = false }: { label: string; value: React.ReactNode; highlight?: boolean }) => (
-    <Box
-      sx={{
-        border: `1px solid ${colors.grey[300]}`,
-        borderRadius: 1,
-        px: 1.5,
-        py: 1,
-        backgroundColor: highlight ? colors.blueTint : colors.grey[50],
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}
-    >
-      <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
-        {label}
-      </Typography>
-      <Typography variant="body2" sx={{ fontWeight: 700, color: colors.grey[900] }}>
-        {value}
-      </Typography>
-    </Box>
-  );
 
   const space_type =
     (modelDetails?.user_model_field_values || []).find((f: any) => {
@@ -208,8 +226,9 @@ export default function ExitAssumptions({
                   control={
                     <NumberInput
                       value={mfExitMonth}
+                      onFocus={handleFocus}
                       onChange={(e) => setMfExitMonth(e.target.value)}
-                      onBlur={() => commit(K.mfExitMonth)(mfExitMonth)}
+                      onBlur={() => handleEditBlur(K.mfExitMonth, mfExitMonth)}
                       suffix="months"
                       allowDecimals={false}
                       noCommas
@@ -223,8 +242,9 @@ export default function ExitAssumptions({
                   control={
                     <PercentInput
                       value={mfCapRate}
+                      onFocus={handleFocus}
                       onChange={(e) => setMfCapRate(e.target.value)}
-                      onBlur={() => commit(K.mfCapRate)(mfCapRate)}
+                      onBlur={() => handleEditBlur(K.mfCapRate, mfCapRate)}
                       fullWidth
                       inputProps={{ min: 0, max: 100, step: 0.01 }}
                     />
@@ -235,8 +255,9 @@ export default function ExitAssumptions({
                   control={
                     <PercentInput
                       value={mfSelling}
+                      onFocus={handleFocus}
                       onChange={(e) => setMfSelling(e.target.value)}
-                      onBlur={() => commit(K.mfSellingCosts)(mfSelling)}
+                      onBlur={() => handleEditBlur(K.mfSellingCosts, mfSelling)}
                       fullWidth
                       inputProps={{ min: 0, max: 100, step: 0.01 }}
                     />
@@ -288,8 +309,9 @@ export default function ExitAssumptions({
                   control={
                     <NumberInput
                       value={rtExitMonth}
+                      onFocus={handleFocus}
                       onChange={(e) => setRtExitMonth(e.target.value)}
-                      onBlur={() => commit(K.rtExitMonth)(rtExitMonth)}
+                      onBlur={() => handleEditBlur(K.rtExitMonth, rtExitMonth)}
                       suffix="months"
                       allowDecimals={false}
                       noCommas
@@ -303,8 +325,9 @@ export default function ExitAssumptions({
                   control={
                     <PercentInput
                       value={rtCapRate}
+                      onFocus={handleFocus}
                       onChange={(e) => setRtCapRate(e.target.value)}
-                      onBlur={() => commit(K.rtCapRate)(rtCapRate)}
+                      onBlur={() => handleEditBlur(K.rtCapRate, rtCapRate)}
                       fullWidth
                       inputProps={{ min: 0, max: 100, step: 0.01 }}
                     />
@@ -315,8 +338,9 @@ export default function ExitAssumptions({
                   control={
                     <PercentInput
                       value={rtSelling}
+                      onFocus={handleFocus}
                       onChange={(e) => setRtSelling(e.target.value)}
-                      onBlur={() => commit(K.rtSellingCosts)(rtSelling)}
+                      onBlur={() => handleEditBlur(K.rtSellingCosts, rtSelling)}
                       fullWidth
                       inputProps={{ min: 0, max: 100, step: 0.01 }}
                     />

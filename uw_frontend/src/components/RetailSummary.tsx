@@ -1,6 +1,7 @@
 import React from 'react';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { Button, Tooltip, Box, Typography } from '@mui/material';
+import { colors } from '../theme';
 
 interface RetailIncomeRow {
   id: string;
@@ -139,7 +140,7 @@ const RetailSummary: React.FC<{
       renderCell: (params) => {
         const row = params.row as RetailIncomeRow;
         const annualRent = Number(row.rent_per_square_foot_per_year || 0) * Number(row.square_feet || 0);
-        return <span style={{ color: '#888' }}>${annualRent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>;
+        return <span style={{ color: colors.grey[600] }}>${annualRent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>;
       },
     },
   ];
@@ -164,8 +165,8 @@ const RetailSummary: React.FC<{
       <div
         style={{
           padding: '16px 16px',
-          backgroundColor: 'transparent',
-          borderTop: '1px solid #e0e0e0',
+          backgroundColor: colors.grey[50],
+          borderTop: `1px solid ${colors.grey[300]}`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -182,13 +183,13 @@ const RetailSummary: React.FC<{
             <>
               {!showIndustrialColumns && (
                 <div
-                  style={{ textAlign: 'right', color: exceedsGross ? '#d32f2f' : '#555', fontWeight: exceedsGross ? 700 : 500 }}
+                  style={{ textAlign: 'right', color: exceedsGross ? colors.error : colors.grey[600], fontWeight: exceedsGross ? 700 : 500 }}
                 >
                   <strong>Combined SF:</strong> {combinedSqFt.toLocaleString()}
                 </div>
               )}
               <div
-                style={{ textAlign: 'right', color: exceedsGross ? '#d32f2f' : '#555', fontWeight: exceedsGross ? 700 : 500 }}
+                style={{ textAlign: 'right', color: exceedsGross ? colors.error : colors.grey[600], fontWeight: exceedsGross ? 700 : 500 }}
               >
                 <strong>Gross SF:</strong> {grossSqFtValue.toLocaleString()}
               </div>
@@ -233,38 +234,32 @@ const RetailSummary: React.FC<{
         getRowClassName={(params) => (params.indexRelativeToCurrentPage % 2 === 0 ? 'u-row-odd' : 'u-row-even')}
         sx={{
           minWidth: '1000px',
-          background: '#f9fbfe',
-          '& .MuiDataGrid-main': { background: '#f9fbfe' },
-          '& .MuiDataGrid-columnHeaders': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-          '& .MuiDataGrid-columnHeader': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-          '& .MuiDataGrid-columnHeaderTitleContainer': { background: '#f9fbfe' },
+          border: `2px solid ${colors.navy}`,
+          borderRadius: 1,
+          '& .MuiDataGrid-columnHeaders': {
+            backgroundColor: `${colors.navy} !important`,
+            backgroundImage: 'none !important',
+            color: '#fff',
+            minHeight: 52,
+            maxHeight: 52,
+          },
+          '& .MuiDataGrid-columnHeader': {
+            backgroundColor: `${colors.navy} !important`,
+            minHeight: 52,
+            maxHeight: 52,
+          },
           '& .MuiDataGrid-columnHeaderTitle': {
-            fontWeight: 700,
-            fontSize: 14,
+            color: '#fff',
+            fontWeight: 600,
+            fontSize: '0.875rem',
             fontFamily: 'inherit',
-            textTransform: 'none',
-            lineHeight: '52px',
           },
-          '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(0,0,0,0.06)', background: '#f9fbfe' },
-          '& .greyed-out-cell': { color: '#888' },
-          '& .u-editable-input': { border: 'none', borderBottom: '2px solid transparent', borderRadius: 0, background: 'transparent' },
-          '& .MuiDataGrid-row:hover .u-editable-input, & .u-editable-input:focus': { borderBottom: '2px solid #1976d2 !important' },
-          '& .MuiDataGrid-row': { background: '#f9fbfe' },
-          '& .u-row-even': { background: '#fafafa' },
-          '& .MuiDataGrid-row:hover': { backgroundColor: '#f5f5f5' },
-          '& .u-row-action': {
-            opacity: 0,
-            visibility: 'hidden',
-            pointerEvents: 'none',
-            transition: 'opacity 120ms ease',
-          },
-          '& .MuiDataGrid-row:hover .u-row-action, & .MuiDataGrid-cell:focus-within .u-row-action': {
-            opacity: 1,
-            visibility: 'visible',
-            pointerEvents: 'auto',
-          },
-          '& .MuiDataGrid-virtualScroller': { background: '#f9fbfe' },
-          '& .MuiDataGrid-footerContainer': { background: '#f9fbfe' },
+          '& .MuiDataGrid-columnSeparator': { color: 'rgba(255,255,255,0.35)' },
+          '& .MuiSvgIcon-root': { color: '#fff' },
+          '& .MuiDataGrid-withBorderColor': { borderColor: colors.navy },
+          '& .MuiDataGrid-cell': { borderBottom: `1px solid ${colors.grey[300]}`, fontSize: '0.875rem' },
+          '& .MuiDataGrid-row:hover': { backgroundColor: colors.grey[50] },
+          '& .MuiDataGrid-footerContainer': { backgroundColor: colors.grey[50] },
         }}
       />
       {/* Read-only Recovery Income */}
@@ -320,8 +315,8 @@ const RetailSummary: React.FC<{
           const totalAnnual = rows.reduce((s, x) => s + x.annual_recovery, 0);
 
           return (
-            <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 1 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 0.8fr 0.9fr 1fr 1fr', p: 1, bgcolor: '#f5f5f5', fontWeight: 700 }}>
+            <Box sx={{ border: `2px solid ${colors.navy}`, borderRadius: 1, fontSize: '0.875rem' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 0.8fr 0.9fr 1fr 1fr', p: 1, bgcolor: colors.navy, color: '#fff', fontWeight: 700 }}>
                 <div>Suite</div>
                 <div>Tenant</div>
                 <div>Rent Type</div>
@@ -330,7 +325,7 @@ const RetailSummary: React.FC<{
                 <div>Annual Recovery</div>
               </Box>
               {rows.map((r, i) => (
-                <Box key={`rec-${i}`} sx={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 0.8fr 0.9fr 1fr 1fr', p: 1, borderTop: '1px solid #eee' }}>
+                <Box key={`rec-${i}`} sx={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 0.8fr 0.9fr 1fr 1fr', p: 1, borderTop: `1px solid ${colors.grey[300]}` }}>
                   <div>{r.suite}</div>
                   <div>{r.tenant}</div>
                   <div>{r.rent_type}</div>
@@ -339,7 +334,7 @@ const RetailSummary: React.FC<{
                   <div>${r.annual_recovery.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
                 </Box>
               ))}
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 0.8fr 0.9fr 1fr 1fr', p: 1, borderTop: '1px solid #ddd', bgcolor: '#fafafa', fontWeight: 700 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 0.8fr 0.9fr 1fr 1fr', p: 1, borderTop: `1px solid ${colors.grey[300]}`, bgcolor: colors.grey[50], fontWeight: 700 }}>
                 <div>Total</div>
                 <div />
                 <div />
@@ -399,23 +394,23 @@ const RetailSummary: React.FC<{
           const money0 = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
           return (
-            <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 1 }}>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 160px 180px', p: 1, bgcolor: '#f5f5f5', fontWeight: 700 }}>
+            <Box sx={{ border: `2px solid ${colors.navy}`, borderRadius: 1, fontSize: '0.875rem' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 160px 180px', p: 1, bgcolor: colors.navy, color: '#fff', fontWeight: 700 }}>
                 <div />
                 <div style={{ textAlign: 'right' }}>Rent / SF / Yr.</div>
                 <div style={{ textAlign: 'right' }}>Annual</div>
               </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 160px 180px', p: 1, borderTop: '1px solid #eee' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 160px 180px', p: 1, borderTop: `1px solid ${colors.grey[300]}` }}>
                 <div style={{ fontWeight: 700 }}>Gross Potential {space_type} Income</div>
                 <div style={{ textAlign: 'right' }}>{money0(beforePerSf)}</div>
                 <div style={{ textAlign: 'right' }}>{money0(beforeAnnual)}</div>
               </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 160px 180px', p: 1, borderTop: '1px solid #eee' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 160px 180px', p: 1, borderTop: `1px solid ${colors.grey[300]}` }}>
                 <div>Less: Vacancy and Bad Debt</div>
                 <div style={{ textAlign: 'right' }}>{money(vacAnnualPerSf)}</div>
                 <div style={{ textAlign: 'right' }}>{money0(vacAnnual)}</div>
               </Box>
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 160px 180px', p: 1, borderTop: '1px solid #eee', bgcolor: '#fafafa' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 160px 180px', p: 1, borderTop: `1px solid ${colors.grey[300]}`, bgcolor: colors.grey[50] }}>
                 <div style={{ fontWeight: 700 }}>Gross Potential {space_type} Income</div>
                 <div style={{ textAlign: 'right' }}>{money0(afterPerSf)}</div>
                 <div style={{ textAlign: 'right' }}>{money0(afterAnnual)}</div>
@@ -517,7 +512,7 @@ const RetailSummary: React.FC<{
               flex: 1,
               minWidth: 110,
               sortable: false,
-              renderCell: (p) => <span style={{ color: '#555' }}>${Number(p.value || 0).toLocaleString()}</span>,
+              renderCell: (p) => <span style={{ color: colors.grey[600] }}>${Number(p.value || 0).toLocaleString()}</span>,
             },
           ];
 
@@ -535,7 +530,7 @@ const RetailSummary: React.FC<{
               getRowId={(r) => r.id}
               slots={{
                 footer: () => (
-                  <div style={{ padding: '16px', borderTop: '1px solid #e0e0e0', display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ padding: '16px', borderTop: `1px solid ${colors.grey[300]}`, backgroundColor: colors.grey[50], display: 'flex', justifyContent: 'flex-end' }}>
                     <div style={{ textAlign: 'right' }}>
                       <strong>Total {space_type} Expenses:</strong> ${Number(totalAnnual).toLocaleString()}
                     </div>
@@ -545,20 +540,32 @@ const RetailSummary: React.FC<{
               rowHeight={52}
               hideFooterSelectedRowCount
               sx={{
-                background: '#f9fbfe',
                 minWidth: '900px',
-                '& .MuiDataGrid-main': { background: '#f9fbfe' },
-                '& .MuiDataGrid-columnHeaders': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-                '& .MuiDataGrid-columnHeader': { background: '#f9fbfe', minHeight: 52, maxHeight: 52 },
-                '& .MuiDataGrid-columnHeaderTitleContainer': { background: '#f9fbfe' },
-                '& .MuiDataGrid-columnHeaderTitle': {
-                  fontWeight: 700,
-                  fontSize: 15,
-                  fontFamily: 'inherit',
-                  textTransform: 'none',
-                  lineHeight: '52px',
+                border: `2px solid ${colors.navy}`,
+                borderRadius: 1,
+                '& .MuiDataGrid-columnHeaders': {
+                  backgroundColor: `${colors.navy} !important`,
+                  backgroundImage: 'none !important',
+                  color: '#fff',
+                  minHeight: 52,
+                  maxHeight: 52,
                 },
-                '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(0,0,0,0.06)', background: '#f9fbfe' },
+                '& .MuiDataGrid-columnHeader': {
+                  backgroundColor: `${colors.navy} !important`,
+                  minHeight: 52,
+                  maxHeight: 52,
+                },
+                '& .MuiDataGrid-columnHeaderTitle': {
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  fontFamily: 'inherit',
+                },
+                '& .MuiDataGrid-columnSeparator': { color: 'rgba(255,255,255,0.35)' },
+                '& .MuiSvgIcon-root': { color: '#fff' },
+                '& .MuiDataGrid-withBorderColor': { borderColor: colors.navy },
+                '& .MuiDataGrid-cell': { borderBottom: `1px solid ${colors.grey[300]}`, fontSize: '0.875rem' },
+                '& .MuiDataGrid-row:hover': { backgroundColor: colors.grey[50] },
               }}
             />
           );
@@ -608,28 +615,28 @@ const RetailSummary: React.FC<{
           return (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
               {/* Inputs (read-only display) */}
-              <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden' }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', bgcolor: '#f5f7fa', borderBottom: '1px solid #e0e0e0', fontWeight: 700 }}>
+              <Box sx={{ border: `2px solid ${colors.navy}`, borderRadius: 1, overflow: 'hidden', fontSize: '0.875rem' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', bgcolor: colors.navy, color: '#fff', fontWeight: 700 }}>
                   <Box sx={{ p: 1 }}>Calculate the Leasing Cost Reserves</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>New Lease</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>Renewal Lease</Box>
                 </Box>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', borderBottom: '1px solid #e0e0e0' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', borderBottom: `1px solid ${colors.grey[300]}` }}>
                   <Box sx={{ p: 1, fontWeight: 600, color: 'text.primary' }}>Lease Renewal Probability</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>{newProb.toFixed(1)}%</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>{renewalProb.toFixed(1)}%</Box>
                 </Box>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', borderBottom: '1px solid #e0e0e0' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', borderBottom: `1px solid ${colors.grey[300]}` }}>
                   <Box sx={{ p: 1, fontWeight: 600, color: 'text.primary' }}>Average {space_type} Rent</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>${Number(rentNew).toLocaleString()} / SF</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>${Number(rentRen).toLocaleString()} / SF</Box>
                 </Box>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', borderBottom: '1px solid #e00e0' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', borderBottom: `1px solid ${colors.grey[300]}` }}>
                   <Box sx={{ p: 1, fontWeight: 600, color: 'text.primary' }}>Tenant Improvements</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>${Number(tiNewPSF).toLocaleString()} / SF</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>${Number(tiRenPSF).toLocaleString()} / SF</Box>
                 </Box>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', borderBottom: '1px solid #e0e0e0' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', borderBottom: `1px solid ${colors.grey[300]}` }}>
                   <Box sx={{ p: 1, fontWeight: 600, color: 'text.primary' }}>Leasing Commissions</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>{(commNewPct * 100).toFixed(2)}%</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>{(commRenPct * 100).toFixed(2)}%</Box>
@@ -641,8 +648,8 @@ const RetailSummary: React.FC<{
                 </Box>
               </Box>
               {/* Calculations */}
-              <Box sx={{ border: '1px solid #e0e0e0', borderRadius: 2, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', bgcolor: '#f5f7fa', borderBottom: '1px solid #e0e0e0' }}>
+              <Box sx={{ border: `2px solid ${colors.navy}`, borderRadius: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', fontSize: '0.875rem' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', bgcolor: colors.navy, color: '#fff' }}>
                   <Box sx={{ p: 1 }} />
                   <Box sx={{ p: 1, textAlign: 'right', fontWeight: 700 }}>New Lease</Box>
                   <Box sx={{ p: 1, textAlign: 'right', fontWeight: 700 }}>Renewal Lease</Box>
@@ -664,7 +671,7 @@ const RetailSummary: React.FC<{
                   <Box sx={{ p: 1, textAlign: 'right' }}>{money0(amortNew)}</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>{money0(amortRen)}</Box>
                 </Box>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', alignItems: 'center', background: '#e9ecef', py: 1, borderTop: '1px solid #e0e0e0' }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', alignItems: 'center', bgcolor: colors.grey[100], py: 1, borderTop: `1px solid ${colors.grey[300]}` }}>
                   <Box sx={{ p: 1, fontWeight: 600, color: 'text.primary' }}>Annual Leasing Cost Reserves</Box>
                   <Box sx={{ p: 1, textAlign: 'right', fontWeight: 700 }}>{`${money2(weightedPerSF)} / SF`}</Box>
                   <Box sx={{ p: 1, textAlign: 'right', fontWeight: 700 }}>{money0(weightedAnnual)}</Box>

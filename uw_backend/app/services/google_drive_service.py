@@ -803,13 +803,32 @@ def extract_tables_for_storage_batch(sheet_id, table_mapping_data, sheets_servic
     output.sort(key=lambda x: x.get("table_order") if isinstance(x.get("table_order"), int) else float("inf"))
     return output
 
-def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service):
+def _has_stale_values(variables):
+    """Check if any extracted variables contain signs of incomplete Google Sheets recalculation."""
+    STALE_INDICATORS = ['#REF!', '#N/A', '#VALUE!', '#ERROR!', '#NAME?', '#DIV/0!', '#NUM!', 'Loading...']
+    KEY_VARIABLES = ['Levered IRR', 'Levered MOIC']
+    for key in KEY_VARIABLES:
+        val = variables.get(key, '')
+        if not val or val in STALE_INDICATORS:
+            return True
+        # MOIC of exactly "0.00x" with a stale IRR is a sign of incomplete recalculation
+        if key == 'Levered MOIC' and val in ['0.00x', '0.00', '0']:
+            irr_val = variables.get('Levered IRR', '')
+            if not irr_val or irr_val in STALE_INDICATORS:
+                return True
+    for val in variables.values():
+        if isinstance(val, str) and val in STALE_INDICATORS:
+            return True
+    return False
+
+
+def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service, max_retries=3):
     """
     Extracts variables from a Google Sheet in batch, minimizing API calls for speed.
     - If a variable location is a literal, it's used directly.
     - If a variable location is a formula (starts with '=' and contains '!'), it's batched for a single API call.
+    - Retries with increasing delays if stale values (#REF!, empty key variables) are detected.
     """
-    time.sleep(1)
     variables = {}
     ranges = []
     location_map = {}
@@ -831,10 +850,23 @@ def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service):
         else:
             variables[name] = location  # Literal value
 
-    # Batch get all ranges in a single API call (already optimal)
-    if ranges:
-        # Google Sheets API allows up to 100 ranges per batchGet call.
-        # If more, split into chunks to avoid multiple roundtrips.
+    if not ranges:
+        return variables
+
+    # Retry loop: wait for Google Sheets to finish recalculating
+    # Delays: 5s initial, then 8s, 12s between retry attempts
+    RETRY_DELAYS = [5, 8, 12]
+    for attempt in range(max_retries + 1):
+        delay = RETRY_DELAYS[attempt] if attempt < len(RETRY_DELAYS) else RETRY_DELAYS[-1]
+        time.sleep(delay)
+        print(f"[extract_variables] Attempt {attempt + 1}/{max_retries + 1} (waited {delay}s)")
+
+        # Clear formula-based variables for this attempt
+        for loc in location_map:
+            for name in location_map[loc]:
+                variables.pop(name, None)
+
+        # Batch get all ranges
         CHUNK_SIZE = 100
         for i in range(0, len(ranges), CHUNK_SIZE):
             chunk = ranges[i:i+CHUNK_SIZE]
@@ -850,6 +882,18 @@ def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service):
                 value = values[0][0] if values and values[0] else ""
                 for name in names:
                     variables[name] = value
+
+        # Check if values look valid
+        if not _has_stale_values(variables):
+            print(f"[extract_variables] All values look valid on attempt {attempt + 1}")
+            break
+        elif attempt < max_retries:
+            stale = {k: v for k, v in variables.items() if isinstance(v, str) and (
+                v in ['#REF!', '#N/A', '#VALUE!', '#ERROR!', '#NAME?', '#DIV/0!', 'Loading...'] or v == ''
+            )}
+            print(f"[extract_variables] Stale values detected: {stale}. Retrying...")
+        else:
+            print(f"[extract_variables] WARNING: Still have stale values after {max_retries + 1} attempts. Proceeding with current values.")
 
     return variables
 
@@ -3205,13 +3249,26 @@ def get_expense_sum_row_to_noi_walk_payload(
     amenity_income_json,
     expenses_json,
     sheet_name="NOI Walk",
+    op_exp_sheet="Operating Expenses",
     start_col=5,
     num_months=132,
-    row_offset=30
+    row_offset=30,
+<<<<<<< Updated upstream
+=======
+    op_exp_sheet="Operating Expenses",
+>>>>>>> Stashed changes
+    op_exp_start_row=5
 ):
     start_sum_row = row_offset + len(amenity_income_json) + len(expenses_json)
     row_start = row_offset + len(amenity_income_json)
     row_end = row_start + len(expenses_json) - 1
+
+    # Column B label: reference the Operating Expenses sum row label
+    op_exp_sum_row = op_exp_start_row + len(expenses_json)
+    b_label_payload = {
+        "range": f"'{sheet_name}'!B{start_sum_row}",
+        "values": [[f"='{op_exp_sheet}'!B{op_exp_sum_row}"]]
+    }
 
     sum_row = []
     for j in range(num_months):
@@ -3224,10 +3281,30 @@ def get_expense_sum_row_to_noi_walk_payload(
     end_col_letter = rowcol_to_a1(1, start_col + num_months - 1).replace("1", "")
     range_str = f"'{sheet_name}'!{start_col_letter}{start_sum_row}:{end_col_letter}{start_sum_row}"
 
-    return {
-        "range": range_str,
-        "values": [sum_row]
+<<<<<<< Updated upstream
+    return [
+        b_label_payload,
+        {
+            "range": range_str,
+            "values": [sum_row]
+        }
+    ]
+=======
+    # Column B label: reference the "Total Operating Expenses" label from the Operating Expenses sheet
+    op_exp_sum_row = op_exp_start_row + len(expenses_json)
+    label_payload = {
+        "range": f"'{sheet_name}'!B{start_sum_row}",
+        "values": [[f"='{op_exp_sheet}'!B{op_exp_sum_row}"]]
     }
+>>>>>>> Stashed changes
+
+    return [
+        label_payload,
+        {
+            "range": range_str,
+            "values": [sum_row]
+        }
+    ]
 
 
 
@@ -3235,9 +3312,11 @@ def get_expense_sum_row_to_noi_walk_payload_industrial(
     amenity_income_json,
     expenses_json,
     sheet_name="NOI Walk",
+    op_exp_sheet="Retail Assumptions",
     start_col=5,
     num_months=132,
-    start_base_row=23
+    start_base_row=23,
+    ra_start_row=None
 ):
     """
     Build the SUM row directly under the expense rows that were just inserted
@@ -3252,6 +3331,16 @@ def get_expense_sum_row_to_noi_walk_payload_industrial(
     # Sum row sits immediately after the last expense row
     start_sum_row = row_end + 1
 
+    # Column B label: reference the expense summary row label from the source sheet
+    if ra_start_row is not None:
+        op_exp_sum_row = ra_start_row + len(expenses_json)
+    else:
+        op_exp_sum_row = 17 + len(amenity_income_json) * 2 + len(expenses_json)
+    b_label_payload = {
+        "range": f"'{sheet_name}'!B{start_sum_row}",
+        "values": [[f"='{op_exp_sheet}'!B{op_exp_sum_row}"]]
+    }
+
     sum_row = []
     for j in range(num_months):
         col_index = start_col + j
@@ -3263,10 +3352,29 @@ def get_expense_sum_row_to_noi_walk_payload_industrial(
     end_col_letter = rowcol_to_a1(1, start_col + num_months - 1).replace("1", "")
     range_str = f"'{sheet_name}'!{start_col_letter}{start_sum_row}:{end_col_letter}{start_sum_row}"
 
-    return {
-        "range": range_str,
-        "values": [sum_row]
+<<<<<<< Updated upstream
+    return [
+        b_label_payload,
+        {
+            "range": range_str,
+            "values": [sum_row]
+        }
+    ]
+=======
+    # Column B label: "Total Operating Expenses" written directly
+    label_payload = {
+        "range": f"'{sheet_name}'!B{start_sum_row}",
+        "values": [["Total Operating Expenses"]]
     }
+>>>>>>> Stashed changes
+
+    return [
+        label_payload,
+        {
+            "range": range_str,
+            "values": [sum_row]
+        }
+    ]
 
 def get_noi_expense_rows_insert_and_update(
     spreadsheet,
@@ -3533,12 +3641,12 @@ def get_restabilization_update_payload(model_variable_mapping, rental_assumption
     rental_start_row = 5
     end_row = rental_start_row + num_units - 1
 
-    # Vacate flags column (e.g., C) and Lease End column (e.g., F)
+    # Vacate flags column and Vacated month column
     # In the formatted Rental Assumptions table:
     # - Vacate Flag is column D
-    # - Vacated date is column H
+    # - Vacated month is column G (first Vacated column; H is the date)
     vacate_range    = f"'Rental Assumptions'!D{rental_start_row}:D{end_row}"
-    lease_end_range = f"'Rental Assumptions'!H{rental_start_row}:H{end_row}"
+    lease_end_range = f"'Rental Assumptions'!G{rental_start_row}:G{end_row}"
 
 
     # =IFERROR(IF(COUNTIF('Rental Assumptions'!D3:D4,1)=0,1,SUMPRODUCT(LARGE(('Rental Assumptions'!D3:D4=1)*'Rental Assumptions'!G3:G4,1))+Assumptions!G48+Assumptions!G47),0)
@@ -3556,6 +3664,71 @@ def get_restabilization_update_payload(model_variable_mapping, rental_assumption
         "range": f"{target_cell}",
         "values": [[formula]]
     }
+
+
+def get_assumptions_rental_reference_fix_payload(
+    assumptions_ws,
+    rental_assumptions_json,
+    rental_start_row=5,
+    sheet_name="Assumptions"
+):
+    """
+    Fixes stale 'Rental Assumptions' references in the Assumptions sheet.
+    Template formulas reference pre-formatted locations (e.g., $D$2) which become
+    stale after rows are inserted into the Rental Assumptions sheet.
+
+    After formatting, the Rental Assumptions totals row is at:
+      rental_start_row + len(rental_assumptions_json)
+    and the unit count is in column E (not D).
+    """
+    num_units = len(rental_assumptions_json or [])
+    if num_units == 0:
+        return []
+
+    rental_total_row = rental_start_row + num_units
+
+    # Read formulas from the Assumptions sheet column E (broad range to catch all)
+    try:
+        formulas = assumptions_ws.get('E1:E60', value_render_option='FORMULA')
+    except Exception as e:
+        print(f"[get_assumptions_rental_reference_fix_payload] Failed to read formulas: {e}")
+        return []
+
+    if not formulas:
+        return []
+
+    # Map of stale references to corrected references
+    # Template had unit count at D2; after formatting it's at E{total_row}
+    replacements = {
+        "'Rental Assumptions'!$D$2": f"'Rental Assumptions'!$E${rental_total_row}",
+        "'Rental Assumptions'!$H$2": f"'Rental Assumptions'!$I${rental_total_row}",
+        "'Rental Assumptions'!$I$2": f"'Rental Assumptions'!$J${rental_total_row}",
+        "'Rental Assumptions'!$J$2": f"'Rental Assumptions'!$K${rental_total_row}",
+    }
+
+    corrected_payloads = []
+    for i, row in enumerate(formulas):
+        cell_row = 1 + i  # E column, 1-indexed
+        cell_value = row[0] if row else ""
+
+        if not isinstance(cell_value, str) or not cell_value.startswith("="):
+            continue
+
+        new_value = cell_value
+        changed = False
+        for old_ref, new_ref in replacements.items():
+            if old_ref in new_value:
+                new_value = new_value.replace(old_ref, new_ref)
+                changed = True
+
+        if changed:
+            corrected_payloads.append({
+                "range": f"'{sheet_name}'!E{cell_row}",
+                "values": [[new_value]]
+            })
+            print(f"[get_assumptions_rental_reference_fix_payload] Fixed E{cell_row}: {cell_value} -> {new_value}")
+
+    return corrected_payloads
 
 
 def get_address_update_payload(address, model_variable_mapping, sheet_name="Assumptions"):
@@ -3616,6 +3789,55 @@ def get_in_place_rent_update_payload(model_variable_mapping, retail_income_json,
         "range": range_str,
         "values": [[insert_function]]
     }
+
+def get_cover_residential_update_payloads(rental_assumptions_json, amenity_income_json, rental_start_row=5, amenity_start_row=5, cover_sheet_name="Cover", rental_sheet_name="Rental Assumptions"):
+    """
+    Returns update payloads for cells that reference the Rental Assumptions
+    and Amenity Income totals rows on the Cover, Assumptions, and
+    Underwriting Assumptions tabs.
+
+    These formulas become stale when sheets are cleared and rebuilt with
+    inserted rows, so they must be rewritten dynamically.
+    """
+    payloads = []
+
+    if rental_assumptions_json and len(rental_assumptions_json) > 0:
+        rental_total_row = rental_start_row + len(rental_assumptions_json)
+
+        # Cover!I3 → Rental Assumptions unit count (column E of totals row)
+        payloads.append({
+            "range": f"'{cover_sheet_name}'!I3",
+            "values": [[f"='{rental_sheet_name}'!E{rental_total_row}"]]
+        })
+
+        # Cover!J3 → Rental Assumptions SF (column F of totals row)
+        payloads.append({
+            "range": f"'{cover_sheet_name}'!J3",
+            "values": [[f"='{rental_sheet_name}'!F{rental_total_row}"]]
+        })
+
+        # Assumptions!E19 → Purchase Price $/Unit = G19 / unit count
+        payloads.append({
+            "range": "'Assumptions'!E19",
+            "values": [[f"=+G19/'{rental_sheet_name}'!E{rental_total_row}"]]
+        })
+
+        # Underwriting Assumptions!K5 → Rental Assumptions Annual PF Rent total (column K of totals row)
+        payloads.append({
+            "range": "'Underwriting Assumptions'!K5",
+            "values": [[f"=+'{rental_sheet_name}'!K{rental_total_row}"]]
+        })
+
+    if amenity_income_json and len(amenity_income_json) > 0:
+        amenity_total_row = amenity_start_row + len(amenity_income_json)
+
+        # Underwriting Assumptions!K6 → Amenity Income annual total (column J of totals row)
+        payloads.append({
+            "range": "'Underwriting Assumptions'!K6",
+            "values": [[f"=+'Amenity Income'!J{amenity_total_row}"]]
+        })
+
+    return payloads
 
 def get_retail_assumptions_inserts(spreadsheet, retail_income, sheet_name="Retail Assumptions", start_row=6):
     """
@@ -5741,6 +5963,16 @@ def run_full_sheet_update(
     assumptions_ws = spreadsheet.worksheet("Assumptions")
     print("[run_full_sheet_update] Loaded worksheet: Assumptions")
 
+    # Fix stale Rental Assumptions references in the Assumptions sheet
+    # Must be read BEFORE row insertions (template formulas have absolute refs that don't shift)
+    if len(rental_assumptions_json) > 0:
+        assumptions_rental_ref_fix = get_assumptions_rental_reference_fix_payload(
+            assumptions_ws, rental_assumptions_json
+        )
+        print(f"[run_full_sheet_update] assumptions_rental_ref_fix ops:{len(assumptions_rental_ref_fix)}")
+    else:
+        assumptions_rental_ref_fix = []
+
     # === Insert & Value Data Preparation ===
     if (len(market_json) > 0 and len(rental_assumptions_json) > 0):
 
@@ -6027,6 +6259,9 @@ def run_full_sheet_update(
         property_name_update = []
 
 
+    # Update Cover tab I3/J3 and Assumptions E19 with dynamic references to Rental Assumptions totals row
+    cover_residential_update = get_cover_residential_update_payloads(rental_assumptions_json, amenity_income_json, rental_start_row=5, amenity_start_row=5)
+
     if industrial_model:
         # =COUNTA(UNIQUE('Retail Assumptions'!$B$6:B9))
         number_of_spaces_update = get_number_of_spaces_update_payload(model_variable_mapping, retail_income, sheet_name="Retail Assumptions")
@@ -6163,13 +6398,15 @@ def run_full_sheet_update(
         operating_expenses_update,
         operating_expenses_sum_row_update,
         *operating_expense_formula_updates,
-        expense_sum_row_to_noi_walk,
+        *expense_sum_row_to_noi_walk,
         ntm_formula_update,
         re_stabilization_update,
+        *assumptions_rental_ref_fix,
         address_update,
         property_name_update,
         number_of_spaces_update,
         in_place_rent_update,
+        *cover_residential_update,
         *([] if len(retail_income) == 0 else [retail_assumptions_update_payload]), 
         *([] if len(retail_income) == 0 else [retail_assumptions_summary_update_payload]), 
         *([] if len(retail_income) == 0 else [retail_assumptions_occ_update_payload]), 
@@ -6260,14 +6497,15 @@ def update_google_sheet_and_get_values(
         property_name=''
     )
 
-    # Step 3: Extract tables
+    # Step 3: Extract tables (wait for Google Sheets recalculation after run_full_sheet_update)
+    time.sleep(3)
     t4 = time.time()
     tables = extract_tables_for_storage_batch(copied_sheet_id, table_mapping_data, sheets_service)
     t5 = time.time()
     timings['extract_tables'] = t5 - t4
     print(f"✅ Extracted {len(tables)} tables in {timings['extract_tables']:.3f}s")
 
-    # Step 4: Extract variables
+    # Step 4: Extract variables (retry logic handles recalculation timing)
     t6 = time.time()
     variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service)
     t7 = time.time()
@@ -6528,11 +6766,8 @@ def update_google_sheet_and_get_values_final(
     sheets_service = build("sheets", "v4", credentials=creds)
 
     spreadsheet = gs_client.open_by_key(copied_sheet_id)
-    add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs",
-                                                     "Legal and Pre-Development Costs", 
-                                                     "Reserves",
-                                                     "Hard Costs"])
 
+    # Step 1: Fetch mapping sheets BEFORE any structural changes
     print("📊 Fetching mapping sheets...")
     result = sheets_service.spreadsheets().values().batchGet(
         spreadsheetId=copied_sheet_id,
@@ -6549,22 +6784,31 @@ def update_google_sheet_and_get_values_final(
     table_mapping_data = [dict(zip(table_mapping_values[0], row)) for row in table_mapping_values[1:]]
     variable_data = [dict(zip(variable_mapping_values[0], row)) for row in variable_mapping_values[1:]]
 
-    # Step 3: Extract tables
-    t4 = time.time()
-    tables = extract_tables_for_storage_batch(copied_sheet_id, table_mapping_data, sheets_service)
-    t5 = time.time()
-    timings['extract_tables'] = t5 - t4
-    print(f"✅ Extracted {len(tables)} tables in {timings['extract_tables']:.3f}s")
-
-    # Step 4: Extract variables
+    # Step 2: Extract variables BEFORE inserting blank rows/columns
+    # (the blank row/column insertion shifts cell references and temporarily breaks formulas)
     t6 = time.time()
     variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service)
     t7 = time.time()
     timings['extract_variables'] = t7 - t6
     print(f"📈 Extracted variables: {variables} in {timings['extract_variables']:.3f}s")
 
+    # Step 3: Insert blank rows/columns for expense table formatting
+    add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs",
+                                                     "Legal and Pre-Development Costs",
+                                                     "Reserves",
+                                                     "Hard Costs"])
+
+    # Step 4: Extract tables (after structural changes so tables have correct formatting)
+    # Wait for Google Sheets to recalculate after blank row/column insertion
+    time.sleep(3)
+    t4 = time.time()
+    tables = extract_tables_for_storage_batch(copied_sheet_id, table_mapping_data, sheets_service)
+    t5 = time.time()
+    timings['extract_tables'] = t5 - t4
+    print(f"✅ Extracted {len(tables)} tables in {timings['extract_tables']:.3f}s")
+
     # Total time
-    timings['total'] = t7 - t0
+    timings['total'] = t5 - t0
     print(f"⏱️ Total time: {timings['total']:.3f}s")
     print("🎯 Finished sheet generation and data extraction.")
     print(f"⏱️ Timings: {timings}")
@@ -6848,7 +7092,7 @@ def update_inputs(worksheet, row_val, col_val, purchase_price_cell="E62", exit_c
         "valueInputOption": "RAW",
         "data": [
             {"range": f"{worksheet.title}!{purchase_price_ref}", "values": [[clean_number(row_val)]]},
-            {"range": f"{worksheet.title}!{exit_cap_ref}", "values": [[f"{clean_number(col_val)}%"]]},
+            {"range": f"{worksheet.title}!{exit_cap_ref}", "values": [[clean_number(col_val) / 100]]},
         ],
     }
     response = worksheet.spreadsheet.client.session.request("POST", url=url, json=body)
@@ -7131,6 +7375,8 @@ def generate_sensitivity_analysis_tables(sheet_id, max_price, min_cap_rate):
         # Restore original inputs
         update_inputs(assumptions_ws, original_purchase_price, original_exit_cap, purchase_price_cell, exit_cap_cell)
         # print(f"✅ [DEBUG] Sensitivity analysis completed successfully")
+
+        replace_exit_cap_text(assumptions_ws)
         
         # Return the results with headers
         return {
@@ -7152,34 +7398,156 @@ def generate_sensitivity_analysis_tables(sheet_id, max_price, min_cap_rate):
         traceback.print_exc()
         raise e
 
-def update_sensitivity_reference_cells(worksheet, purchase_price_1, purchase_price_2, exit_cap_rate_1, exit_cap_rate_2,
-                                     price_1_cell, price_2_cell, cap_rate_1_cell, cap_rate_2_cell):
-    """Update the sensitivity reference cells with the calculated ranges"""
-    
-    # Extract cell references from full locations (remove sheet name if present)
+def update_sensitivity_reference_cells(worksheet, purchase_price_1, purchase_price_2, exit_cap_rate_1, exit_cap_rate_2, price_1_cell, price_2_cell, cap_rate_1_cell, cap_rate_2_cell):
+    client = worksheet.spreadsheet.client
+    sheet_id = worksheet.id
+    spreadsheet_id = worksheet.spreadsheet.id
+    sheet_title = worksheet.title
+
     def extract_cell_ref(location):
-        if '!' in location:
-            return location.split('!')[1]
-        return location
-    
+        return location.split("!")[-1]
+
+    def a1_to_grid(a1):
+        col = "".join(filter(str.isalpha, a1)).upper()
+        row = int("".join(filter(str.isdigit, a1)))
+        col_index = 0
+        for c in col:
+            col_index = col_index * 26 + (ord(c) - 64)
+        return row - 1, col_index - 1
+
+    def grid_to_a1(row, col):
+        col += 1
+        letters = ""
+        while col:
+            col, r = divmod(col - 1, 26)
+            letters = chr(65 + r) + letters
+        return f"{letters}{row + 1}"
+
+    def batch_update_values(data):
+        url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values:batchUpdate"
+        body = {
+            "valueInputOption": "RAW",
+            "data": data
+        }
+        resp = client.session.post(url, json=body)
+        resp.raise_for_status()
+
     price_1_ref = extract_cell_ref(price_1_cell)
     price_2_ref = extract_cell_ref(price_2_cell)
-    cap_rate_1_ref = extract_cell_ref(cap_rate_1_cell)
-    cap_rate_2_ref = extract_cell_ref(cap_rate_2_cell)
-    
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{worksheet.spreadsheet.id}/values:batchUpdate"
-    body = {
-        "valueInputOption": "RAW",
-        "data": [
-            {"range": f"{worksheet.title}!{price_1_ref}", "values": [[purchase_price_1]]},
-            {"range": f"{worksheet.title}!{price_2_ref}", "values": [[purchase_price_2]]},
-            {"range": f"{worksheet.title}!{cap_rate_1_ref}", "values": [[f"{exit_cap_rate_1}%"]]},
-            {"range": f"{worksheet.title}!{cap_rate_2_ref}", "values": [[f"{exit_cap_rate_2}%"]]},
-        ],
-    }
-    response = worksheet.spreadsheet.client.session.request("POST", url=url, json=body)
-    response.raise_for_status()
-    print(f"✅ [DEBUG] Updated sensitivity reference cells")
+    cap_1_ref = extract_cell_ref(cap_rate_1_cell)
+    cap_2_ref = extract_cell_ref(cap_rate_2_cell)
+
+    base_updates = [
+        {
+            "range": f"{sheet_title}!{price_1_ref}",
+            "values": [[purchase_price_1]],
+        },
+        {
+            "range": f"{sheet_title}!{price_2_ref}",
+            "values": [[purchase_price_2]],
+        },
+        {
+            "range": f"{sheet_title}!{cap_1_ref}",
+            "values": [[exit_cap_rate_1 / 100]],
+        },
+        {
+            "range": f"{sheet_title}!{cap_2_ref}",
+            "values": [[exit_cap_rate_2 / 100]],
+        },
+    ]
+    batch_update_values(base_updates)
+
+    def build_increment_data(start_ref, base_rate, rows=5, step=0.25):
+        start_row, start_col = a1_to_grid(start_ref)
+        data = []
+        for i in range(rows):
+            rate = (base_rate + i * step) / 100
+            cell = grid_to_a1(start_row + i, start_col)
+            data.append({
+                "range": f"{sheet_title}!{cell}",
+                "values": [[rate]]
+            })
+        return data
+
+    increment_data = (
+        build_increment_data(cap_1_ref, exit_cap_rate_1) +
+        build_increment_data(cap_2_ref, exit_cap_rate_2)
+    )
+    batch_update_values(increment_data)
+
+    def format_range(start_ref, rows=5):
+        r, c = a1_to_grid(start_ref)
+        return {
+            "sheetId": sheet_id,
+            "startRowIndex": r,
+            "endRowIndex": r + rows,
+            "startColumnIndex": c,
+            "endColumnIndex": c + 1,
+        }
+
+    format_requests = []
+
+    for ref in (cap_1_ref, cap_2_ref):
+        format_requests.append({
+            "repeatCell": {
+                "range": format_range(ref),
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "PERCENT",
+                            "pattern": "0.00%"
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        })
+
+    format_url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}:batchUpdate"
+    resp = client.session.post(
+        format_url,
+        json={"requests": format_requests}
+    )
+    resp.raise_for_status()
+    print("✅ Applied percentage formatting")
+
+def replace_exit_cap_text(worksheet):
+    old_text = "Exit Cap Rate on Multifamily"
+    new_text = "Exit Cap Rate"
+    try:
+        cells = worksheet.findall(old_text, in_column=None)
+        if not cells:
+            print(f"No cells found containing '{old_text}'")
+            return
+        updates = []
+        for cell in cells:
+            current_value = cell.value
+            if isinstance(current_value, str) and old_text in current_value:
+                new_value = current_value.replace(old_text, new_text)
+                updates.append({
+                    'range': f'{cell.address}',
+                    'values': [[new_value]]
+                })
+        if updates:
+            spreadsheet_id = worksheet.spreadsheet.id
+            sheet_title = worksheet.title
+            formatted_updates = [
+                {
+                    'range': f"'{sheet_title}'!{update['range']}",
+                    'values': update['values']
+                }
+                for update in updates
+            ]
+            url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values:batchUpdate"
+            body = {
+                "valueInputOption": "RAW",
+                "data": formatted_updates
+            }
+            response = worksheet.spreadsheet.client.session.post(url, json=body)
+            response.raise_for_status()
+            print(f"✅ Replaced '{old_text}' with '{new_text}' in {len(updates)} cell(s)")
+    except Exception as e:
+        print(f"⚠️ Error replacing text: {e}")
 
 def get_rent_roll_vacancy_formula_updates(rent_roll_ws, rental_assumptions_json, rental_growth_json,
                                           base_start_row=14, start_col_index=10, num_columns=131, units_start_row=7):

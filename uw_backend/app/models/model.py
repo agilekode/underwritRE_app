@@ -201,10 +201,11 @@ class ModelTag(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_model_id = Column(UUID(as_uuid=True), ForeignKey('user_models.id'), nullable=False)
     tag_name = Column(String, nullable=False)
+    tag_color = Column(String, nullable=True)
     status = Column(String, default='active')
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
-    
+
 # --- User-submitted Issues / Feedback ---
 class Issue(Base):
     __tablename__ = 'issues'

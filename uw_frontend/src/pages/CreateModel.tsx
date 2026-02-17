@@ -236,6 +236,35 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     isCreatingRef.current = isCreating;
   }, [isCreating]);
 
+  const clearGoogleSheetUrl = () => {
+    googleUrlRef.current = '';
+    (window as any).__generatedSheetUrl = '';
+    setModelDetails(prevDetails => ({
+      ...prevDetails,
+      google_sheet_url: ''
+    }));
+  };
+
+  const resolveGoogleSheetUrl = () => {
+    const cachedUrl = (window as any).__generatedSheetUrl;
+    const url = googleUrlRef.current || cachedUrl || modelDetails.google_sheet_url || '';
+    if (url && !googleUrlRef.current) {
+      googleUrlRef.current = url;
+    }
+    return url;
+  };
+
+  useEffect(() => {
+    const cachedUrl = (window as any).__generatedSheetUrl;
+    if (!modelDetails.google_sheet_url && cachedUrl) {
+      googleUrlRef.current = cachedUrl;
+      setModelDetails(prevDetails => ({
+        ...prevDetails,
+        google_sheet_url: cachedUrl
+      }));
+    }
+  }, [modelDetails.google_sheet_url]);
+
 
   useEffect(() => {
     if(!selectedModelTypeInfo){
@@ -247,7 +276,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
 
     if (selectedModelTypeInfo?.show_retail) {
       if(selectedModelTypeInfo?.show_rental_units) {
-        setOperatingExpenses(OperatingExpensesBasic);
+        setOperatingExpenses(prev => prev.length > 0 ? prev : OperatingExpensesBasic);
         if(!existingModel){
           setExpenses(ExpensesBasic);
         }
@@ -297,7 +326,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     } else {
 
       if(selectedModelTypeInfo?.show_rental_units) {
-        setOperatingExpenses(OperatingExpensesBasic);
+        setOperatingExpenses(prev => prev.length > 0 ? prev : OperatingExpensesBasic);
         if(!existingModel){
           setExpenses(ExpensesBasic);
         }
@@ -390,10 +419,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
       // Mark as fetched immediately using global flag
       (window as any).__modelDetailsFetchFlag.add(fetchKey);
 
-      setModelDetails(prevDetails => ({
-        ...prevDetails,
-        google_sheet_url: ''
-      }));
+      clearGoogleSheetUrl();
 
       // setIntroStepComplete(true);
       setModelCreationStarted(true);
@@ -463,10 +489,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
       handleCreateIntermediate();
     }
     else if (SECONDARY_STEPS.includes(current) && PRIMARY_STEPS.includes(next)) {
-      setModelDetails(prevDetails => ({
-        ...prevDetails,
-        google_sheet_url: ''
-      }));
+      clearGoogleSheetUrl();
       setLeveredIrr('');
       setLeveredMoic('');
       setVariables({});
@@ -493,10 +516,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
 
   const handleBack = () => {
     if (activeStep === steps.indexOf("Operating Expenses") + 1) {
-      setModelDetails(prevDetails => ({
-        ...prevDetails,
-        google_sheet_url: ''
-      }));
+      clearGoogleSheetUrl();
       setLeveredIrr('');
       setLeveredMoic('');
       setVariables({});
@@ -539,13 +559,18 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
   const handleUpdateExpenseTable = async (sheet_name: string) => {
 
     const token = await getAccessTokenSilently();
+    const sheetUrl = resolveGoogleSheetUrl();
+    if (!sheetUrl) {
+      console.error('Missing Google Sheet URL for expense update.');
+      return;
+    }
     const response = await fetch(BACKEND_URL + '/api/user_models_expense', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ sheet_name: sheet_name, expenses: expenses.filter((expense: any) => expense.type === sheet_name), google_sheet_url: modelDetails.google_sheet_url })
+      body: JSON.stringify({ sheet_name: sheet_name, expenses: expenses.filter((expense: any) => expense.type === sheet_name), google_sheet_url: sheetUrl })
     })
   }
 
@@ -982,10 +1007,8 @@ const isStepComplete = (step: number) => {
     const waitForGoogleSheetUrl = () => {
       return new Promise<void>((resolve, reject) => {
         const check = () => {
-          if (googleUrlRef.current || (window as any).__generatedSheetUrl) {
-            if (!googleUrlRef.current) {
-              googleUrlRef.current = (window as any).__generatedSheetUrl;
-            }
+          const sheetUrl = resolveGoogleSheetUrl();
+          if (sheetUrl) {
             resolve();
           } else if (waited >= maxWait) {
             reject(new Error("Timeout: google_sheet_url not set after 20 seconds"));
@@ -1002,7 +1025,7 @@ const isStepComplete = (step: number) => {
       await waitForGoogleSheetUrl();
       const token = await getAccessTokenSilently();
       const data = prepareDataForPostRequest();
-        data.google_sheet_url = googleUrlRef.current;
+      data.google_sheet_url = resolveGoogleSheetUrl();
 
       const response = await fetch(BACKEND_URL + '/api/user_models_intermediate', {
         method: 'POST',
@@ -1049,7 +1072,8 @@ const isStepComplete = (step: number) => {
     const waitForGoogleSheetUrlAndNotCreating = () => {
       return new Promise<void>((resolve, reject) => {
         const check = () => {
-          if (modelDetails.google_sheet_url && !isCreating) {
+          const sheetUrl = resolveGoogleSheetUrl();
+          if (sheetUrl && !isCreatingRef.current) {
             resolve();
           } else if (waited >= maxWait) {
             reject(new Error("Timeout: google_sheet_url not set or isCreating still true after 20 seconds"));
@@ -1073,6 +1097,7 @@ const isStepComplete = (step: number) => {
       setIsCreating(true);
       const token = await getAccessTokenSilently();
       const data = prepareDataForPostRequest();
+      data.google_sheet_url = resolveGoogleSheetUrl();
 
       const response = await fetch(BACKEND_URL + '/api/user_models_new_version', {
         method: 'POST',
@@ -1109,7 +1134,8 @@ const isStepComplete = (step: number) => {
     const waitForGoogleSheetUrlAndNotCreating = () => {
       return new Promise<void>((resolve, reject) => {
         const check = () => {
-          if (modelDetails.google_sheet_url && !isCreating) {
+          const sheetUrl = resolveGoogleSheetUrl();
+          if (sheetUrl && !isCreatingRef.current) {
             resolve();
           } else if (waited >= maxWait) {
             reject(new Error("Timeout: google_sheet_url not set or isCreating still true after 20 seconds"));
@@ -1128,6 +1154,7 @@ const isStepComplete = (step: number) => {
       setIsCreating(true);
       const token = await getAccessTokenSilently();
       const data = prepareDataForPostRequest();
+      data.google_sheet_url = resolveGoogleSheetUrl();
       const response = await fetch(BACKEND_URL + '/api/user_models', {
         method: 'POST',
         headers: {

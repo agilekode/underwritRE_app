@@ -667,9 +667,9 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           const formattedAdornment = adornment && adornment.startsWith('/') ? ` ${adornment}` : adornment;
           return (
             <span style={{ color: editable ? "inherit" : "#999" }}>
-              {preAdornment && <span style={{ color: "#888", marginRight: 2 }}>{preAdornment}</span>}
+              {preAdornment && <span style={{ color: "#888", marginRight: 4 }}>{preAdornment}</span>}
               {params.value}
-              {formattedAdornment && <span style={{ color: "#888", marginLeft: 2 }}>{formattedAdornment}</span>}
+              {formattedAdornment && <span style={{ color: "#888", marginLeft: 6 }}>{formattedAdornment}</span>}
             </span>
           );
         }
@@ -781,9 +781,9 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
             .reduce((sum, val) => (sum ?? 0) + Number(val), 0);
           return (
             <span style={{ color: editable ? "inherit" : "#999" }}>
-              {preAdornment && <span style={{ color: "#888", marginRight: 2 }}>{preAdornment}</span>}
+              {preAdornment && <span style={{ color: "#888", marginRight: 4 }}>{preAdornment}</span>}
               {(otherTotals ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              <span style={{ color: "#888", marginLeft: 2 }}>{adornment}</span>
+              <span style={{ color: "#888", marginLeft: 6 }}>{adornment}</span>
             </span>
           );
         }
@@ -851,11 +851,11 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           return (
             <span style={{ color: editable ? "inherit" : "#999" }}>
               {params.value}
-              {formattedAdornment && <span style={{ color: "#888", marginLeft: 2 }}>{formattedAdornment}</span>}
+              {formattedAdornment && <span style={{ color: "#888", marginLeft: 6 }}>{formattedAdornment}</span>}
             </span>
           );
         }
-        
+
       },
     },
     {

@@ -20,7 +20,7 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(amount);
 
 const formatCurrencySafe = (value: any) => {
-  if (value === undefined || value === null || value === "" || value === "N/A") return "—";
+  if (value === undefined || value === null || value === "" || value === "N/A") return "ï¿½";
   const num = Number(String(value).replace(/[^0-9.-]/g, ""));
   if (!Number.isFinite(num)) return String(value);
   return formatCurrency(num);
@@ -162,13 +162,13 @@ export default function RefinancingSection({
 
   const formatPercent = (val: any) => {
     const num = parseNumber(val, "");
-    if (num === "" || num === null || num === undefined) return "—";
+    if (num === "" || num === null || num === undefined) return "ï¿½";
     return `${num}%`;
   };
 
   const formatYears = (val: any) => {
     const num = parseNumber(val, "");
-    if (num === "" || num === null || num === undefined) return "—";
+    if (num === "" || num === null || num === undefined) return "ï¿½";
     return `${num} years`;
   };
 
@@ -219,7 +219,7 @@ export default function RefinancingSection({
                 description="Model refinancing options for your acquisition loan."
               />
 
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: modelRefinancing === "Yes" ? 'repeat(2, minmax(0, 1fr))' : '1fr' }, gap: 2 }}>
                 <Box>
                   <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
                     Model a refinancing?
@@ -235,22 +235,23 @@ export default function RefinancingSection({
                     </Select>
                   </FormControl>
                 </Box>
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                    Refinancing month
-                  </Typography>
-                  <NumberInput
-                    value={modelRefinancing === "Yes" ? refinancingMonth : ""}
-                    onChange={(value: number | string) => setRefinancingMonth(value)}
-                    placeholder="Enter month number"
-                    min={1}
-                    step={1}
-                    startAdornment={<InputAdornment position="start">Month</InputAdornment>}
-                    size="small"
-                    fullWidth
-                    disabled={modelRefinancing !== "Yes"}
-                  />
-                </Box>
+                {modelRefinancing === "Yes" && (
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                      Refinancing month
+                    </Typography>
+                    <NumberInput
+                      value={refinancingMonth}
+                      onChange={(value: number | string) => setRefinancingMonth(value)}
+                      placeholder="Enter month number"
+                      min={1}
+                      step={1}
+                      startAdornment={<InputAdornment position="start">Month</InputAdornment>}
+                      size="small"
+                      fullWidth
+                    />
+                  </Box>
+                )}
               </Box>
 
               {modelRefinancing === "Yes" && refiMonthNumber <= 0 && (
@@ -398,55 +399,57 @@ export default function RefinancingSection({
           )}
         </Box>
 
-        {/* RIGHT COLUMN: Summary */}
-        <Box
-          sx={{
-            flex: '0 0 32%',
-            minWidth: 0,
-            width: '100%',
-            position: { xs: 'static', lg: 'sticky' },
-            top: 20,
-            alignSelf: 'flex-start',
-          }}
-        >
-          <Card
-            elevation={0}
+        {/* RIGHT COLUMN: Summary (only shown when refinancing is selected) */}
+        {modelRefinancing === "Yes" && (
+          <Box
             sx={{
-              backgroundColor: colors.white,
-              border: `1px solid ${colors.grey[300]}`,
-              borderRadius: 2,
+              flex: '0 0 32%',
+              minWidth: 0,
+              width: '100%',
+              position: { xs: 'static', lg: 'sticky' },
+              top: 20,
+              alignSelf: 'flex-start',
             }}
           >
-            <CardContent sx={{ p: 3 }}>
-              <InlineHeader
-                title="Refinancing Summary"
-                description={showRefiInputs ? `Based on ${maxLoanMethod} calculation` : ""}
-              />
-
-              <Box sx={{ mb: 3 }}>
-                <InfoBox
-                  label="Max Refinance Loan"
-                  value={showRefiInputs ? formatCurrencySafe(maxLoanValue) : "—"}
-                  variant="primary"
+            <Card
+              elevation={0}
+              sx={{
+                backgroundColor: colors.white,
+                border: `1px solid ${colors.grey[300]}`,
+                borderRadius: 2,
+              }}
+            >
+              <CardContent sx={{ p: 3 }}>
+                <InlineHeader
+                  title="Refinancing Summary"
+                  description={showRefiInputs ? `Based on ${maxLoanMethod} calculation` : ""}
                 />
-              </Box>
 
-              {!showRefiInputs && (
-                <Typography variant="body2" color="text.secondary">
-                  Select "Yes" and enter a refinancing month to see loan calculations.
-                </Typography>
-              )}
-
-              {showRefiInputs && (
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, columnGap: 2, rowGap: 1.5 }}>
-                  {summaryMetrics.map((metric) => (
-                    <MetricRow key={metric.label} label={metric.label} value={metric.value} />
-                  ))}
+                <Box sx={{ mb: 3 }}>
+                  <InfoBox
+                    label="Max Refinance Loan"
+                    value={showRefiInputs ? formatCurrencySafe(maxLoanValue) : "ï¿½"}
+                    variant="primary"
+                  />
                 </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
+
+                {!showRefiInputs && (
+                  <Typography variant="body2" color="text.secondary">
+                    Enter a refinancing month to see loan calculations.
+                  </Typography>
+                )}
+
+                {showRefiInputs && (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, columnGap: 2, rowGap: 1.5 }}>
+                    {summaryMetrics.map((metric) => (
+                      <MetricRow key={metric.label} label={metric.label} value={metric.value} />
+                    ))}
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Box>
+        )}
       </Box>
     </Box>
   );
@@ -472,14 +475,20 @@ export function LtvCalculationColumn({ modelDetails, handleFieldChange, variable
     return field ? field.field_id : "";
   }, [modelDetails]);
 
-  const [appliedCapRate, setAppliedCapRate] = useState(getFieldValue("Applied Cap Rate for Valuation at Refi", 6));
-  const [ltvMax, setLtvMax] = useState(getFieldValue("LTV Max", 75));
+  const [appliedCapRate, setAppliedCapRate] = useState(String(getFieldValue("Applied Cap Rate for Valuation at Refi", 6)));
+  const [ltvMax, setLtvMax] = useState(String(getFieldValue("LTV Max", 75)));
 
   useEffect(() => {
-    handleFieldChange(getFieldId("Applied Cap Rate for Valuation at Refi"), "Applied Cap Rate for Valuation at Refi", appliedCapRate);
+    const num = parseFloat(appliedCapRate);
+    if (appliedCapRate !== "" && Number.isFinite(num)) {
+      handleFieldChange(getFieldId("Applied Cap Rate for Valuation at Refi"), "Applied Cap Rate for Valuation at Refi", num);
+    }
   }, [appliedCapRate]);
   useEffect(() => {
-    handleFieldChange(getFieldId("LTV Max"), "LTV Max", ltvMax);
+    const num = parseFloat(ltvMax);
+    if (ltvMax !== "" && Number.isFinite(num)) {
+      handleFieldChange(getFieldId("LTV Max"), "LTV Max", num);
+    }
   }, [ltvMax]);
 
   return (
@@ -499,10 +508,11 @@ export function LtvCalculationColumn({ modelDetails, handleFieldChange, variable
         >
           <TextField
             label="Applied Cap Rate for Valuation at Refi"
-            type="number"
+            type="text"
+            inputMode="decimal"
             className="no-spinner"
             value={appliedCapRate}
-            onChange={e => setAppliedCapRate(Number(e.target.value))}
+            onChange={e => setAppliedCapRate(e.target.value)}
             size="small"
             fullWidth
             InputProps={{
@@ -545,10 +555,11 @@ export function LtvCalculationColumn({ modelDetails, handleFieldChange, variable
           </Box>
           <TextField
             label="LTV Max"
-            type="number"
+            type="text"
+            inputMode="decimal"
             className="no-spinner"
             value={ltvMax}
-            onChange={e => setLtvMax(Number(e.target.value))}
+            onChange={e => setLtvMax(e.target.value)}
             size="small"
             fullWidth
             InputProps={{
@@ -561,7 +572,7 @@ export function LtvCalculationColumn({ modelDetails, handleFieldChange, variable
           <Typography fontWeight={900} fontSize="1.2rem">
             {variables && "Refi: LTV calculation" in variables
               ? formatCurrencySafe(variables["Refi: LTV calculation"])
-              : "—"}
+              : "ï¿½"}
           </Typography>
         </Box>
       </CardContent>
@@ -586,10 +597,13 @@ function DscrCalculationColumn({ modelDetails, handleFieldChange, variables, ref
     return field ? field.field_id : "";
   }, [modelDetails]);
 
-  const [minDscr, setMinDscr] = useState(getFieldValue("Minimum Debt-Service-Coverage Ratio", 1.25));
+  const [minDscr, setMinDscr] = useState(String(getFieldValue("Minimum Debt-Service-Coverage Ratio", 1.25)));
 
   useEffect(() => {
-    handleFieldChange(getFieldId("Minimum Debt-Service-Coverage Ratio"), "Minimum Debt-Service-Coverage Ratio", minDscr);
+    const num = parseFloat(minDscr);
+    if (minDscr !== "" && Number.isFinite(num)) {
+      handleFieldChange(getFieldId("Minimum Debt-Service-Coverage Ratio"), "Minimum Debt-Service-Coverage Ratio", num);
+    }
   }, [minDscr]);
 
   return (
@@ -608,10 +622,11 @@ function DscrCalculationColumn({ modelDetails, handleFieldChange, variables, ref
         >
           <TextField
             label="Minimum Debt-Service-Coverage Ratio"
-            type="number"
+            type="text"
+            inputMode="decimal"
             className="no-spinner"
             value={minDscr}
-            onChange={e => setMinDscr(Number(e.target.value))}
+            onChange={e => setMinDscr(e.target.value)}
             size="small"
             fullWidth
             InputProps={{
@@ -667,10 +682,13 @@ function DebtYieldMinColumn({ modelDetails, handleFieldChange, variables, refina
     return field ? field.field_id : "";
   }, [modelDetails]);
 
-  const [debtYieldMin, setDebtYieldMin] = useState(getFieldValue("Debt Yield Min", 8.75));
+  const [debtYieldMin, setDebtYieldMin] = useState(String(getFieldValue("Debt Yield Min", 8.75)));
 
   useEffect(() => {
-    handleFieldChange(getFieldId("Debt Yield Min"), "Debt Yield Min", debtYieldMin);
+    const num = parseFloat(debtYieldMin);
+    if (debtYieldMin !== "" && Number.isFinite(num)) {
+      handleFieldChange(getFieldId("Debt Yield Min"), "Debt Yield Min", num);
+    }
   }, [debtYieldMin]);
 
   return (
@@ -689,10 +707,11 @@ function DebtYieldMinColumn({ modelDetails, handleFieldChange, variables, refina
         >
           <TextField
             label="Debt Yield Min"
-            type="number"
+            type="text"
+            inputMode="decimal"
             className="no-spinner"
             value={debtYieldMin}
-            onChange={e => setDebtYieldMin(Number(e.target.value))}
+            onChange={e => setDebtYieldMin(e.target.value)}
             size="small"
             fullWidth
             InputProps={{

@@ -467,8 +467,8 @@ export const YearInput: React.FC<StandardInputProps> = ({
       suffix="years"
       rightAlign={rightAlign}
       inputProps={{
-        inputMode: 'numeric',
-        pattern: '[0-9]*',
+        inputMode: 'decimal',
+        pattern: '[0-9]*\\.?[0-9]*',
         min: 0,
         ...inputProps,
       }}

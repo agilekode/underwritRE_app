@@ -1,5 +1,7 @@
 export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://127.0.0.1:5000";
 
+export const APP_TOP_BAR_HEIGHT = 11; // 11 * 8px = 88px — matches sidebar logo section height
+
 export const ROW_HEIGHT = 52; // Example row height, adjust as needed
 export const HEADER_FOOTER_HEIGHT = 56 + 37; // Example header height, adjust as needed
 

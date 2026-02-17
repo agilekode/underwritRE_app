@@ -1,16 +1,18 @@
-import React from 'react';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Avatar, Typography, Divider, Button } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Avatar, Typography, Divider, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import HomeIcon from '@mui/icons-material/Home';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import PeopleIcon from '@mui/icons-material/People';
 import FeedbackIcon from '@mui/icons-material/Feedback';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useUser } from '../context/UserContext';
 import { colors } from '../theme';
 import { useLayout } from '../context/LayoutContext';
+import { BACKEND_URL } from '../utils/constants';
 
 const SIDEBAR_WIDTH = 240;
 
@@ -21,9 +23,11 @@ interface AppLayoutProps {
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth0();
+  const { logout, getAccessTokenSilently } = useAuth0();
   const { user } = useUser();
   const { hideMainSidebar } = useLayout();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState('');
   
   // Get admin emails from environment variable
   const adminEmails = process.env.REACT_APP_ADMIN_EMAILS?.split(',') || [];
@@ -44,9 +48,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   const bottomItems = [
     { label: 'Settings', icon: <SettingsIcon />, path: '/settings' },
-    ...(isAdmin ? [{ label: 'Admin', icon: <AdminPanelSettingsIcon />, path: '/admin/model-types' }] : []),
-    { label: 'Submit Feedback', icon: <FeedbackIcon />, path: '/feedback' },
+    ...(isAdmin ? [
+      { label: 'User Management', icon: <PeopleIcon />, path: '/admin/users' },
+      { label: 'Admin', icon: <AdminPanelSettingsIcon />, path: '/admin/model-types' },
+    ] : []),
   ];
+
+  const feedbackItem = { label: 'Submit Feedback', icon: <FeedbackIcon /> };
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -156,6 +164,31 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
               </ListItem>
             );
           })}
+          <ListItem disablePadding sx={{ mb: 0.5 }}>
+            <ListItemButton
+              onClick={() => setFeedbackOpen(true)}
+              sx={{
+                borderRadius: 1,
+                color: colors.white,
+                py: 1.5,
+                '&:hover': {
+                  bgcolor: 'rgba(255,255,255,0.08)',
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
+                {feedbackItem.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={feedbackItem.label}
+                primaryTypographyProps={{
+                  fontWeight: 500,
+                  fontSize: '0.875rem',
+                  color: colors.white,
+                }}
+              />
+            </ListItemButton>
+          </ListItem>
         </List>
 
         {/* User Profile Section */}
@@ -247,6 +280,55 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       >
         {children}
       </Box>
+
+      {/* Feedback Dialog */}
+      <Dialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Submit Feedback</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Please use this form to submit feedback, or explain any issue or question you may be having.
+          </Typography>
+          <TextField
+            value={feedbackMessage}
+            onChange={(e) => setFeedbackMessage(e.target.value)}
+            multiline
+            minRows={4}
+            fullWidth
+            placeholder="Describe your issue or question here..."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFeedbackOpen(false)}>Close</Button>
+          <Button
+            variant="contained"
+            onClick={async () => {
+              try {
+                const token = await getAccessTokenSilently();
+                await fetch(`${BACKEND_URL}/api/issues`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  credentials: 'include',
+                  body: JSON.stringify({
+                    page: location.pathname,
+                    subsection: '',
+                    issue: feedbackMessage || ''
+                  })
+                });
+              } catch (e) {
+                console.error('Failed to submit issue', e);
+              } finally {
+                setFeedbackOpen(false);
+                setFeedbackMessage('');
+              }
+            }}
+          >
+            Submit
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

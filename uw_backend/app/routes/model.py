@@ -1632,6 +1632,7 @@ def get_all_user_models():
             tags_data = [{
                 'id': str(t.id),
                 'tag_name': t.tag_name,
+                'tag_color': t.tag_color,
                 'status': t.status,
                 'created_at': t.created_at.isoformat() if getattr(t, 'created_at', None) else None,
                 'updated_at': t.updated_at.isoformat() if getattr(t, 'updated_at', None) else None,
@@ -1673,6 +1674,7 @@ def create_model_tag(user_model_id):
     try:
         data = request.get_json() or {}
         tag_name = (data.get('tag_name') or '').strip()
+        tag_color = (data.get('tag_color') or '').strip() or None
         status = (data.get('status') or 'active').strip() or 'active'
         if not tag_name:
             return jsonify({'error': 'tag_name is required'}), 400
@@ -1680,13 +1682,39 @@ def create_model_tag(user_model_id):
         user_model = session.query(UserModel).get(user_model_id)
         if not user_model:
             return jsonify({'error': 'User model not found'}), 404
-        tag = ModelTag(user_model_id=user_model.id, tag_name=tag_name, status=status)
+
+        # If no color provided, inherit from existing tags with same name for this user
+        if not tag_color:
+            existing = session.query(ModelTag.tag_color).join(
+                UserModel, ModelTag.user_model_id == UserModel.id
+            ).filter(
+                UserModel.user_id == user_model.user_id,
+                ModelTag.tag_name == tag_name,
+                ModelTag.tag_color.isnot(None),
+                ModelTag.status != 'removed'
+            ).first()
+            if existing and existing.tag_color:
+                tag_color = existing.tag_color
+
+        tag = ModelTag(user_model_id=user_model.id, tag_name=tag_name, tag_color=tag_color, status=status)
         session.add(tag)
+
+        # Propagate this color to all tags with the same name for this user
+        if tag_color:
+            session.query(ModelTag).filter(
+                ModelTag.user_model_id.in_(
+                    session.query(UserModel.id).filter(UserModel.user_id == user_model.user_id)
+                ),
+                ModelTag.tag_name == tag_name,
+                ModelTag.status != 'removed'
+            ).update({ModelTag.tag_color: tag_color}, synchronize_session='fetch')
+
         session.commit()
         return jsonify({
             'id': str(tag.id),
             'user_model_id': str(tag.user_model_id),
             'tag_name': tag.tag_name,
+            'tag_color': tag.tag_color,
             'status': tag.status,
             'created_at': tag.created_at.isoformat() if getattr(tag, 'created_at', None) else None,
             'updated_at': tag.updated_at.isoformat() if getattr(tag, 'updated_at', None) else None
@@ -1712,6 +1740,20 @@ def update_model_tag(tag_id):
             if not tn:
                 return jsonify({'error': 'tag_name cannot be empty'}), 400
             tag.tag_name = tn
+        if 'tag_color' in data:
+            tc = (data.get('tag_color') or '').strip() or None
+            tag.tag_color = tc
+            # Propagate color to all tags with the same name for this user
+            if tc:
+                user_model = session.query(UserModel).get(tag.user_model_id)
+                if user_model:
+                    session.query(ModelTag).filter(
+                        ModelTag.user_model_id.in_(
+                            session.query(UserModel.id).filter(UserModel.user_id == user_model.user_id)
+                        ),
+                        ModelTag.tag_name == tag.tag_name,
+                        ModelTag.status != 'removed'
+                    ).update({ModelTag.tag_color: tc}, synchronize_session='fetch')
         if 'status' in data:
             st = (data.get('status') or '').strip()
             if st:
@@ -1721,6 +1763,7 @@ def update_model_tag(tag_id):
             'id': str(tag.id),
             'user_model_id': str(tag.user_model_id),
             'tag_name': tag.tag_name,
+            'tag_color': tag.tag_color,
             'status': tag.status,
             'created_at': tag.created_at.isoformat() if getattr(tag, 'created_at', None) else None,
             'updated_at': tag.updated_at.isoformat() if getattr(tag, 'updated_at', None) else None

@@ -28,7 +28,7 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { pdf } from "@react-pdf/renderer";
 import PdfSummaryDocument from "../components/PdfSummaryDocument";
 import { DataGrid, GridPagination } from "@mui/x-data-grid";
-import { BACKEND_URL } from "../utils/constants";
+import { BACKEND_URL, APP_TOP_BAR_HEIGHT } from "../utils/constants";
 import { colors } from "../theme";
 import SensitivityTable from "../components/SensitivityTable";
 import { NumberInput } from "../components/NumberInput";
@@ -631,7 +631,12 @@ const ModelDetails = () => {
         startPolling();
       } else if (!isCalculating && modelDetails.google_sheet_url) {
         let maxPrice = getFieldValue("Acquisition Price", "");
-        let minCapRate = getFieldValue("Multifamily Applied Exit Cap Rate", "");
+        let minCapRate;
+        if (modelDetails?.model_type.name === "Industrial") {
+          minCapRate = getFieldValue("Retail Applied Exit Cap Rate", "");
+        } else {
+          minCapRate = getFieldValue("Multifamily Applied Exit Cap Rate", "");
+        }
         handleGenerate(maxPrice, minCapRate);
       }
       return;
@@ -1063,8 +1068,8 @@ const ModelDetails = () => {
     <div
       style={{
         padding: "8px 16px",
-        backgroundColor: "#f5f5f5",
-        borderTop: "1px solid #e0e0e0",
+        backgroundColor: colors.grey[50],
+        borderTop: `1px solid ${colors.grey[300]}`,
         display: "flex",
         justifyContent: "flex-end",
         alignItems: "center",
@@ -1210,6 +1215,14 @@ const ModelDetails = () => {
       return true;
     });
 
+    // Helper: parse rgb() and compute luminance for color normalization
+    const parseBgLuminance = (bg: string | undefined): number | null => {
+      if (!bg) return null;
+      const m = bg.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/);
+      if (!m) return null;
+      return 0.299 * Number(m[1]) + 0.587 * Number(m[2]) + 0.114 * Number(m[3]);
+    };
+
     return filteredRowIndices.map((ri) => {
       const row = data[ri] || [];
       const isTotalRow = row.some(c => typeof c === 'string' && (c.trim() === 'Total Sources' || c.trim() === 'Total Uses'));
@@ -1220,18 +1233,35 @@ const ModelDetails = () => {
           const cell = (data[ri] || [])[ci];
           const styleStr = (styles[ri] || [])[ci];
           const inlineStyle = styleStr ? styleStringToObject(styleStr) : {};
+
+          // Normalize backend colors to site design system
+          const lum = parseBgLuminance(inlineStyle.backgroundColor);
+          const colorOverrides: Record<string, string> = {};
+          if (lum !== null && lum < 140) {
+            // Dark header row → force to site navy
+            colorOverrides.backgroundColor = colors.navy;
+            colorOverrides.color = '#fff';
+          } else if (lum !== null && lum >= 200 && lum < 245) {
+            // Light grey/subtotal row → normalize
+            colorOverrides.backgroundColor = colors.grey[50];
+          }
+
           return (
             <td
               key={ci}
               style={{
                 padding: "8px 12px",
-                borderBottom: "1px solid #e0e0e0",
+                borderBottom: `1px solid ${colors.grey[300]}`,
                 height: 18,
                 verticalAlign: "middle",
-            // fontSize: '1.2rem',
-            textAlign: ci === keptColIndices[0] ? 'left' : 'right',
-                  ...(isTotalRow ? { borderTop: "2px solid #333", fontWeight: 'bold' } : {}),
-            ...(inlineStyle as any),
+                fontFamily: 'inherit',
+                fontSize: '0.875rem',
+                textAlign: ci === keptColIndices[0] ? 'left' : 'right',
+                // First column (labels) gets a fixed width; remaining columns share equally via table-layout: fixed
+                ...(ci === keptColIndices[0] ? { width: 250 } : {}),
+                ...(isTotalRow ? { borderTop: `2px solid ${colors.navy}`, fontWeight: 'bold' } : {}),
+                ...(inlineStyle as any),
+                ...colorOverrides,
                 maxWidth: maxWidth,
               }}
             >
@@ -1275,302 +1305,265 @@ const ModelDetails = () => {
           padding: 0,
         }}
       >
+        {/* Top navy bar — matches sidebar logo height */}
         <Box
           sx={{
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
+            alignItems: "center",
+            gap: 2,
+            px: 3,
+            height: `${APP_TOP_BAR_HEIGHT * 8}px`,
+            backgroundColor: colors.navy,
+            color: "#fff",
           }}
         >
-          <Card
-            sx={{
-              flexGrow: 1,
-              position: "relative",
-              backgroundColor: colors.navy,
-              borderRadius: 0,
-              color: "#fff",
-            }}
-          >
-            <CardContent sx={{ position: "relative", pb: 0, minHeight: "160px" }}>
-              {/* Top right: Edit/Download buttons */}
-              <Box
-                sx={{
-                  position: "absolute",
-                  top: 16,
-                  right: 16,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "flex-end",
-                  gap: 1,
-                  zIndex: 2,
-                }}
-              >
-                {/* Edit Model Button */}
-                <Tooltip title="Edit Model">
-                  <IconButton
-                    color="primary"
-                    size="small"
-                    disabled={downloadingPDF || downloading || isCalculating}
-                    sx={{
-                      backgroundColor: "primary.main",
-                      color: "#fff",
-                      "&:hover": { backgroundColor: "primary.dark" },
-                      "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
-                    }}
-                    onClick={() => {
-                      navigate(`/edit-model/${modelDetails.version_id}`);
-                    }}
-                  >
-                    <EditIcon />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Download PDF Summary">
-                  <IconButton
-                    color="primary"
-                    size="small"
-                    sx={{
-                      backgroundColor: "primary.main",
-                      color: "#fff",
-                      "&:hover": { backgroundColor: "primary.dark" },
-                      "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
-                    }}
-                    onClick={() => setDownloadOptionsOpen(true)}
-                    disabled={downloadingPDF || downloading || isCalculating}
-                  >
-                    <PictureAsPdfIcon />
-                  </IconButton>
-                </Tooltip>
-
-                <Dialog open={downloadOptionsOpen} onClose={() => setDownloadOptionsOpen(false)} maxWidth="sm" fullWidth>
-                  <DialogTitle sx={{ fontWeight: 800, bgcolor: 'grey.50', borderBottom: '1px solid #e5e7eb' }}>Download Options</DialogTitle>
-                  <DialogContent>
-                    <FormGroup>
-                      {pdfOrder.map((key) => {
-                        if (!key) return null;
-                        // Skip arrows for Company Info/Logo (not part of order)
-                        if (key === "Include Company Info" || key === "Include Company Logo") return null;
-                        const disabled =
-                          key === "Property Images"
-                            ? (!Array.isArray(pictures) || pictures.length === 0)
-                            : key === "Include Notes"
-                              ? !(Array.isArray(notes) && notes.length > 1)
-                              : false;
-                        return (
-                          <Box
-                            key={`opt-${key}`}
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              borderBottom: '1px solid #f1f5f9',
-                              py: 0.5,
-                              bgcolor: dragKey === key ? 'rgba(25,118,210,0.06)' : 'transparent'
-                            }}
-                            onDragOver={handleDragOver}
-                            onDrop={handleDropOn(key)}
-                          >
-                      <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={!!pdfOptions[key]}
-                                  onChange={() => togglePdfOption(key)}
-                                  disabled={disabled}
-                                />
-                              }
-                              label={key}
-                      />
-                            <Box
-                              sx={{ display: 'flex', alignItems: 'center', pr: 1, color: 'text.secondary', cursor: 'grab' }}
-                              draggable
-                              onDragStart={handleDragStart(key)}
-                              onDragEnd={handleDragEnd}
-                              title="Drag to reorder"
-                            >
-                              <DragIndicatorIcon fontSize="small" />
-                            </Box>
-                          </Box>
-                        );
-                      })}
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={!!pdfOptions["Include Company Info"] && hasCompanyInfo}
-                            onChange={() => togglePdfOption("Include Company Info")}
-                            disabled={!hasCompanyInfo}
-                          />
-                        }
-                        label="Include Company Info"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={!!pdfOptions["Include Company Logo"] && hasCompanyLogo}
-                            onChange={() => togglePdfOption("Include Company Logo")}
-                            disabled={!hasCompanyLogo}
-                          />
-                        }
-                        label="Include Company Logo"
-                        />
-                      {(!companyInfo || (!companyInfo.company_name && !companyInfo.company_email && !companyInfo.company_phone_number)) && (
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                          Company info not set. Please set in <a href="/settings">/settings</a>.
-                        </Typography>
-                      )}
-                      {(!companyInfo || !companyInfo.company_logo_url) && (
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                          Company logo not set. Please set in <a href="/settings">/settings</a>.
-                        </Typography>
-                      )}
-                    </FormGroup>
-                  </DialogContent>
-                  <DialogActions>
-                    <Button onClick={() => setDownloadOptionsOpen(false)}>Cancel</Button>
-                    <Button variant="contained" onClick={handleDownloadPdf} disabled={downloadingPDF}>
-                      {downloadingPDF ? "Preparing..." : "Download"}
-                    </Button>
-                  </DialogActions>
-                </Dialog>
-
-                {/* Download Worksheet Button */}
-                <Tooltip title={
-                  modelDetails.sensitivity_tables && isCalculating
-                    ? "Generating..."
-                    : downloading
-                    ? "Downloading..."
-                    : "Download Worksheet"
-                }>
-                  <span>
-                    <IconButton
-                      color="primary"
-                      size="small"
-                      sx={{
-                        backgroundColor: "primary.main",
-                        color: "#fff",
-                        "&:hover": { backgroundColor: "primary.dark" },
-                        "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
-                        opacity: downloading ? 0.7 : 1,
-                      }}
-                      onClick={() =>
-                        downloadWorksheet(getAccessTokenSilently, modelDetails)
-                      }
-                      disabled={downloadingPDF || downloading || isCalculating}
-                    >
-                      {downloading ? (
-                        <span
-                          style={{
-                            width: 18,
-                            height: 18,
-                            border: "2px solid #fff",
-                            borderTop: `2px solid ${colors.blue}`,
-                            borderRadius: "50%",
-                            display: "inline-block",
-                            animation: "spin 1s linear infinite",
-                          }}
-                        />
-                      ) : (
-                        <GridOnIcon />
-                      )}
-                    </IconButton>
-                  </span>
-                </Tooltip>
-                {/* Spinner keyframes */}
-                <style>
-                  {`
-                    @keyframes spin {
-                      0% { transform: rotate(0deg);}
-                      100% { transform: rotate(360deg);}
-                    }
-                  `}
-                </style>
-
-              </Box>
-              <Box sx={{ display: "flex", gap: 2 }}>
-                {/* Empty for spacing/alignment */}
-              </Box>
+          {/* Left: Model name + address + model type */}
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="h5"
+              sx={{ fontWeight: 700, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+            >
+              {modelDetails.name}
+            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.25 }}>
               <Typography
-                variant="h4"
-                sx={{ fontWeight: 700, maxWidth: "calc(100% - 180px)", color: "#fff" }}
-              >
-                {modelDetails.name}
-              </Typography>
-              <Typography
-                variant="subtitle1"
-                sx={{ fontSize: "1rem", fontWeight: 500, mb: 1, mt: 1, color: "#fff" }}
+                variant="body2"
+                sx={{ color: "rgba(255,255,255,0.8)", whiteSpace: "nowrap" }}
               >
                 {modelDetails.street_address}, {modelDetails.city},{" "}
                 {modelDetails.state}, {modelDetails.zip_code}
               </Typography>
-              <Box sx={{ position: "absolute", left: 16, bottom: 16, zIndex: 1 }}>
-                <Typography
-                  variant="subtitle1"
-                  sx={{
-                    fontSize: "1rem",
-                    color: "#eee",
-                    fontWeight: 700,
-                    backgroundColor: "rgba(255, 255, 255, 0.1)",
-                    p: 1,
-                    borderRadius: 1,
-                    width: "fit-content",
-                    minWidth: 0,
-                  }}
-                >
-                  Model Type: {modelDetails.model_type.name}
-                </Typography>
-              </Box>
-              {/* <Typography variant="subtitle1" sx={{ fontSize: '1rem' }}>
-                <span style={{ fontWeight: 500, marginRight: 8 }}>Leveraged IRR:</span>
-                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#1976d2' }}>
-                  {modelDetails.levered_irr || 'N/A'}
-                </span>
-              </Typography> */}
-              {/* <Typography variant="subtitle1" sx={{ fontSize: '1rem' }}>
-                <span style={{ fontWeight: 500, marginRight: 8 }}>Leveraged MOIC:</span>
-                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#1976d2' }}>
-                  {modelDetails.levered_moic || 'N/A'}
-                </span>
-              </Typography> */}
-              {/* Version Dropdown moved to bottom right */}
-              {modelDetails.versions && modelDetails.versions.length > 1 && (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    right: 16,
-                    bottom: 24,
-                    zIndex: 2,
-                  }}
-                >
-                  <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <Select
-                      value={selectedVersion}
-                      onChange={handleVersionChange}
-                      displayEmpty
-                      size="small"
-                      sx={{
-                        backgroundColor: "#fff",
-                        fontSize: "0.875rem",
-                        fontWeight: 500,
-                        height: 36,
-                        ".MuiSelect-select": {
-                          py: 0.5,
-                          px: 1.5,
-                        },
-                      }}
-                    >
-                      {modelDetails.versions.map((version: any) => (
-                        <MenuItem
-                          key={version.version_id}
-                          value={version.version_id}
-                        >
-                          Version {version.version}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+              {modelDetails.model_type && (
+                <Box sx={{
+                  px: 1.25,
+                  py: 0.25,
+                  borderRadius: 1,
+                  border: "1px solid rgba(255,255,255,0.25)",
+                  backgroundColor: "rgba(255,255,255,0.1)",
+                  flexShrink: 0,
+                }}>
+                  <Typography variant="caption" sx={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.9)", fontWeight: 500, whiteSpace: "nowrap" }}>
+                    {modelDetails.model_type.name}
+                  </Typography>
                 </Box>
               )}
-            </CardContent>
-          </Card>
+            </Box>
+          </Box>
+
+          {/* Right: Version dropdown + action buttons in a row */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+            {modelDetails.versions && modelDetails.versions.length > 1 && (
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <Select
+                  value={selectedVersion}
+                  onChange={handleVersionChange}
+                  displayEmpty
+                  size="small"
+                  sx={{
+                    backgroundColor: "#fff",
+                    fontSize: "0.875rem",
+                    fontWeight: 500,
+                    height: 36,
+                    ".MuiSelect-select": {
+                      py: 0.5,
+                      px: 1.5,
+                    },
+                  }}
+                >
+                  {modelDetails.versions.map((version: any) => (
+                    <MenuItem
+                      key={version.version_id}
+                      value={version.version_id}
+                    >
+                      Version {version.version}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            <Tooltip title="Edit Model">
+              <IconButton
+                size="small"
+                disabled={downloadingPDF || downloading || isCalculating}
+                sx={{
+                  backgroundColor: colors.blue,
+                  color: "#fff",
+                  width: 36,
+                  height: 36,
+                  "&:hover": { backgroundColor: colors.blueDark },
+                  "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
+                }}
+                onClick={() => {
+                  navigate(`/edit-model/${modelDetails.version_id}`);
+                }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Download PDF Summary">
+              <IconButton
+                size="small"
+                sx={{
+                  backgroundColor: colors.blue,
+                  color: "#fff",
+                  width: 36,
+                  height: 36,
+                  "&:hover": { backgroundColor: colors.blueDark },
+                  "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
+                }}
+                onClick={() => setDownloadOptionsOpen(true)}
+                disabled={downloadingPDF || downloading || isCalculating}
+              >
+                <PictureAsPdfIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title={
+              modelDetails.sensitivity_tables && isCalculating
+                ? "Generating..."
+                : downloading
+                ? "Downloading..."
+                : "Download Worksheet"
+            }>
+              <span>
+                <IconButton
+                  size="small"
+                  sx={{
+                    backgroundColor: colors.blue,
+                    color: "#fff",
+                    width: 36,
+                    height: 36,
+                    "&:hover": { backgroundColor: colors.blueDark },
+                    "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
+                    opacity: downloading ? 0.7 : 1,
+                  }}
+                  onClick={() =>
+                    downloadWorksheet(getAccessTokenSilently, modelDetails)
+                  }
+                  disabled={downloadingPDF || downloading || isCalculating}
+                >
+                  {downloading ? (
+                    <span
+                      style={{
+                        width: 18,
+                        height: 18,
+                        border: "2px solid #fff",
+                        borderTop: `2px solid ${colors.blue}`,
+                        borderRadius: "50%",
+                        display: "inline-block",
+                        animation: "spin 1s linear infinite",
+                      }}
+                    />
+                  ) : (
+                    <GridOnIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Box>
+
+          {/* Spinner keyframes */}
+          <style>
+            {`
+              @keyframes spin {
+                0% { transform: rotate(0deg);}
+                100% { transform: rotate(360deg);}
+              }
+            `}
+          </style>
         </Box>
+
+        {/* Download Options Dialog — kept outside the bar */}
+        <Dialog open={downloadOptionsOpen} onClose={() => setDownloadOptionsOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ fontWeight: 800, bgcolor: 'grey.50', borderBottom: '1px solid #e5e7eb' }}>Download Options</DialogTitle>
+          <DialogContent>
+            <FormGroup>
+              {pdfOrder.map((key) => {
+                if (!key) return null;
+                if (key === "Include Company Info" || key === "Include Company Logo") return null;
+                const disabled =
+                  key === "Property Images"
+                    ? (!Array.isArray(pictures) || pictures.length === 0)
+                    : key === "Include Notes"
+                      ? !(Array.isArray(notes) && notes.length > 1)
+                      : false;
+                return (
+                  <Box
+                    key={`opt-${key}`}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      borderBottom: '1px solid #f1f5f9',
+                      py: 0.5,
+                      bgcolor: dragKey === key ? 'rgba(25,118,210,0.06)' : 'transparent'
+                    }}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDropOn(key)}
+                  >
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={!!pdfOptions[key]}
+                          onChange={() => togglePdfOption(key)}
+                          disabled={disabled}
+                        />
+                      }
+                      label={key}
+                    />
+                    <Box
+                      sx={{ display: 'flex', alignItems: 'center', pr: 1, color: 'text.secondary', cursor: 'grab' }}
+                      draggable
+                      onDragStart={handleDragStart(key)}
+                      onDragEnd={handleDragEnd}
+                      title="Drag to reorder"
+                    >
+                      <DragIndicatorIcon fontSize="small" />
+                    </Box>
+                  </Box>
+                );
+              })}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={!!pdfOptions["Include Company Info"] && hasCompanyInfo}
+                    onChange={() => togglePdfOption("Include Company Info")}
+                    disabled={!hasCompanyInfo}
+                  />
+                }
+                label="Include Company Info"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={!!pdfOptions["Include Company Logo"] && hasCompanyLogo}
+                    onChange={() => togglePdfOption("Include Company Logo")}
+                    disabled={!hasCompanyLogo}
+                  />
+                }
+                label="Include Company Logo"
+              />
+              {(!companyInfo || (!companyInfo.company_name && !companyInfo.company_email && !companyInfo.company_phone_number)) && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                  Company info not set. Please set in <a href="/settings">/settings</a>.
+                </Typography>
+              )}
+              {(!companyInfo || !companyInfo.company_logo_url) && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Company logo not set. Please set in <a href="/settings">/settings</a>.
+                </Typography>
+              )}
+            </FormGroup>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDownloadOptionsOpen(false)}>Cancel</Button>
+            <Button variant="contained" onClick={handleDownloadPdf} disabled={downloadingPDF}>
+              {downloadingPDF ? "Preparing..." : "Download"}
+            </Button>
+          </DialogActions>
+        </Dialog>
         <Box sx={{ padding: 0, backgroundColor: "#fafcff" }}>
           <Tabs
             value={tabIndex}
@@ -1638,13 +1631,15 @@ const ModelDetails = () => {
                   )}
                 </Box>
               </Box>
-              {summaryTables.map((tbl: any, idx: number) => (
-                <Box key={idx} sx={{ p: 2, mb: 0 }}>
-                  <table style={{ borderCollapse: "collapse", width: "100%", border: `2px solid ${colors.navy}` }}>
-                    <tbody>{renderTableMappingRows(tbl, 100)}</tbody>
-                  </table>
-                </Box>
-              ))}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 2, mt: 1 }}>
+                {summaryTables.map((tbl: any, idx: number) => (
+                  <Box key={idx}>
+                    <table style={{ borderCollapse: "collapse", width: "100%", border: `2px solid ${colors.navy}`, fontFamily: 'inherit', fontSize: '0.875rem' }}>
+                      <tbody>{renderTableMappingRows(tbl)}</tbody>
+                    </table>
+                  </Box>
+                ))}
+              </Box>
 
               
               <Box sx={{ mt: 2, px:2 }}>
@@ -2322,7 +2317,7 @@ const ModelDetails = () => {
                   padding: 2,
                 }}
               >
-                <table style={{ borderCollapse: "collapse", width: "100%", border: `2px solid ${colors.navy}`}}>
+                <table style={{ borderCollapse: "collapse", width: "100%", tableLayout: 'fixed', border: `2px solid ${colors.navy}`, fontFamily: 'inherit', fontSize: '0.875rem' }}>
                   <tbody>
                         {renderTableMappingRows(tablesToShow[tableIdx])}
                   </tbody>

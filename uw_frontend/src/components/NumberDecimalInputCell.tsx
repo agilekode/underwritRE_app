@@ -151,19 +151,19 @@ export const NumberDecimalInputCell = ({ params, handleCellChange, field, prefix
             let left = base + 2;
             let right = base + 2;
             if(suffix === '/ sf'){
-              right = 32
+              right = 38
             }else if(suffix === '/ unit'){
-              right = 44
+              right = 50
             }else if(suffix === '/ month'){
-              right = 60
+              right = 66
             }else if(suffix === '%'){
-              right = 24
+              right = 28
             }else if(suffix === 'units'){
-              right = 42
+              right = 48
             }else if(suffix === 'months'){
-              right = 58
+              right = 64
             }else if(suffix === 'sf'){
-              right = 24
+              right = 28
             }
             return `${base}px ${right}px ${base}px ${left}px`;
           })(),

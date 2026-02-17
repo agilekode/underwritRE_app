@@ -2,7 +2,7 @@ import React from 'react';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { Typography } from '@mui/material';
 import { calculateEGI } from "../utils/egi";
-import { MID_DARK_THEME_COLOR } from '../utils/constants';
+import { colors } from '../theme';
 
 interface OperatingExpense {
   id: string;
@@ -48,7 +48,7 @@ const OperatingExpensesReadOnly: React.FC<{
       renderCell: (params) => {
         const value = String(params.value || '');
         return (
-          <span style={{ color: '#888' }}>{value}</span>
+          <span style={{ color: colors.grey[600] }}>{value}</span>
         );
       }
     },
@@ -81,7 +81,7 @@ const OperatingExpensesReadOnly: React.FC<{
           value = Math.round(Number(value)).toLocaleString();
         }
         return (
-          <span style={{ color: '#888' }}>
+          <span style={{ color: colors.grey[600] }}>
             {prefix}{value}{suffix}
           </span>
         );
@@ -133,7 +133,7 @@ const OperatingExpensesReadOnly: React.FC<{
         }
 
         return (
-          <span style={{ color: '#888' }}>
+          <span style={{ color: colors.grey[600] }}>
             {value !== null && value !== undefined
               ? (byUnit === 'percent of egi' ? `${adornment}${value}` : `${value}${adornment}`)
               : ''}
@@ -180,7 +180,7 @@ const OperatingExpensesReadOnly: React.FC<{
         value = (value as number).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
         return (
-          <span style={{ color: '#888' }}>${value}</span>
+          <span style={{ color: colors.grey[600] }}>${value}</span>
         );
       },
     },
@@ -223,7 +223,7 @@ const OperatingExpensesReadOnly: React.FC<{
         value = (value as number).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
         return (
-          <span style={{ color: '#888' }}>${value}</span>
+          <span style={{ color: colors.grey[600] }}>${value}</span>
         );
       },
     },
@@ -270,9 +270,9 @@ const OperatingExpensesReadOnly: React.FC<{
 
     return (
       <div style={{ 
-        padding: '8px 16px', 
-        backgroundColor: '#f5f5f5', 
-        borderTop: '1px solid #e0e0e0',
+        padding: '8px 16px',
+        backgroundColor: colors.grey[50],
+        borderTop: `1px solid ${colors.grey[300]}`,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
@@ -304,23 +304,28 @@ const OperatingExpensesReadOnly: React.FC<{
         getRowId={(row) => row.id}
         density="compact"
         sx={{
-          border: `2px solid ${MID_DARK_THEME_COLOR}`,
+          border: `2px solid ${colors.navy}`,
           borderRadius: 1,
           '& .MuiDataGrid-columnHeaders': {
-            backgroundColor: `${MID_DARK_THEME_COLOR} !important`,
+            backgroundColor: `${colors.navy} !important`,
             backgroundImage: 'none !important',
             color: '#fff',
           },
           '& .MuiDataGrid-columnHeader': {
-            backgroundColor: `${MID_DARK_THEME_COLOR} !important`,
+            backgroundColor: `${colors.navy} !important`,
           },
           '& .MuiDataGrid-columnHeaderTitle': {
             color: '#fff',
             fontWeight: 600,
+            fontSize: '0.875rem',
+            fontFamily: 'inherit',
           },
           '& .MuiDataGrid-columnSeparator': { color: 'rgba(255,255,255,0.35)' },
           '& .MuiSvgIcon-root': { color: '#fff' },
-          '& .MuiDataGrid-withBorderColor': { borderColor: `${MID_DARK_THEME_COLOR}` },
+          '& .MuiDataGrid-withBorderColor': { borderColor: `${colors.navy}` },
+          '& .MuiDataGrid-cell': { borderBottom: `1px solid ${colors.grey[300]}`, fontSize: '0.875rem' },
+          '& .MuiDataGrid-row:hover': { backgroundColor: colors.grey[50] },
+          '& .MuiDataGrid-footerContainer': { backgroundColor: colors.grey[50] },
         }}
       />
     </div>

@@ -63,9 +63,10 @@ export default function AcquisitionFinancingSection({
   useEffect(() => {
     if (!sharedInterestRate) return;
 
+    const rateStr = String(sharedInterestRate);
     if (
-      sharedInterestRate === "." ||
-      sharedInterestRate.endsWith(".")
+      rateStr === "." ||
+      rateStr.endsWith(".")
     ) {
       return;
     }
@@ -249,13 +250,13 @@ export default function AcquisitionFinancingSection({
                 <PercentInput
                   label="Acquisition Loan Interest Rate"
                   value={sharedInterestRate}
-                  onChange={(e) => setSharedInterestRate(Number(e.target.value))}
+                  onChange={(e) => setSharedInterestRate(e.target.value)}
                   fullWidth
                 />
                 <YearInput
                   label="Acquisition Loan Amortization"
                   value={sharedAmortization}
-                  onChange={(e) => setSharedAmortization(Number(e.target.value))}
+                  onChange={(e) => setSharedAmortization(e.target.value)}
                   fullWidth
                 />
               </FormRow>
