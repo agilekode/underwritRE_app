@@ -3253,10 +3253,6 @@ def get_expense_sum_row_to_noi_walk_payload(
     start_col=5,
     num_months=132,
     row_offset=30,
-<<<<<<< Updated upstream
-=======
-    op_exp_sheet="Operating Expenses",
->>>>>>> Stashed changes
     op_exp_start_row=5
 ):
     start_sum_row = row_offset + len(amenity_income_json) + len(expenses_json)
@@ -3281,7 +3277,6 @@ def get_expense_sum_row_to_noi_walk_payload(
     end_col_letter = rowcol_to_a1(1, start_col + num_months - 1).replace("1", "")
     range_str = f"'{sheet_name}'!{start_col_letter}{start_sum_row}:{end_col_letter}{start_sum_row}"
 
-<<<<<<< Updated upstream
     return [
         b_label_payload,
         {
@@ -3289,14 +3284,6 @@ def get_expense_sum_row_to_noi_walk_payload(
             "values": [sum_row]
         }
     ]
-=======
-    # Column B label: reference the "Total Operating Expenses" label from the Operating Expenses sheet
-    op_exp_sum_row = op_exp_start_row + len(expenses_json)
-    label_payload = {
-        "range": f"'{sheet_name}'!B{start_sum_row}",
-        "values": [[f"='{op_exp_sheet}'!B{op_exp_sum_row}"]]
-    }
->>>>>>> Stashed changes
 
     return [
         label_payload,
@@ -3352,7 +3339,6 @@ def get_expense_sum_row_to_noi_walk_payload_industrial(
     end_col_letter = rowcol_to_a1(1, start_col + num_months - 1).replace("1", "")
     range_str = f"'{sheet_name}'!{start_col_letter}{start_sum_row}:{end_col_letter}{start_sum_row}"
 
-<<<<<<< Updated upstream
     return [
         b_label_payload,
         {
@@ -3360,13 +3346,6 @@ def get_expense_sum_row_to_noi_walk_payload_industrial(
             "values": [sum_row]
         }
     ]
-=======
-    # Column B label: "Total Operating Expenses" written directly
-    label_payload = {
-        "range": f"'{sheet_name}'!B{start_sum_row}",
-        "values": [["Total Operating Expenses"]]
-    }
->>>>>>> Stashed changes
 
     return [
         label_payload,
@@ -3759,7 +3738,16 @@ def get_property_name_update_payload(property_name, model_variable_mapping, shee
 def get_number_of_spaces_update_payload(model_variable_mapping, retail_income_json, sheet_name="Cover"):
     cell = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Number of Spaces')
 
-    insert_function = f"=COUNTA(UNIQUE('{sheet_name}'!$B$6:B{len(retail_income_json) + 5}))"
+    if len(retail_income_json) == 0:
+        insert_function = "=0"
+    else:
+        end_row = len(retail_income_json) + 5
+        insert_function = (
+            f"=IFERROR(SUMPRODUCT(1/"
+            f"COUNTIF('{sheet_name}'!$B$6:B{end_row},"
+            f"'{sheet_name}'!$B$6:B{end_row}&\"\")),0)"
+        )
+
     if not cell:
         return []
         
