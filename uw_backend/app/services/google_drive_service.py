@@ -21,6 +21,7 @@ from openpyxl import load_workbook
 import google.auth.transport.requests
 import requests
 from gspread.utils import a1_to_rowcol, rowcol_to_a1
+from gspread_formatting import CellFormat, NumberFormat, format_cell_range
 
 load_dotenv()
 
@@ -39,7 +40,7 @@ SCOPES = [
 
 
 PARENT_FOLDER_ID = os.getenv("GOOGLE_PARENT_FOLDER_ID")
-PARENT_FOLDER_ID = '14dBWRN-2ItiRLRy9HWfy1U3oF_p7MzPt'
+# PARENT_FOLDER_ID = '14dBWRN-2ItiRLRy9HWfy1U3oF_p7MzPt'
 # PARENT_FOLDER_ID = '1xoc6MuOW8ULr3PIucwoEhG0hwpWeIxdk'
 # Determine environment: Use local creds if file is specified, otherwise use default (Cloud Run, GCP, etc.)
 try:
@@ -3253,10 +3254,6 @@ def get_expense_sum_row_to_noi_walk_payload(
     start_col=5,
     num_months=132,
     row_offset=30,
-<<<<<<< Updated upstream
-=======
-    op_exp_sheet="Operating Expenses",
->>>>>>> Stashed changes
     op_exp_start_row=5
 ):
     start_sum_row = row_offset + len(amenity_income_json) + len(expenses_json)
@@ -3281,7 +3278,6 @@ def get_expense_sum_row_to_noi_walk_payload(
     end_col_letter = rowcol_to_a1(1, start_col + num_months - 1).replace("1", "")
     range_str = f"'{sheet_name}'!{start_col_letter}{start_sum_row}:{end_col_letter}{start_sum_row}"
 
-<<<<<<< Updated upstream
     return [
         b_label_payload,
         {
@@ -3289,14 +3285,6 @@ def get_expense_sum_row_to_noi_walk_payload(
             "values": [sum_row]
         }
     ]
-=======
-    # Column B label: reference the "Total Operating Expenses" label from the Operating Expenses sheet
-    op_exp_sum_row = op_exp_start_row + len(expenses_json)
-    label_payload = {
-        "range": f"'{sheet_name}'!B{start_sum_row}",
-        "values": [[f"='{op_exp_sheet}'!B{op_exp_sum_row}"]]
-    }
->>>>>>> Stashed changes
 
     return [
         label_payload,
@@ -3352,21 +3340,11 @@ def get_expense_sum_row_to_noi_walk_payload_industrial(
     end_col_letter = rowcol_to_a1(1, start_col + num_months - 1).replace("1", "")
     range_str = f"'{sheet_name}'!{start_col_letter}{start_sum_row}:{end_col_letter}{start_sum_row}"
 
-<<<<<<< Updated upstream
-    return [
-        b_label_payload,
-        {
-            "range": range_str,
-            "values": [sum_row]
-        }
-    ]
-=======
     # Column B label: "Total Operating Expenses" written directly
     label_payload = {
         "range": f"'{sheet_name}'!B{start_sum_row}",
         "values": [["Total Operating Expenses"]]
     }
->>>>>>> Stashed changes
 
     return [
         label_payload,
@@ -7342,12 +7320,13 @@ def generate_sensitivity_analysis_tables(sheet_id, max_price, min_cap_rate):
                 IRR_ref = extract_cell_ref(IRR_cell)
                 MOIC_ref = extract_cell_ref(MOIC_cell)
                 irr_result = assumptions_ws.acell(IRR_ref).value
-                moic_result = assumptions_ws.acell(MOIC_ref).value
+                raw_moic = assumptions_ws.acell(MOIC_ref).value
+                moic_result = parse_moic(raw_moic)
                 
                 # print(f"    📊 [DEBUG] Results - IRR: {irr_result}, MOIC: {moic_result}")
                 
                 irr_row.append(clean_number(irr_result))
-                moic_row.append(clean_number(moic_result))
+                moic_row.append(moic_result)
                 irr_row_raw.append(irr_result)
                 moic_row_raw.append(moic_result)
             
@@ -7371,6 +7350,14 @@ def generate_sensitivity_analysis_tables(sheet_id, max_price, min_cap_rate):
         # print(f"📝 [DEBUG] Writing IRR grid to {irr_range} and MOIC grid to {moic_range}")
         assumptions_ws.update(irr_range, irr_grid_raw)
         assumptions_ws.update(moic_range, moic_grid_raw)
+
+        format_cell_range(
+            assumptions_ws,
+            moic_range,
+            CellFormat(
+                numberFormat=NumberFormat(type='NUMBER', pattern='0.00x')
+            )
+        )
         
         # Restore original inputs
         update_inputs(assumptions_ws, original_purchase_price, original_exit_cap, purchase_price_cell, exit_cap_cell)
@@ -7397,6 +7384,22 @@ def generate_sensitivity_analysis_tables(sheet_id, max_price, min_cap_rate):
         import traceback
         traceback.print_exc()
         raise e
+
+def parse_moic(value):
+    if value is None:
+        return None
+
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    if isinstance(value, str):
+        value = value.strip().lower().replace('x', '')
+        try:
+            return float(value)
+        except ValueError:
+            return None
+
+    return None
 
 def update_sensitivity_reference_cells(worksheet, purchase_price_1, purchase_price_2, exit_cap_rate_1, exit_cap_rate_2, price_1_cell, price_2_cell, cap_rate_1_cell, cap_rate_2_cell):
     client = worksheet.spreadsheet.client
