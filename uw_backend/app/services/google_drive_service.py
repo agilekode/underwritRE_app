@@ -3253,10 +3253,6 @@ def get_expense_sum_row_to_noi_walk_payload(
     start_col=5,
     num_months=132,
     row_offset=30,
-<<<<<<< Updated upstream
-=======
-    op_exp_sheet="Operating Expenses",
->>>>>>> Stashed changes
     op_exp_start_row=5
 ):
     start_sum_row = row_offset + len(amenity_income_json) + len(expenses_json)
@@ -3281,22 +3277,12 @@ def get_expense_sum_row_to_noi_walk_payload(
     end_col_letter = rowcol_to_a1(1, start_col + num_months - 1).replace("1", "")
     range_str = f"'{sheet_name}'!{start_col_letter}{start_sum_row}:{end_col_letter}{start_sum_row}"
 
-<<<<<<< Updated upstream
-    return [
-        b_label_payload,
-        {
-            "range": range_str,
-            "values": [sum_row]
-        }
-    ]
-=======
     # Column B label: reference the "Total Operating Expenses" label from the Operating Expenses sheet
     op_exp_sum_row = op_exp_start_row + len(expenses_json)
     label_payload = {
         "range": f"'{sheet_name}'!B{start_sum_row}",
         "values": [[f"='{op_exp_sheet}'!B{op_exp_sum_row}"]]
     }
->>>>>>> Stashed changes
 
     return [
         label_payload,
@@ -3352,21 +3338,11 @@ def get_expense_sum_row_to_noi_walk_payload_industrial(
     end_col_letter = rowcol_to_a1(1, start_col + num_months - 1).replace("1", "")
     range_str = f"'{sheet_name}'!{start_col_letter}{start_sum_row}:{end_col_letter}{start_sum_row}"
 
-<<<<<<< Updated upstream
-    return [
-        b_label_payload,
-        {
-            "range": range_str,
-            "values": [sum_row]
-        }
-    ]
-=======
     # Column B label: "Total Operating Expenses" written directly
     label_payload = {
         "range": f"'{sheet_name}'!B{start_sum_row}",
         "values": [["Total Operating Expenses"]]
     }
->>>>>>> Stashed changes
 
     return [
         label_payload,
@@ -3666,16 +3642,18 @@ def get_restabilization_update_payload(model_variable_mapping, rental_assumption
     }
 
 
-def get_assumptions_rental_reference_fix_payload(
-    assumptions_ws,
+def get_rental_reference_fix_payload(
+    ws,
     rental_assumptions_json,
     rental_start_row=5,
     sheet_name="Assumptions"
 ):
     """
-    Fixes stale 'Rental Assumptions' references in the Assumptions sheet.
+    Fixes stale 'Rental Assumptions' references in any sheet.
     Template formulas reference pre-formatted locations (e.g., $D$2) which become
     stale after rows are inserted into the Rental Assumptions sheet.
+
+    Scans all columns (A-Z) and rows 1-100 for formulas containing stale references.
 
     After formatting, the Rental Assumptions totals row is at:
       rental_start_row + len(rental_assumptions_json)
@@ -3687,11 +3665,11 @@ def get_assumptions_rental_reference_fix_payload(
 
     rental_total_row = rental_start_row + num_units
 
-    # Read formulas from the Assumptions sheet column E (broad range to catch all)
+    # Read formulas from the sheet (all columns A-Z, rows 1-100)
     try:
-        formulas = assumptions_ws.get('E1:E60', value_render_option='FORMULA')
+        formulas = ws.get('A1:Z100', value_render_option='FORMULA')
     except Exception as e:
-        print(f"[get_assumptions_rental_reference_fix_payload] Failed to read formulas: {e}")
+        print(f"[get_rental_reference_fix_payload] Failed to read formulas from '{sheet_name}': {e}")
         return []
 
     if not formulas:
@@ -3699,34 +3677,39 @@ def get_assumptions_rental_reference_fix_payload(
 
     # Map of stale references to corrected references
     # Template had unit count at D2; after formatting it's at E{total_row}
+    # Include both absolute ($D$2) and relative (D2) reference styles
     replacements = {
         "'Rental Assumptions'!$D$2": f"'Rental Assumptions'!$E${rental_total_row}",
         "'Rental Assumptions'!$H$2": f"'Rental Assumptions'!$I${rental_total_row}",
         "'Rental Assumptions'!$I$2": f"'Rental Assumptions'!$J${rental_total_row}",
         "'Rental Assumptions'!$J$2": f"'Rental Assumptions'!$K${rental_total_row}",
+        "'Rental Assumptions'!D2": f"'Rental Assumptions'!E{rental_total_row}",
+        "'Rental Assumptions'!H2": f"'Rental Assumptions'!I{rental_total_row}",
+        "'Rental Assumptions'!I2": f"'Rental Assumptions'!J{rental_total_row}",
+        "'Rental Assumptions'!J2": f"'Rental Assumptions'!K{rental_total_row}",
     }
 
     corrected_payloads = []
     for i, row in enumerate(formulas):
-        cell_row = 1 + i  # E column, 1-indexed
-        cell_value = row[0] if row else ""
+        cell_row = 1 + i  # 1-indexed row number
+        for j, cell_value in enumerate(row):
+            if not isinstance(cell_value, str) or not cell_value.startswith("="):
+                continue
 
-        if not isinstance(cell_value, str) or not cell_value.startswith("="):
-            continue
+            new_value = cell_value
+            changed = False
+            for old_ref, new_ref in replacements.items():
+                if old_ref in new_value:
+                    new_value = new_value.replace(old_ref, new_ref)
+                    changed = True
 
-        new_value = cell_value
-        changed = False
-        for old_ref, new_ref in replacements.items():
-            if old_ref in new_value:
-                new_value = new_value.replace(old_ref, new_ref)
-                changed = True
-
-        if changed:
-            corrected_payloads.append({
-                "range": f"'{sheet_name}'!E{cell_row}",
-                "values": [[new_value]]
-            })
-            print(f"[get_assumptions_rental_reference_fix_payload] Fixed E{cell_row}: {cell_value} -> {new_value}")
+            if changed:
+                col_letter = chr(ord('A') + j)
+                corrected_payloads.append({
+                    "range": f"'{sheet_name}'!{col_letter}{cell_row}",
+                    "values": [[new_value]]
+                })
+                print(f"[get_rental_reference_fix_payload] Fixed '{sheet_name}'!{col_letter}{cell_row}: {cell_value} -> {new_value}")
 
     return corrected_payloads
 
@@ -5963,15 +5946,26 @@ def run_full_sheet_update(
     assumptions_ws = spreadsheet.worksheet("Assumptions")
     print("[run_full_sheet_update] Loaded worksheet: Assumptions")
 
-    # Fix stale Rental Assumptions references in the Assumptions sheet
+    # Fix stale Rental Assumptions references in sheets with template formulas
     # Must be read BEFORE row insertions (template formulas have absolute refs that don't shift)
     if len(rental_assumptions_json) > 0:
-        assumptions_rental_ref_fix = get_assumptions_rental_reference_fix_payload(
-            assumptions_ws, rental_assumptions_json
+        assumptions_rental_ref_fix = get_rental_reference_fix_payload(
+            assumptions_ws, rental_assumptions_json, sheet_name="Assumptions"
         )
         print(f"[run_full_sheet_update] assumptions_rental_ref_fix ops:{len(assumptions_rental_ref_fix)}")
+
+        # Also fix stale references in Cash Flow and Exit sheet (if it exists)
+        try:
+            cash_flow_ws = spreadsheet.worksheet("Cash Flow and Exit")
+            cash_flow_rental_ref_fix = get_rental_reference_fix_payload(
+                cash_flow_ws, rental_assumptions_json, sheet_name="Cash Flow and Exit"
+            )
+            print(f"[run_full_sheet_update] cash_flow_rental_ref_fix ops:{len(cash_flow_rental_ref_fix)}")
+        except Exception:
+            cash_flow_rental_ref_fix = []
     else:
         assumptions_rental_ref_fix = []
+        cash_flow_rental_ref_fix = []
 
     # === Insert & Value Data Preparation ===
     if (len(market_json) > 0 and len(rental_assumptions_json) > 0):
@@ -6402,6 +6396,7 @@ def run_full_sheet_update(
         ntm_formula_update,
         re_stabilization_update,
         *assumptions_rental_ref_fix,
+        *cash_flow_rental_ref_fix,
         address_update,
         property_name_update,
         number_of_spaces_update,
@@ -7077,22 +7072,27 @@ def clean_number(value):
 
 def update_inputs(worksheet, row_val, col_val, purchase_price_cell="E62", exit_cap_cell="G20"):
     """Update purchase price and exit cap rate cells in the worksheet"""
-    
+
     # Extract cell references from full locations (remove sheet name if present)
     def extract_cell_ref(location):
         if '!' in location:
             return location.split('!')[1]
         return location
-    
+
     purchase_price_ref = extract_cell_ref(purchase_price_cell)
     exit_cap_ref = extract_cell_ref(exit_cap_cell)
-    
+
+    # Convert cap rate to decimal for Google Sheets (e.g., 8.0 → 0.08)
+    cap_rate_num = clean_number(col_val)
+    if isinstance(cap_rate_num, (int, float)) and cap_rate_num > 1:
+        cap_rate_num = cap_rate_num / 100
+
     url = f"https://sheets.googleapis.com/v4/spreadsheets/{worksheet.spreadsheet.id}/values:batchUpdate"
     body = {
         "valueInputOption": "RAW",
         "data": [
             {"range": f"{worksheet.title}!{purchase_price_ref}", "values": [[clean_number(row_val)]]},
-            {"range": f"{worksheet.title}!{exit_cap_ref}", "values": [[clean_number(col_val) / 100]]},
+            {"range": f"{worksheet.title}!{exit_cap_ref}", "values": [[cap_rate_num]]},
         ],
     }
     response = worksheet.spreadsheet.client.session.request("POST", url=url, json=body)
@@ -7368,15 +7368,79 @@ def generate_sensitivity_analysis_tables(sheet_id, max_price, min_cap_rate):
         moic_corner = rowcol_to_a1(row2, col2)
         moic_range = get_range_string(moic_corner, len(row_inputs), len(col_inputs))
 
-        # print(f"📝 [DEBUG] Writing IRR grid to {irr_range} and MOIC grid to {moic_range}")
-        assumptions_ws.update(irr_range, irr_grid_raw)
-        assumptions_ws.update(moic_range, moic_grid_raw)
+        # Build numeric grids: IRR as decimals (e.g., 90.6% → 0.906), MOIC as plain numbers
+        irr_grid_numeric = []
+        for row in irr_grid:
+            irr_grid_numeric.append([v / 100 if isinstance(v, (int, float)) else v for v in row])
+
+        moic_grid_numeric = [[v for v in row] for row in moic_grid]
+
+        # Write numeric values (not raw strings) so Sheets stores them as numbers
+        assumptions_ws.update(irr_range, irr_grid_numeric, value_input_option='RAW')
+        assumptions_ws.update(moic_range, moic_grid_numeric, value_input_option='RAW')
+
+        # Apply number formatting: percentage for IRR, custom "0.00x" for MOIC
+        sheet_gid = assumptions_ws.id
+        format_requests = [
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_gid,
+                        "startRowIndex": row1 - 1,
+                        "endRowIndex": row1 - 1 + len(row_inputs),
+                        "startColumnIndex": col1 - 1,
+                        "endColumnIndex": col1 - 1 + len(col_inputs),
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "numberFormat": {"type": "PERCENT", "pattern": "0.0%"}
+                        }
+                    },
+                    "fields": "userEnteredFormat.numberFormat",
+                }
+            },
+            {
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_gid,
+                        "startRowIndex": row2 - 1,
+                        "endRowIndex": row2 - 1 + len(row_inputs),
+                        "startColumnIndex": col2 - 1,
+                        "endColumnIndex": col2 - 1 + len(col_inputs),
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "numberFormat": {"type": "NUMBER", "pattern": '0.00"x"'}
+                        }
+                    },
+                    "fields": "userEnteredFormat.numberFormat",
+                }
+            },
+        ]
+        spreadsheet.batch_update({"requests": format_requests})
+        print(f"[sensitivity] Applied number formatting to IRR ({irr_range}) and MOIC ({moic_range})")
         
         # Restore original inputs
         update_inputs(assumptions_ws, original_purchase_price, original_exit_cap, purchase_price_cell, exit_cap_cell)
-        # print(f"✅ [DEBUG] Sensitivity analysis completed successfully")
 
-        replace_exit_cap_text(assumptions_ws)
+        # Ensure the exit cap rate cell has percentage formatting (not text)
+        exit_cap_ref_clean = exit_cap_ref.replace("'", "").replace("$", "")
+        ecr_col = ''.join(filter(str.isalpha, exit_cap_ref_clean))
+        ecr_row = int(''.join(filter(str.isdigit, exit_cap_ref_clean)))
+        ecr_col_index = sum((ord(c) - 64) * (26 ** i) for i, c in enumerate(reversed(ecr_col.upper()))) - 1
+        spreadsheet.batch_update({"requests": [{
+            "repeatCell": {
+                "range": {
+                    "sheetId": assumptions_ws.id,
+                    "startRowIndex": ecr_row - 1,
+                    "endRowIndex": ecr_row,
+                    "startColumnIndex": ecr_col_index,
+                    "endColumnIndex": ecr_col_index + 1,
+                },
+                "cell": {"userEnteredFormat": {"numberFormat": {"type": "PERCENT", "pattern": "0.0%"}}},
+                "fields": "userEnteredFormat.numberFormat",
+            }
+        }]})
         
         # Return the results with headers
         return {
@@ -7398,156 +7462,94 @@ def generate_sensitivity_analysis_tables(sheet_id, max_price, min_cap_rate):
         traceback.print_exc()
         raise e
 
-def update_sensitivity_reference_cells(worksheet, purchase_price_1, purchase_price_2, exit_cap_rate_1, exit_cap_rate_2, price_1_cell, price_2_cell, cap_rate_1_cell, cap_rate_2_cell):
-    client = worksheet.spreadsheet.client
-    sheet_id = worksheet.id
-    spreadsheet_id = worksheet.spreadsheet.id
-    sheet_title = worksheet.title
+def update_sensitivity_reference_cells(worksheet, purchase_price_1, purchase_price_2, exit_cap_rate_1, exit_cap_rate_2,
+                                     price_1_cell, price_2_cell, cap_rate_1_cell, cap_rate_2_cell):
+    """Update the sensitivity reference cells with the calculated ranges.
+    Writes the base exit cap rate and 4 additional rows at +25bps increments.
+    All cap rates are written as decimal numbers (e.g., 0.06 for 6%) with percentage formatting.
+    """
 
     def extract_cell_ref(location):
-        return location.split("!")[-1]
-
-    def a1_to_grid(a1):
-        col = "".join(filter(str.isalpha, a1)).upper()
-        row = int("".join(filter(str.isdigit, a1)))
-        col_index = 0
-        for c in col:
-            col_index = col_index * 26 + (ord(c) - 64)
-        return row - 1, col_index - 1
-
-    def grid_to_a1(row, col):
-        col += 1
-        letters = ""
-        while col:
-            col, r = divmod(col - 1, 26)
-            letters = chr(65 + r) + letters
-        return f"{letters}{row + 1}"
-
-    def batch_update_values(data):
-        url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values:batchUpdate"
-        body = {
-            "valueInputOption": "RAW",
-            "data": data
-        }
-        resp = client.session.post(url, json=body)
-        resp.raise_for_status()
+        if '!' in location:
+            return location.split('!')[1]
+        return location
 
     price_1_ref = extract_cell_ref(price_1_cell)
     price_2_ref = extract_cell_ref(price_2_cell)
-    cap_1_ref = extract_cell_ref(cap_rate_1_cell)
-    cap_2_ref = extract_cell_ref(cap_rate_2_cell)
+    cap_rate_1_ref = extract_cell_ref(cap_rate_1_cell)
+    cap_rate_2_ref = extract_cell_ref(cap_rate_2_cell)
 
-    base_updates = [
+    # Convert cap rates to decimals (e.g., 6.0 → 0.06)
+    base_rate_1 = clean_number(exit_cap_rate_1)
+    if isinstance(base_rate_1, (int, float)) and base_rate_1 > 1:
+        base_rate_1 = base_rate_1 / 100
+    base_rate_2 = clean_number(exit_cap_rate_2)
+    if isinstance(base_rate_2, (int, float)) and base_rate_2 > 1:
+        base_rate_2 = base_rate_2 / 100
+
+    # Build 5 cap rate values: base, base+25bps, base+50bps, base+75bps, base+100bps
+    BPS_STEP = 0.0025  # 25 basis points
+    cap_rates_1 = [[base_rate_1 + i * BPS_STEP] for i in range(5)]
+    cap_rates_2 = [[base_rate_2 + i * BPS_STEP] for i in range(5)]
+
+    # Compute ranges for the 5-row cap rate columns
+    cap1_col = ''.join(filter(str.isalpha, cap_rate_1_ref))
+    cap1_row = int(''.join(filter(str.isdigit, cap_rate_1_ref)))
+    cap1_range = f"{cap1_col}{cap1_row}:{cap1_col}{cap1_row + 4}"
+
+    cap2_col = ''.join(filter(str.isalpha, cap_rate_2_ref))
+    cap2_row = int(''.join(filter(str.isdigit, cap_rate_2_ref)))
+    cap2_range = f"{cap2_col}{cap2_row}:{cap2_col}{cap2_row + 4}"
+
+    sheet_title = worksheet.title
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{worksheet.spreadsheet.id}/values:batchUpdate"
+    body = {
+        "valueInputOption": "RAW",
+        "data": [
+            {"range": f"{sheet_title}!{price_1_ref}", "values": [[purchase_price_1]]},
+            {"range": f"{sheet_title}!{price_2_ref}", "values": [[purchase_price_2]]},
+            {"range": f"{sheet_title}!{cap1_range}", "values": cap_rates_1},
+            {"range": f"{sheet_title}!{cap2_range}", "values": cap_rates_2},
+        ],
+    }
+    response = worksheet.spreadsheet.client.session.request("POST", url=url, json=body)
+    response.raise_for_status()
+
+    # Apply percentage formatting to cap rate header cells
+    sheet_gid = worksheet.id
+    cap1_col_index = sum((ord(c) - 64) * (26 ** i) for i, c in enumerate(reversed(cap1_col.upper()))) - 1
+    cap2_col_index = sum((ord(c) - 64) * (26 ** i) for i, c in enumerate(reversed(cap2_col.upper()))) - 1
+
+    format_requests = [
         {
-            "range": f"{sheet_title}!{price_1_ref}",
-            "values": [[purchase_price_1]],
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_gid,
+                    "startRowIndex": cap1_row - 1,
+                    "endRowIndex": cap1_row + 4,
+                    "startColumnIndex": cap1_col_index,
+                    "endColumnIndex": cap1_col_index + 1,
+                },
+                "cell": {"userEnteredFormat": {"numberFormat": {"type": "PERCENT", "pattern": "0.00%"}}},
+                "fields": "userEnteredFormat.numberFormat",
+            }
         },
         {
-            "range": f"{sheet_title}!{price_2_ref}",
-            "values": [[purchase_price_2]],
-        },
-        {
-            "range": f"{sheet_title}!{cap_1_ref}",
-            "values": [[exit_cap_rate_1 / 100]],
-        },
-        {
-            "range": f"{sheet_title}!{cap_2_ref}",
-            "values": [[exit_cap_rate_2 / 100]],
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_gid,
+                    "startRowIndex": cap2_row - 1,
+                    "endRowIndex": cap2_row + 4,
+                    "startColumnIndex": cap2_col_index,
+                    "endColumnIndex": cap2_col_index + 1,
+                },
+                "cell": {"userEnteredFormat": {"numberFormat": {"type": "PERCENT", "pattern": "0.00%"}}},
+                "fields": "userEnteredFormat.numberFormat",
+            }
         },
     ]
-    batch_update_values(base_updates)
-
-    def build_increment_data(start_ref, base_rate, rows=5, step=0.25):
-        start_row, start_col = a1_to_grid(start_ref)
-        data = []
-        for i in range(rows):
-            rate = (base_rate + i * step) / 100
-            cell = grid_to_a1(start_row + i, start_col)
-            data.append({
-                "range": f"{sheet_title}!{cell}",
-                "values": [[rate]]
-            })
-        return data
-
-    increment_data = (
-        build_increment_data(cap_1_ref, exit_cap_rate_1) +
-        build_increment_data(cap_2_ref, exit_cap_rate_2)
-    )
-    batch_update_values(increment_data)
-
-    def format_range(start_ref, rows=5):
-        r, c = a1_to_grid(start_ref)
-        return {
-            "sheetId": sheet_id,
-            "startRowIndex": r,
-            "endRowIndex": r + rows,
-            "startColumnIndex": c,
-            "endColumnIndex": c + 1,
-        }
-
-    format_requests = []
-
-    for ref in (cap_1_ref, cap_2_ref):
-        format_requests.append({
-            "repeatCell": {
-                "range": format_range(ref),
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "PERCENT",
-                            "pattern": "0.00%"
-                        }
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat"
-            }
-        })
-
-    format_url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}:batchUpdate"
-    resp = client.session.post(
-        format_url,
-        json={"requests": format_requests}
-    )
-    resp.raise_for_status()
-    print("✅ Applied percentage formatting")
-
-def replace_exit_cap_text(worksheet):
-    old_text = "Exit Cap Rate on Multifamily"
-    new_text = "Exit Cap Rate"
-    try:
-        cells = worksheet.findall(old_text, in_column=None)
-        if not cells:
-            print(f"No cells found containing '{old_text}'")
-            return
-        updates = []
-        for cell in cells:
-            current_value = cell.value
-            if isinstance(current_value, str) and old_text in current_value:
-                new_value = current_value.replace(old_text, new_text)
-                updates.append({
-                    'range': f'{cell.address}',
-                    'values': [[new_value]]
-                })
-        if updates:
-            spreadsheet_id = worksheet.spreadsheet.id
-            sheet_title = worksheet.title
-            formatted_updates = [
-                {
-                    'range': f"'{sheet_title}'!{update['range']}",
-                    'values': update['values']
-                }
-                for update in updates
-            ]
-            url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values:batchUpdate"
-            body = {
-                "valueInputOption": "RAW",
-                "data": formatted_updates
-            }
-            response = worksheet.spreadsheet.client.session.post(url, json=body)
-            response.raise_for_status()
-            print(f"✅ Replaced '{old_text}' with '{new_text}' in {len(updates)} cell(s)")
-    except Exception as e:
-        print(f"⚠️ Error replacing text: {e}")
+    worksheet.spreadsheet.batch_update({"requests": format_requests})
+    print(f"[sensitivity] Updated reference cells with 25bps increments and % formatting")
 
 def get_rent_roll_vacancy_formula_updates(rent_roll_ws, rental_assumptions_json, rental_growth_json,
                                           base_start_row=14, start_col_index=10, num_columns=131, units_start_row=7):

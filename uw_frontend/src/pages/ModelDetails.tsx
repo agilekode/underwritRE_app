@@ -609,10 +609,9 @@ const ModelDetails = () => {
       setMaxPrice(acquisitionPriceValue);
       setOriginalMaxPrice(acquisitionPriceValue);
 
-      const exitCapRateValue = getFieldValue(
-        "Multifamily Applied Exit Cap Rate",
-        ""
-      );
+      const exitCapRateValue = modelDetails?.model_type?.name === "Industrial"
+        ? getFieldValue("Retail Applied Exit Cap Rate", "")
+        : getFieldValue("Multifamily Applied Exit Cap Rate", "");
       setMinCapRate(exitCapRateValue);
       setOriginalMinCapRate(exitCapRateValue);
     }

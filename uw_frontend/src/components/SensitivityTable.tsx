@@ -222,7 +222,7 @@ export default function SensitivityTable({ data, formatValue, title, isLoading =
                     borderColor: "grey.300",
                   }}
                 >
-                  {`${toNumeric(capRate).toFixed(1)}%`}
+                  {`${toNumeric(capRate).toFixed(2)}%`}
                 </TableCell>
                 {data.values[rowIndex].map((value, colIndex) => {
                   const cellNum = toNumeric(value as number | string)
