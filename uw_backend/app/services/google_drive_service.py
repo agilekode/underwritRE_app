@@ -3742,7 +3742,16 @@ def get_property_name_update_payload(property_name, model_variable_mapping, shee
 def get_number_of_spaces_update_payload(model_variable_mapping, retail_income_json, sheet_name="Cover"):
     cell = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Number of Spaces')
 
-    insert_function = f"=COUNTA(UNIQUE('{sheet_name}'!$B$6:B{len(retail_income_json) + 5}))"
+    if len(retail_income_json) == 0:
+        insert_function = "=0"
+    else:
+        end_row = len(retail_income_json) + 5
+        insert_function = (
+            f"=IFERROR(SUMPRODUCT(1/"
+            f"COUNTIF('{sheet_name}'!$B$6:B{end_row},"
+            f"'{sheet_name}'!$B$6:B{end_row}&\"\")),0)"
+        )
+
     if not cell:
         return []
         
