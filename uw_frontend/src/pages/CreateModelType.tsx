@@ -186,11 +186,13 @@ const CreateModelType: React.FC = () => {
 
   const [showRetail, setShowRetail] = useState(true);
   const [showRentalUnits, setShowRentalUnits] = useState(true);
+  const [developmentModel, setDevelopmentModel] = useState(false);
   // Save model type
   const handleSaveModelType = async () => {
     const payload = {
       name,
       description,
+      development_model: developmentModel,
       show_retail: showRetail,
       show_rental_units: showRentalUnits,
       sections: sections.map(section => ({
@@ -258,6 +260,12 @@ const CreateModelType: React.FC = () => {
             Show Rental Units
           </Typography>
           <Switch checked={showRentalUnits} onChange={() => setShowRentalUnits(!showRentalUnits)} />
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            Development Model
+          </Typography>
+          <Switch checked={developmentModel} onChange={() => setDevelopmentModel(!developmentModel)} />
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>

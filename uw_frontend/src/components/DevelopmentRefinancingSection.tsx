@@ -81,6 +81,7 @@ export default function RefinancingSection({
   variables: any;
   finalMetricsCalculating: boolean;
 }) {
+  console.log("modelDetails", modelDetails);
   // Memoize the handleFieldChange function to prevent infinite loops
   const memoizedHandleFieldChange = useCallback(handleFieldChange, [handleFieldChange]);
 
@@ -107,21 +108,27 @@ export default function RefinancingSection({
 
   // State for main refinancing fields only
   const [modelRefinancing, setModelRefinancing] = useState(getFieldValue("Permanent Loan Issued?", ""));
-  const [refinancingMonth, setRefinancingMonth] = useState(getFieldValue("Refinancing Month", ""));
-  const [currentPrincipalOutstanding, setCurrentPrincipalOutstanding] = useState(variables?.["Acquisition Loan Balance Outstanding"] ?? "N/A");
+  // const [refinancingMonth, setRefinancingMonth] = useState(getFieldValue("Refinancing Month", ""));
+  const [seasoningPeriodPostStabilization, setSeasoningPeriodPostStabilization] = useState(getFieldValue("Seasoning Period Post Stabilization", 3));
+  const [amortization, setAmortization] = useState(getFieldValue("RefiAmortization", 30));
+  const [currentPrincipalOutstanding, setCurrentPrincipalOutstanding] = useState(variables?.["Refi: Total Debt to Be Refinanced"] ?? "N/A");
+  const [originationCost, setOriginationCost] = useState(getFieldValue("Origination Cost (Includes Title)", 0.5));
 
-  useEffect(() => {
-    setCurrentPrincipalOutstanding(variables?.["Acquisition Loan Balance Outstanding"] ?? "N/A");
-    const fieldId = getFieldId("Refinancing: Fixed Interest Rate");
-    const existing = modelDetails?.user_model_field_values?.find(
-      (f: any) => f.field_key === "Refinancing: Fixed Interest Rate"
-    )?.value;
+  const [fixedInterestRate, setFixedInterestRate] = useState(getFieldValue("Refinancing: Fixed Interest Rate", variables?.["Refi: Fixed Interest Rate"] ?? ""));
 
-    const parsed = parseNumber(variables?.["Refi: Fixed Interest Rate"], "");
-    if (fieldId && (existing === "" || existing === undefined || existing === null) && parsed !== "") {
-      handleFieldChangeRef.current(fieldId, "Refinancing: Fixed Interest Rate", parsed);
-    }
-  }, [variables]);
+
+  // useEffect(() => {
+  //   setCurrentPrincipalOutstanding(variables?.["Refi: Total Debt to Be Refinanced"] ?? "N/A");
+  //   const fieldId = getFieldId("Refinancing: Fixed Interest Rate");
+  //   const existing = modelDetails?.user_model_field_values?.find(
+  //     (f: any) => f.field_key === "Refinancing: Fixed Interest Rate"
+  //   )?.value;
+
+  //   const parsed = parseNumber(variables?.["Refi: Fixed Interest Rate"], "");
+  //   if (fieldId && (existing === "" || existing === undefined || existing === null) && parsed !== "") {
+  //     handleFieldChangeRef.current(fieldId, "Refinancing: Fixed Interest Rate", parsed);
+  //   }
+  // }, [variables]);
 
   // Sync main fields to parent
   useEffect(() => {
@@ -129,16 +136,34 @@ export default function RefinancingSection({
   }, [modelRefinancing]);
 
   useEffect(() => {
-    handleFieldChange(getFieldId("Refinancing Month"), "Refinancing Month", refinancingMonth);
-  }, [refinancingMonth]);
+    console.log("seasoningPeriodPostStabilization", seasoningPeriodPostStabilization);
+    handleFieldChange(getFieldId("Seasoning Period Post Stabilization"), "Seasoning Period Post Stabilization", seasoningPeriodPostStabilization);
+  }, [seasoningPeriodPostStabilization]);
 
-  const refiMonthNumber = Number(parseNumber(refinancingMonth, 0));
+  useEffect(() => { 
+    handleFieldChange(getFieldId("Refinancing: Fixed Interest Rate"), "Refinancing: Fixed Interest Rate", fixedInterestRate);
+  }, [fixedInterestRate]);
+
+  useEffect(() => {
+    console.log("amortization", amortization);
+    handleFieldChange(getFieldId("Refi Amortization"), "Refi Amortization", amortization);
+  }, [amortization]);
+
+  useEffect(() => {
+    handleFieldChange(getFieldId("Origination Cost (Includes Title)"), "Origination Cost (Includes Title)", originationCost);
+  }, [originationCost]);
+
+
+
+
+  const refiMonthNumber = Number(parseNumber(variables?.["Refi: Refinancing Month"], 0));
   const showRefiInputs = modelRefinancing === "Yes" && refiMonthNumber > 0;
 
   const refiLtv = Number(parseNumber(variables?.["Refi: LTV calculation"], 0));
   const refiDscr = Number(parseNumber(variables?.["Refi: DSCR calculation"], 0));
   const refiDebtYield = Number(parseNumber(variables?.["Refi: Debt Yield calculation"], 0));
   const refiMaxPermLoan = Number(parseNumber(variables?.["Refi: Max Perm Loan"], 0));
+
 
   const loanOptions = [
     { label: "LTV", value: refiLtv },
@@ -185,7 +210,7 @@ export default function RefinancingSection({
 
   const summaryMetrics = showRefiInputs
     ? [
-        { label: "Refinancing Month", value: `Month ${refiMonthNumber}` },
+        { label: "Refinancing Month", value: variables?.["Refi: Refinancing Month"] ?? "N/A" },
         { label: "Current Principal", value: formatCurrencySafe(currentPrincipalOutstanding) },
         { label: "Interest Rate", value: formatPercent(getFieldValue("Refinancing: Fixed Interest Rate", "")) },
         { label: "Amortization", value: formatYears(getFieldValue("Refi Amortization", "")) },
@@ -193,7 +218,7 @@ export default function RefinancingSection({
         { label: "SOFR Spread", value: `${variables?.["Refi: SOFR Spread at Origination"] ?? "N/A"}` },
         { label: `Annualized NOI in Month ${refiMonthNumber}`, value: formatCurrencySafe(variables?.["Refi: Annualized NOI in Month"]) },
         { label: "Loan Factor", value: `${variables?.["Refi: Loan Factor"] ?? "N/A"}` },
-        { label: "Refi Proceeds Net of Fees", value: formatCurrencySafe(variables?.["Refi: Loan Proceeds net of fees"]) },
+        // { label: "Refi Proceeds Net of Fees", value: formatCurrencySafe(variables?.["Refi: Loan Proceeds net of fees"]) },
         { label: "Proceeds from Cashout", value: formatCurrencySafe(variables?.["Refi: Proceeds from Cashout"]) },
         { label: "Annual Debt Service", value: formatCurrencySafe(variables?.["Refi: Annual Debt Service"]) },
         { label: "Monthly Debt Service", value: formatCurrencySafe(variables?.["Refi: Monthly Debt Service"]) },
@@ -238,15 +263,15 @@ export default function RefinancingSection({
                 {modelRefinancing === "Yes" && (
                   <Box>
                     <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                      Refinancing month
+                      Seasoning Period Post Stabilization
                     </Typography>
                     <NumberInput
-                      value={refinancingMonth}
-                      onChange={(value: number | string) => setRefinancingMonth(value)}
+                      value={seasoningPeriodPostStabilization}
+                      onChange={(value: number | string) => setSeasoningPeriodPostStabilization(value)}
                       placeholder="Enter month number"
                       min={1}
                       step={1}
-                      startAdornment={<InputAdornment position="start">Month</InputAdornment>}
+                      endAdornment={<InputAdornment position="start">Months</InputAdornment>}
                       size="small"
                       fullWidth
                     />
@@ -254,7 +279,7 @@ export default function RefinancingSection({
                 )}
               </Box>
 
-              {modelRefinancing === "Yes" && refiMonthNumber <= 0 && (
+              {modelRefinancing === "Yes" && seasoningPeriodPostStabilization <= 0 && (
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
                   Enter the month number to unlock refinancing calculations.
                 </Typography>
@@ -286,35 +311,22 @@ export default function RefinancingSection({
                 >
                   <PercentageInput
                     label="Fixed Interest Rate"
-                    value={getFieldValue(
-                      "Refinancing: Fixed Interest Rate",
-                      variables?.["Refi: Fixed Interest Rate"] ?? ""
-                    )}
-                    onChange={(value: number | string) => {
-                      handleFieldChange(
-                        getFieldId("Refinancing: Fixed Interest Rate"),
-                        "Refinancing: Fixed Interest Rate",
-                        value === "" ? "" : value
-                      );
-                    }}
+                    value={fixedInterestRate}
+                    onChange={(value: number | string) => setFixedInterestRate(value)}
                     fullWidth
                     size="small"
                   />
                   <YearsInput
                     label="Amortization"
-                    value={getFieldValue("Refi Amortization", "")}
-                    onChange={(value: number | string) => {
-                      handleFieldChange(getFieldId("Refi Amortization"), "Refi Amortization", value === "" ? "" : Number(value));
-                    }}
+                    value={amortization}
+                    onChange={(value: number | string) => setAmortization(value)}
                     fullWidth
                     size="small"
                   />
                   <PercentageInput
-                    label="Origination Cost (Includes Title)"
-                    value={getFieldValue("Origination Cost (Includes Title)", "")}
-                    onChange={(value: number | string) => {
-                      handleFieldChange(getFieldId("Origination Cost (Includes Title)"), "Origination Cost (Includes Title)", value === "" ? "" : Number(value));
-                    }}
+                    label="Origination Cost"
+                    value={originationCost}
+                    onChange={(value: number | string) => setOriginationCost(value)}
                     fullWidth
                     size="small"
                   />
@@ -358,7 +370,7 @@ export default function RefinancingSection({
                     }}
                   >
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      Current principal outstanding
+                      Total Debt to Be Refinanced
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 700 }}>
                       

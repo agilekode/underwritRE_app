@@ -185,7 +185,7 @@ export default function LeasingAssumptions({
           </Box>
 
           {/* Section 2: Turnover Cost */}
-          <Box>
+          {/* <Box>
             <SectionHeader
               title="Turnover Cost"
               description="One-time costs per turnover and annual turnover rate."
@@ -252,7 +252,7 @@ export default function LeasingAssumptions({
               {annualTurnover}% turnover implies an average tenant stay of about {avgTenantStay} years. These costs,
               together with vacancy, reduce collected rent in the model.
             </Typography>
-          </Box>
+          </Box> */}
 
           {/* Section 3: Losses and Allowances */}
           <Box>

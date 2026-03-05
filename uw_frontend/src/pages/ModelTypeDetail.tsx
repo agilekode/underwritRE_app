@@ -19,6 +19,7 @@ interface ModelType {
   updated_at?: string;
   show_retail?: boolean;
   show_rental_units?: boolean;
+  development_model?: boolean;
   google_sheet_url?: string;
   sections: Section[];
 }
@@ -73,11 +74,18 @@ const ModelTypeDetail: React.FC = () => {
     name: '',
     order: 0
   });
+  const [isRenameSectionOpen, setIsRenameSectionOpen] = useState(false);
+  const [renameSectionId, setRenameSectionId] = useState<string | null>(null);
+  const [renameSectionValue, setRenameSectionValue] = useState('');
   const [isDescModalOpen, setIsDescModalOpen] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState('');
   const [isSavingDescription, setIsSavingDescription] = useState(false);
   const [descSuccessMessage, setDescSuccessMessage] = useState<string | null>(null);
   const [selectOptionText, setSelectOptionText] = useState('');
+  const [isNameModalOpen, setIsNameModalOpen] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [nameSuccessMessage, setNameSuccessMessage] = useState<string | null>(null);
 
   const fetchModelType = async () => {
     try {
@@ -90,7 +98,7 @@ const ModelTypeDetail: React.FC = () => {
         credentials: 'include',
       });
       const data = await res.json();
-      // console.log("data", data);
+      console.log("data", data);
       setModelType(data);
     } catch (err) {
       // handle error
@@ -160,6 +168,27 @@ const ModelTypeDetail: React.FC = () => {
       });
       if (res.ok) {
         setModelType({ ...modelType, show_rental_units: !modelType.show_rental_units });
+      }
+    } catch (err) {
+      // handle error
+    }
+  };
+
+  const handleToggleDevelopmentModel = async () => {
+    if (!modelType) return;
+    try {
+      const token = await getAccessTokenSilently();
+      const res = await fetch(`${BACKEND_URL}/api/model_types/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ development_model: !modelType.development_model })
+      });
+      if (res.ok) {
+        setModelType({ ...modelType, development_model: !modelType.development_model });
       }
     } catch (err) {
       // handle error
@@ -634,6 +663,47 @@ const ModelTypeDetail: React.FC = () => {
     setNewSection({ name: '', order: 0 });
   };
 
+  const openRenameSection = (section: Section) => {
+    setRenameSectionId(section.id);
+    setRenameSectionValue(section.name || '');
+    setIsRenameSectionOpen(true);
+  };
+
+  const closeRenameSection = () => {
+    setIsRenameSectionOpen(false);
+    setRenameSectionId(null);
+    setRenameSectionValue('');
+  };
+
+  const saveRenameSection = async () => {
+    try {
+      if (!renameSectionId) return;
+      if (!renameSectionValue.trim()) {
+        setError('Section name is required');
+        return;
+      }
+      const token = await getAccessTokenSilently();
+      const res = await fetch(`${BACKEND_URL}/api/model_type_sections/${renameSectionId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ name: renameSectionValue.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        fetchModelType();
+        closeRenameSection();
+      } else {
+        setError(data.error || 'Failed to rename section');
+      }
+    } catch (_e) {
+      setError('An error occurred while renaming the section');
+    }
+  };
+
   const handleSectionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setNewSection(prev => ({
@@ -720,6 +790,41 @@ const ModelTypeDetail: React.FC = () => {
     }
   };
 
+  const closeNameModal = () => {
+    setIsNameModalOpen(false);
+  };
+
+  const saveName = async () => {
+    if (!modelType) return;
+    try {
+      setIsSavingName(true);
+      setError(null);
+      const token = await getAccessTokenSilently();
+      const res = await fetch(`${BACKEND_URL}/api/model_types/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ name: nameDraft })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setModelType(prev => prev ? { ...prev, name: nameDraft } : null);
+        setNameSuccessMessage('Name updated successfully');
+        setIsNameModalOpen(false);
+        setTimeout(() => setNameSuccessMessage(null), 3000);
+      } else {
+        setError(data.error || 'Failed to update name');
+      }
+    } catch (err) {
+      setError('An error occurred while updating the name');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
   if (loading) return <CircularProgress />;
 
   return (
@@ -739,9 +844,17 @@ const ModelTypeDetail: React.FC = () => {
             boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
           }}
         >
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            {modelType?.name}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+              {modelType?.name}
+            </Typography>
+            <Button variant="outlined" size="small" onClick={() => { setIsNameModalOpen(true); setNameDraft(modelType?.name || ''); }}>
+              Edit Name
+            </Button>
+          </Box>
+          {nameSuccessMessage && (
+            <Alert severity="success" sx={{ ml: 2 }}>{nameSuccessMessage}</Alert>
+          )}
           
         </Box>
         {/* ModelType Description & Dates */}
@@ -788,6 +901,12 @@ const ModelTypeDetail: React.FC = () => {
               <strong>Show Retail:</strong>
             </Typography>
             <Switch checked={modelType?.show_retail} onChange={handleToggleRetail} />
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Typography variant="body2" sx={{ mr: 1 }}>
+              <strong>Development Model:</strong>
+            </Typography>
+            <Switch checked={!!modelType?.development_model} onChange={handleToggleDevelopmentModel} />
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Typography variant="body2" sx={{ mr: 1 }}>
@@ -954,6 +1073,13 @@ const ModelTypeDetail: React.FC = () => {
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <Button variant="outlined" onClick={() => openModal(null, section.id)}>
                     Add Field
+                  </Button>
+                  <Button 
+                    variant="outlined" 
+                    onClick={() => openRenameSection(section)}
+                    size="small"
+                  >
+                    Rename
                   </Button>
                   {section.fields.length === 0 && section.name !== 'General Property Assumptions' && (
                     <Button 
@@ -1189,6 +1315,63 @@ const ModelTypeDetail: React.FC = () => {
             <Button onClick={saveDescription} variant="contained" disabled={isSavingDescription}>
               {isSavingDescription ? 'Saving...' : 'Save'}
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Edit Name Modal */}
+        <Dialog
+          open={isNameModalOpen}
+          onClose={closeNameModal}
+          PaperProps={{
+            sx: { minWidth: 420, maxWidth: '95vw' }
+          }}
+        >
+          <DialogTitle>Edit Model Type Name</DialogTitle>
+          <DialogContent dividers>
+            <TextField
+              fullWidth
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              placeholder="Enter a name for this model type"
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeNameModal}>Cancel</Button>
+            <Button onClick={saveName} variant="contained" disabled={isSavingName || !nameDraft.trim()}>
+              {isSavingName ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Rename Section Modal */}
+        <Dialog
+          open={isRenameSectionOpen}
+          onClose={closeRenameSection}
+          PaperProps={{
+            sx: {
+              minHeight: 220,
+              maxHeight: '90vh',
+              minWidth: 380,
+              maxWidth: '95vw',
+              display: 'flex',
+              flexDirection: 'column',
+            },
+          }}
+        >
+          <DialogTitle>Rename Section</DialogTitle>
+          <DialogContent dividers>
+            <TextField
+              fullWidth
+              label="Section Name"
+              value={renameSectionValue}
+              onChange={(e) => setRenameSectionValue(e.target.value)}
+              sx={{ mt: 1 }}
+              autoFocus
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeRenameSection} color="primary">Cancel</Button>
+            <Button onClick={saveRenameSection} variant="contained" color="primary">Save</Button>
           </DialogActions>
         </Dialog>
 

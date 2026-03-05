@@ -12,6 +12,7 @@ class ModelType(Base):
     name = Column(String, nullable=False, unique=True)
     description = Column(Text)
     is_active = Column(Boolean, default=True)
+    development_model = Column(Boolean, default=False)
     google_sheet_url = Column(String)
     show_retail = Column(Boolean, default=True)
     show_rental_units = Column(Boolean, default=True)
@@ -100,6 +101,17 @@ class Unit(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
 
+class DevelopmentUnit(Base):
+    __tablename__ = 'development_units'
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_model_version_id = Column(UUID(as_uuid=True), ForeignKey('user_model_versions.id'), nullable=False)
+    unit_type = Column(String)
+    avg_sf = Column(Float)
+    units = Column(Integer)
+    avg_rent = Column(Float)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+    
 class MarketRentAssumption(Base):
     __tablename__ = 'market_rent_assumptions'
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

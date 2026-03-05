@@ -156,6 +156,8 @@ export const NumberDecimalInputCell = ({ params, handleCellChange, field, prefix
               right = 50
             }else if(suffix === '/ month'){
               right = 66
+            }else if(suffix === '/ buildable sf'){
+              right = 110
             }else if(suffix === '%'){
               right = 28
             }else if(suffix === 'units'){

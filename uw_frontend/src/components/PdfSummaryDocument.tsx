@@ -554,6 +554,89 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
     );
   };
 
+  const renderDevelopmentUnitsTable = () => {
+    const rowsIn: any[] = Array.isArray(modelDetails?.development_units) ? modelDetails.development_units : [];
+    if (!rowsIn.length) return null;
+    const header = ['Unit Type','Avg. SF','Units','Total SF','Rent PSF','Avg. Rent','Monthly Rent','Annual Rent'];
+    let totals = { units: 0, totalSf: 0, monthlyRent: 0, annualRent: 0 };
+    const dataRows = rowsIn.map((r: any) => {
+      const avgSf = Number(r?.avg_sf || 0);
+      const units = Number(r?.units || 0);
+      const avgRent = Number(r?.avg_rent || 0);
+      const totalSf = Math.max(0, Math.round(avgSf * units));
+      const monthlyRent = Math.max(0, Math.round(avgRent * units));
+      const annualRent = monthlyRent * 12;
+      const rentPsf = totalSf > 0 ? annualRent / totalSf : 0;
+      totals.units += units;
+      totals.totalSf += totalSf;
+      totals.monthlyRent += monthlyRent;
+      totals.annualRent += annualRent;
+      return [
+        r?.unit_type ?? '',
+        Number(avgSf).toLocaleString(),
+        Number(units).toLocaleString(),
+        Number(totalSf).toLocaleString(),
+        `$${Number(rentPsf).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        `$${Number(avgRent).toLocaleString()}`,
+        Number(monthlyRent).toLocaleString(),
+        Number(annualRent).toLocaleString(),
+      ];
+    });
+    const weightedRentPsf = totals.totalSf > 0 ? totals.annualRent / totals.totalSf : 0;
+    const avgRent = totals.units > 0 ? Math.round(totals.annualRent / totals.units) : 0;
+    const totalsRow = [
+      'Totals',
+      '',
+      totals.units.toLocaleString(),
+      totals.totalSf.toLocaleString(),
+      `$${weightedRentPsf.toFixed(2)}`,
+      `$${avgRent.toLocaleString()}`,
+      totals.monthlyRent.toLocaleString(),
+      totals.annualRent.toLocaleString(),
+    ];
+    const allRows = [header, ...dataRows, totalsRow];
+    const colCount = header.length;
+    const base = 100 / (colCount + 1);
+    const firstPct = (2 * base).toFixed(6);
+    const otherPct = base.toFixed(6);
+    return (
+      <View style={styles.section}>
+        <Text style={{ fontSize: 10, fontWeight: 700, marginTop: 6 }}>Development Units</Text>
+        <View wrap={false}>
+          <View style={tableStyles.table}>
+            {allRows.map((row, ri) => {
+              const isHeader = ri === 0;
+              const isTotals = ri === allRows.length - 1;
+              return (
+                <View key={`du-r-${ri}`} style={tableStyles.tableRow} wrap={false}>
+                  {Array.from({ length: colCount }).map((_, ci) => {
+                    const isFirst = ci === 0;
+                    const raw = row[ci] ?? '';
+                    const finalCellStyle = [
+                      tableStyles.tableCell,
+                      isHeader ? tableStyles.tableHeaderCell : undefined,
+                      isTotals ? { backgroundColor: '#F3F4F6' } : undefined,
+                      { width: `${isFirst ? firstPct : otherPct}%` },
+                    ] as any;
+                    const finalTextStyle = [
+                      !isFirst ? tableStyles.right : undefined,
+                      isTotals && isFirst ? { fontWeight: 700 } : undefined,
+                    ] as any;
+                    return (
+                      <View key={`du-c-${ri}-${ci}`} style={finalCellStyle}>
+                        <Text style={finalTextStyle}>{String(raw)}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   const renderAmenityIncomeTable = () => {
     const list: any[] = Array.isArray(modelDetails?.amenity_income) ? modelDetails.amenity_income : [];
     if (!list.length) return null;
@@ -1053,7 +1136,9 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
               </>
             ) : (
               <>
-                {renderUnitsTable()}
+                {(Array.isArray(modelDetails?.development_units) && modelDetails.development_units.length > 0)
+                  ? renderDevelopmentUnitsTable()
+                  : renderUnitsTable()}
                 {renderAmenityIncomeTable()}
                 {renderOperatingExpensesTable()}
               </>
@@ -1148,7 +1233,7 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
           fixed
         />
         <Text style={styles.footerLeft} fixed>
-          Powered by underwritre.com
+          Powered by underwritRE.com
         </Text>
       </Page>
     </Document>

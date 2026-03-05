@@ -5,7 +5,7 @@ from app.models.model import (
     ModelType, ModelTypeSection, ModelTypeSectionField,
     UserModel, UserModelVersion, UserModelFieldValue,
     Unit, MarketRentAssumption, GrowthRates, AmenityIncome, OperatingExpenses, 
-    RetailIncome, Expenses, Issue, ModelNote, ModelPicture, ModelTag
+    RetailIncome, Expenses, Issue, ModelNote, ModelPicture, ModelTag, DevelopmentUnit
 )
 from app.auth import requires_auth
 from sqlalchemy.orm import Session
@@ -56,6 +56,7 @@ def get_model_types():
             'id': str(mt.id),
             'name': mt.name,
             'is_active': mt.is_active,
+            'development_model': mt.development_model,
             'show_retail': mt.show_retail,
             'show_rental_units': mt.show_rental_units,
             'description': mt.description,
@@ -87,6 +88,8 @@ def update_model_type(model_type_id):
             model_type.description = data['description']
         if 'is_active' in data:
             model_type.is_active = data['is_active']
+        if 'development_model' in data:
+            model_type.development_model = data['development_model']
         if 'show_retail' in data:
             model_type.show_retail = data['show_retail']
         if 'show_rental_units' in data:
@@ -98,6 +101,7 @@ def update_model_type(model_type_id):
             'name': model_type.name,
             'description': model_type.description,
             'is_active': model_type.is_active,
+            'development_model': model_type.development_model,
             'show_retail': model_type.show_retail,
             'show_rental_units': model_type.show_rental_units
         }), 200
@@ -169,6 +173,7 @@ def get_model_type(model_type_id):
             'updated_at': model_type.updated_at.isoformat() if model_type.updated_at else None,
             'is_active': model_type.is_active,
             'google_sheet_url': model_type.google_sheet_url,
+            'development_model': model_type.development_model,
             'show_retail': model_type.show_retail,
             'show_rental_units': model_type.show_rental_units,
             'sections': sections_data
@@ -191,6 +196,7 @@ def create_full_model_type():
     
     Optional fields:
     - description: string
+    - development_model: boolean
     - google_sheet_url: string (can be added later via update endpoint)
     """
     session = get_session()
@@ -203,6 +209,7 @@ def create_full_model_type():
             name=data['name'],
             description=data.get('description'),
             is_active=False,
+            development_model=data.get('development_model', False),
             show_retail=data.get('show_retail', True),
             show_rental_units=data.get('show_rental_units', True),
             google_sheet_url=data.get('google_sheet_url')  # Optional, can be added later
@@ -349,6 +356,17 @@ def create_user_model():
             )
             session.add(new_assumption)
 
+        # Add development units (for development models)
+        for dev in data.get('development_units', []):
+            new_dev = DevelopmentUnit(
+                user_model_version_id=user_model_version.id,
+                unit_type=dev.get('unit_type'),
+                avg_sf=dev.get('avg_sf'),
+                units=dev.get('units'),
+                avg_rent=dev.get('avg_rent')
+            )
+            session.add(new_dev)
+
         # Add growth rates
         for rate in data.get('growth_rates', []):
             new_rate = GrowthRates(
@@ -477,7 +495,8 @@ def create_user_model():
             rental_growth_json=data.get('growth_rates'),
             amenity_income_json=data.get('amenity_income'),
             expenses_json=data.get('operating_expenses'),
-            retail_income_json=data.get('retail_income')
+            retail_income_json=data.get('retail_income'),
+            development_model=data.get('development_model')
         )
 
         # Save outputs to DB
@@ -865,6 +884,17 @@ def create_user_model_new_version():
             )
             session.add(new_assumption)
 
+        # Add development units (for development models)
+        for dev in data.get('development_units', []):
+            new_dev = DevelopmentUnit(
+                user_model_version_id=user_model_version.id,
+                unit_type=dev.get('unit_type'),
+                avg_sf=dev.get('avg_sf'),
+                units=dev.get('units'),
+                avg_rent=dev.get('avg_rent')
+            )
+            session.add(new_dev)
+
         # Add growth rates
         for rate in data.get('growth_rates', []):
             new_rate = GrowthRates(
@@ -991,7 +1021,8 @@ def create_user_model_new_version():
             rental_growth_json=data.get('growth_rates'),
             amenity_income_json=data.get('amenity_income'),
             expenses_json=data.get('operating_expenses'),
-            retail_income_json=data.get('retail_income')
+            retail_income_json=data.get('retail_income'),
+            development_model=data.get('development_model', False)
         )
 
         # Save outputs to DB
@@ -1081,6 +1112,8 @@ def create_user_model_intermediate():
             amenity_income_json=data.get('amenity_income'),
             operating_expenses_json=data.get('operating_expenses'),
             retail_income_json=data.get('retail_income'),
+            development_model=data.get('development_model', False),
+            development_units_json=data.get('development_units', []),
             address=address,
             expenses_json=data.get('expenses'),
             property_name=data.get('name')
@@ -1116,7 +1149,8 @@ def update_user_expense_table():
         result = update_user_model_expense_table(
             copied_sheet_id=sheet_id,
             sheet_name=data.get('sheet_name'),
-            expenses=data.get('expenses')
+            expenses=data.get('expenses'),
+            development_model=data.get('development_model', False)
         )
         
         return jsonify({"result": result}), 201
@@ -1248,6 +1282,16 @@ def get_user_model(user_model_id):
             'pf_rent': assumption.pf_rent
         } for assumption in market_rent_assumptions]
 
+        # Add development units to the response
+        development_units = session.query(DevelopmentUnit).filter_by(user_model_version_id=user_model_version.id).all()
+        development_units_data = [{
+            'id': str(dev.id),
+            'unit_type': dev.unit_type,
+            'avg_sf': dev.avg_sf,
+            'units': dev.units,
+            'avg_rent': dev.avg_rent
+        } for dev in development_units]
+
         # Add growth rates to the response
         growth_rates = session.query(GrowthRates).filter_by(user_model_version_id=user_model_version.id).all()
         growth_rates_data = [{
@@ -1337,6 +1381,8 @@ def get_user_model(user_model_id):
             'operating_expenses': operating_expenses_data,
             'expenses': expenses_data,
             'retail_income': retail_income_data
+            ,
+            'development_units': development_units_data
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1462,6 +1508,16 @@ def get_user_model_version(user_model_version_id):
             'pf_rent': assumption.pf_rent
         } for assumption in market_rent_assumptions]
 
+        # Add development units to the response
+        development_units = session.query(DevelopmentUnit).filter_by(user_model_version_id=user_model_version.id).all()
+        development_units_data = [{
+            'id': str(dev.id),
+            'unit_type': dev.unit_type,
+            'avg_sf': dev.avg_sf,
+            'units': dev.units,
+            'avg_rent': dev.avg_rent
+        } for dev in development_units]
+
         # Add growth rates to the response
         growth_rates = session.query(GrowthRates).filter_by(user_model_version_id=user_model_version.id).all()
         growth_rates_data = [{
@@ -1553,6 +1609,8 @@ def get_user_model_version(user_model_version_id):
             'operating_expenses': operating_expenses_data,
             'expenses': expenses_data,
             'retail_income': retail_income_data
+            ,
+            'development_units': development_units_data
         }), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500

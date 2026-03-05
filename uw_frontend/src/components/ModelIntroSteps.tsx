@@ -110,7 +110,7 @@ import {
                       </Box>
                     </Box>
                   ))}
-                  <Box
+                  {/* <Box
                     sx={{
                       border: 2,
                       borderColor: 'grey.300',
@@ -143,7 +143,7 @@ import {
                         COMING SOON
                       </Typography>
                     </Box>
-                  </Box>
+                  </Box> */}
               </RadioGroup>
             </>
           );

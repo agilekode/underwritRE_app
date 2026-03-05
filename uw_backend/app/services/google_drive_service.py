@@ -2501,7 +2501,9 @@ def get_amenity_income_formula_update(
     amenity_sheet="Amenity Income",
     start_row=25,
     start_col=5,
-    num_months=132
+    num_months=132, 
+    inflation_factor_row=10, 
+    month_row=15
 ):
     print("get_amenity_income_formula_update")
     print("amenity_json", amenity_json)
@@ -2520,9 +2522,9 @@ def get_amenity_income_formula_update(
             col_index = start_col + j
             col_letter = rowcol_to_a1(1, col_index).replace("1", "")
             formula = (
-                f"=IF({col_letter}15<'{amenity_sheet}'!$D{amenity_row},"
+                f"=IF({col_letter}{month_row}<'{amenity_sheet}'!$D{amenity_row},"
                 f"0,"
-                f"'{amenity_sheet}'!$H{amenity_row}*{col_letter}10*'{amenity_sheet}'!$G{amenity_row})"
+                f"'{amenity_sheet}'!$H{amenity_row}*{col_letter}${inflation_factor_row}*'{amenity_sheet}'!$G{amenity_row})"
             )
             row.append(formula)
 
@@ -2612,7 +2614,8 @@ def get_noi_summary_row_update_payload(
     walk_start_row=25,
     noi_start_row=10,
     noi_sheet="NOI",
-    walk_sheet="NOI Walk"
+    walk_sheet="NOI Walk",
+    year_row=14
 ):
     all_rows = []
 
@@ -2625,7 +2628,7 @@ def get_noi_summary_row_update_payload(
         for col_letter in ["G", "H", "I", "J", "K"]:
             formula = (
                 f"=SUMIFS('{walk_sheet}'!$E{walk_row}:$CW{walk_row},"
-                f"'{walk_sheet}'!$E$14:$CW$14,"
+                f"'{walk_sheet}'!$E${year_row}:$CW${year_row},"
                 f"{noi_sheet}!{col_letter}$4)"
             )
             row.append(formula)
@@ -2732,7 +2735,9 @@ def get_operating_expenses_update_payload(
     amenity_income_json,
     model_variable_mapping,
     sheet_name="Operating Expenses",
-    start_row=5
+    start_row=5,
+    total_row=5,
+    development_model=False
 ):
 
     expenses_json = sorted(
@@ -2742,14 +2747,18 @@ def get_operating_expenses_update_payload(
 
     # Rental Assumptions totals row is 1 row below the last unit row.
     # Units are inserted starting at row 5, so total row index = 5 + num_units.
-    rental_total_row = 5 + len(rental_assumptions_json)
+    rental_total_row = total_row + len(rental_assumptions_json)
     amenity_row = len(amenity_income_json) + 2
     rows_to_insert = []
 
     egi_location = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Estimated Pro Forma Rent Roll')
     # purchase_price_location = get_mapped_cell_location(model_variable_mapping, 'General Property Assumptions', 'Acquisition Price')
     # acquisition_loan_location = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Max Loan Size')
-    gross_sf_location = get_mapped_cell_location(model_variable_mapping, 'General Property Assumptions', 'Gross Square Feet')
+    if development_model:
+        gross_sf_location = get_mapped_cell_location(model_variable_mapping, 'General Property Assumptions', 'Gross Buildable Square Feet')
+    else:
+        gross_sf_location = get_mapped_cell_location(model_variable_mapping, 'General Property Assumptions', 'Gross Square Feet')
+    
     net_rentable_sf_location = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Net Rentable SF')
 
     for i, expense in enumerate(expenses_json):
@@ -3139,7 +3148,9 @@ def get_operating_expense_formula_update_payloads(
     op_exp_sheet="Operating Expenses",
     start_base_row=34,
     start_col=5,
-    num_months=132
+    num_months=132,
+    inflation_factor_row=11, 
+    egi_start_row=27
 ):
     start_row = start_base_row + len(amenity_income_json)
     num_expenses = len(expenses_json)
@@ -3152,7 +3163,7 @@ def get_operating_expense_formula_update_payloads(
 
     # Monthly formulas
     formula_rows = []
-    egi_row = 27 + len(amenity_income_json)
+    egi_row = egi_start_row + len(amenity_income_json)
     for i in range(num_expenses):
         op_row = 5 + i
         formula_row = []
@@ -3168,23 +3179,11 @@ def get_operating_expense_formula_update_payloads(
             formula = (
                 f"=IF('{op_exp_sheet}'!$F{op_row}=\"Percent of EGI\","
                 f"'{op_exp_sheet}'!$G{op_row}*{col_letter}{egi_row},"
-                f"'{op_exp_sheet}'!$I{op_row}*{col_letter}$11)"
+                f"'{op_exp_sheet}'!$I{op_row}*${col_letter}{inflation_factor_row})"
             )
 
             formula_row.append(formula)
         formula_rows.append(formula_row)
-
-
-    
-
-
-    
-
-   
-
-
-
-
 
     start_col_letter = rowcol_to_a1(1, start_col).replace("1", "")
     end_col_letter = rowcol_to_a1(1, end_col_index).replace("1", "")
@@ -3359,7 +3358,8 @@ def get_noi_expense_rows_insert_and_update(
     walk_start_row=30,
     noi_base_row=14,
     noi_sheet="NOI",
-    walk_sheet="NOI Walk"
+    walk_sheet="NOI Walk",
+    year_row=14
 ):
     num_rows = len(expenses_json)
     noi_start_row = noi_base_row + len(amenity_income_json)
@@ -3417,7 +3417,7 @@ def get_noi_expense_rows_insert_and_update(
         for col_letter in ["G", "H", "I", "J", "K"]:
             formula = (
                 f"=SUMIFS('{walk_sheet}'!$E{walk_row}:$CW{walk_row},"
-                f"'{walk_sheet}'!$E$14:$CW$14,"
+                f"'{walk_sheet}'!$E${year_row}:$CW${year_row},"
                 f"{noi_sheet}!{col_letter}$4)"
             )
             row.append(formula)
@@ -3742,7 +3742,16 @@ def get_property_name_update_payload(property_name, model_variable_mapping, shee
 def get_number_of_spaces_update_payload(model_variable_mapping, retail_income_json, sheet_name="Cover"):
     cell = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Number of Spaces')
 
-    insert_function = f"=COUNTA(UNIQUE('{sheet_name}'!$B$6:B{len(retail_income_json) + 5}))"
+    if len(retail_income_json) == 0:
+        insert_function = "=0"
+    else:
+        end_row = len(retail_income_json) + 5
+        insert_function = (
+            f"=IFERROR(SUMPRODUCT(1/"
+            f"COUNTIF('{sheet_name}'!$B$6:B{end_row},"
+            f"'{sheet_name}'!$B$6:B{end_row}&\"\")),0)"
+        )
+
     if not cell:
         return []
         
@@ -5573,13 +5582,18 @@ def get_retail_expenses_summary_row_industrial(retail_income, retail_expenses, s
     
     return update_payload
 
-def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, model_variable_mapping):
+def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, model_variable_mapping, development_model=False):
     """
     Generates insert and update payloads for inserting rows into the given expense sheet.
     Returns insert_request and update_payloads instead of executing them.
     """
     ws = spreadsheet.worksheet(sheet_name)
     sheet_id = ws._properties["sheetId"]
+    # Remove any placeholder/empty rows to avoid inserting blank lines
+    expenses = [
+        e for e in (expenses or [])
+        if (str(e.get("name", "")).strip() != "" or str(e.get("factor", "")).strip() != "")
+    ]
     # print("EXPENSES", expenses)
     # Sort so that "Total percent of other expenses" is always at the end
     expenses = sorted(expenses, key=lambda x: x.get("factor") == "Total percent of other expenses")
@@ -5630,7 +5644,7 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
         except Exception:
             cost_per_value = None
 
-        if factor in ["Percent of Purchase Price", "Percent of Acquisition Loan", "Total percent of other expenses", "Percent of Property Taxes", "Percent of Insurance Cost"]:
+        if factor in ["Percent of Purchase Price", "Percent of Acquisition Loan", "Total percent of other expenses", "Percent of Property Taxes", "Percent of Insurance Cost", "Percent of Construction Loan", "Percent of Pref / Mezz Loan", "Percent of Hard Costs"]:
             cost_number_format = {"type": "PERCENT", "pattern": "0.00%"}
         elif factor.lower() == "per Unit".lower():
             if cost_per_value is not None and cost_per_value >= 100:
@@ -5647,6 +5661,12 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
                 cost_number_format = {"type": "NUMBER", "pattern": "$#,##0\"/month\""}
             else:
                 cost_number_format = {"type": "NUMBER", "pattern": "$#,##0.00\"/month\""}
+        elif factor.lower() == "$ / buildable sf".lower():
+            # Show suffix for buildable SF costs
+            if cost_per_value is not None and cost_per_value >= 100:
+                cost_number_format = {"type": "NUMBER", "pattern": "$#,##0\"/buildable sf\""}
+            else:
+                cost_number_format = {"type": "NUMBER", "pattern": "$#,##0.00\"/buildable sf\""}
         else:  # Total or anything else
             if cost_per_value is not None and cost_per_value >= 100:
                 cost_number_format = {"type": "NUMBER", "pattern": "$#,##0"}
@@ -5701,6 +5721,8 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
             stat_number_format = {"type": "NUMBER", "pattern": "#,##0\" sf\""}
         elif factor.lower() == "per Month".lower():
             stat_number_format = {"type": "NUMBER", "pattern": "#,##0\" months\""}
+        elif factor.lower() == "$ / buildable sf".lower():
+            stat_number_format = {"type": "NUMBER", "pattern": "#,##0\" sf\""}
         else:
             stat_number_format = {"type": "NUMBER", "pattern": "#,##0"}
         format_requests.append({
@@ -5783,6 +5805,9 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
 
     purchase_price_location = get_mapped_cell_location(model_variable_mapping, 'General Property Assumptions', 'Acquisition Price')
     acquisition_loan_location = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Max Loan Size')
+    construction_loan_location = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Sr. Cons: Exact Loan Amount')
+    pref_mezz_loan_location = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Pref. / Mezz: Loan Amount')
+    hard_cost_total_location = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Hard Cost Total')
     # Add normal expenses first
     for i, exp in enumerate(normal_expenses):
         row_index = i + 2  # 1-based index after header row
@@ -5792,7 +5817,6 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
         cost_per = float(exp.get("cost_per") or 0)
         start_month = int(exp.get("start_month") or 0)
         end_month = int(exp.get("end_month") or 0)
-
         # Handle statistic
         statistic = "" 
         if factor.lower() == "Total".lower():
@@ -5809,6 +5833,25 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
         elif factor.lower() == "Percent of Insurance Cost".lower():
             statistic = f"='Operating Expenses'!I6"
             cost_per = cost_per/100
+        elif factor.lower() == "Percent of Construction Loan".lower():
+            statistic = f"={construction_loan_location}"
+            cost_per = cost_per/100
+        elif factor.lower() == "Percent of Pref / Mezz Loan".lower():
+            statistic = f"={pref_mezz_loan_location}"
+            cost_per = cost_per/100
+        elif factor.lower() == "Percent of Hard Costs".lower():
+            statistic = f"={hard_cost_total_location}"
+            cost_per = cost_per/100
+        elif (
+            development_model is True
+            and sheet_name.strip().lower() == "hard costs"
+            and factor.lower() == "$ / buildable sf".lower()
+        ):
+            # Reference Gross Buildable Square Feet for development hard costs
+            gb_sf_loc = get_mapped_cell_location(model_variable_mapping, 'General Property Assumptions', 'Gross Buildable Square Feet')
+            print("GB SF LOC", gb_sf_loc)
+            statistic = f"={gb_sf_loc}"
+            # cost_per remains as entered ($ per buildable sf)
         else:
             statistic = float(exp.get("statistic") or 0)
             cost_per = cost_per
@@ -5884,6 +5927,21 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
         "range": f"{sheet_name}!E{total_row_index}",
         "values": [[total_formula_value]]
     }
+    # Update G/H (min and max months from above rows)
+    if end_row >= 2:
+        g_min_formula = f"=MIN(G2:G{end_row})"
+        h_max_formula = f"=MAX(H2:H{end_row})"
+    else:
+        g_min_formula = "0"
+        h_max_formula = "0"
+    g_months_update_payload = {
+        "range": f"{sheet_name}!G{total_row_index}",
+        "values": [[g_min_formula]]
+    }
+    h_months_update_payload = {
+        "range": f"{sheet_name}!H{total_row_index}",
+        "values": [[h_max_formula]]
+    }
 
     # Update each month column (J to EL) with a SUM formula
     month_sums = []
@@ -5897,10 +5955,183 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
         "values": [month_sums]
     }
 
-    return insert_request, [main_update_payload, total_column_update_payload, month_totals_update_payload], format_requests
+    return insert_request, [main_update_payload, total_column_update_payload, g_months_update_payload, h_months_update_payload, month_totals_update_payload], format_requests
+
+
+def get_development_rental_requests(spreadsheet, development_units_json, sheet_name="Rental Assumptions"):
+    """
+    Build value payloads (and any requests if needed) for the development 'Rental Assumptions' sheet.
+    Fills the Total row (row 2) based on provided development units.
+    Columns:
+      D: Avg. SF (sum of avg_sf)
+      E: Units (sum of units)
+      F: Total SF (sum of avg_sf * units)
+      G: Rent PSF (total annual rent / total sf)
+      H: Avg. Rent (total annual rent / total units)
+      I: Monthly Rent (sum of avg_rent * units)
+      J: Annual Rent (monthly * 12)
+    """
+    dev_units = development_units_json or []
+    total_units = 0
+    total_sf = 0
+    total_monthly = 0
+    total_avg_sf = 0
+    for u in dev_units:
+        try:
+            avg_sf = float(u.get('avg_sf') or 0)
+            units = int(float(u.get('units') or 0))
+            avg_rent = float(u.get('avg_rent') if 'avg_rent' in u else u.get('avg_rent') or 0)
+        except Exception:
+            avg_sf = 0
+            units = 0
+            avg_rent = 0
+        total_units += units
+        total_sf += round(avg_sf * units)
+        total_monthly += round(avg_rent * units)
+        total_avg_sf += round(avg_sf)
+    total_annual = total_monthly * 12
+    rent_psf = (total_annual / total_sf) if total_sf > 0 else 0
+    avg_rent_total = round(total_annual / total_units) if total_units > 0 else 0
+
+    requests = []
+    value_payloads = []
+
+    # Insert rows for unit lines under header, before total row
+    num_rows = len(dev_units)
+    if num_rows > 0:
+        try:
+            sheet_id = get_sheet_id(spreadsheet, sheet_name)
+            requests.append({
+                "insertDimension": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "dimension": "ROWS",
+                        "startIndex": 1,                 # insert starting at row 2 (0-based)
+                        "endIndex": 1 + num_rows
+                    },
+                    "inheritFromBefore": False
+                }
+            })
+        except Exception as _e:
+            print(f"[get_development_rental_requests] Could not build insertDimension: {_e}")
+
+        # Prepare per-row values for A (Unit Type) and D:J
+        unit_type_values = []
+        metrics_values = []
+        for u in dev_units:
+            try:
+                unit_type = u.get('unit_type') or ''
+                avg_sf = float(u.get('avg_sf') or 0)
+                units = int(float(u.get('units') or 0))
+                avg_rent = float(u.get('avg_rent') if 'avg_rent' in u else u.get('avg_rent') or 0)
+            except Exception:
+                unit_type = u.get('unit_type') or ''
+                avg_sf = 0
+                units = 0
+                avg_rent = 0
+            row_total_sf = round(avg_sf * units)
+            row_monthly = round(avg_rent * units)
+            row_annual = row_monthly * 12
+            row_rent_psf = (row_annual / row_total_sf) if row_total_sf > 0 else 0
+            # Avg Rent for a row is simply avg_rent input (per unit), keep as-is
+            unit_type_values.append([unit_type])
+            metrics_values.append([
+                round(avg_sf),
+                units,
+                row_total_sf,
+                row_rent_psf,
+                round(avg_rent),
+                row_monthly,
+                row_annual
+            ])
+
+        value_payloads.append({
+            "range": f"{sheet_name}!A2:A{1 + num_rows}",
+            "values": unit_type_values
+        })
+        value_payloads.append({
+            "range": f"{sheet_name}!D2:J{1 + num_rows}",
+            "values": metrics_values
+        })
+
+    # Totals row (after inserted rows -> row index 2 + num_rows)
+    totals_row = 2 + num_rows
+    # Build formulas for totals (use SUM over inserted block and derived ratios)
+    end_row = 1 + num_rows  # last data row
+    if num_rows > 0:
+        # Totals: D (Avg SF) = F (Total SF) / E (Units)
+        e_sum = f"=SUM(E2:E{end_row})"
+        f_sum = f"=SUM(F2:F{end_row})"
+        i_sum = f"=SUM(I2:I{end_row})"
+        j_sum = f"=SUM(J2:J{end_row})"
+        f_cell = f"F{totals_row}"
+        e_cell = f"E{totals_row}"
+        j_cell = f"J{totals_row}"
+        d_sum = f"=IF({e_cell}>0,{f_cell}/{e_cell},0)"
+        g_psf = f"=IF({f_cell}>0,{j_cell}/{f_cell},0)"
+        h_avg = f"=IF({e_cell}>0,{j_cell}/{e_cell},0)"
+    else:
+        d_sum = "0"; e_sum = "0"; f_sum = "0"; i_sum = "0"; j_sum = "0"; g_psf = "0"; h_avg = "0"
+
+    value_payloads.append({
+        "range": f"{sheet_name}!D{totals_row}:J{totals_row}",
+        "values": [[d_sum, e_sum, f_sum, g_psf, h_avg, i_sum, j_sum]]
+    })
+
+    return requests, value_payloads
 
 
 
+def enable_iterative_calculation(spreadsheet_id: str, max_iterations: int = 100, threshold: float = 0.05):
+    """
+    Enable iterative calculation on the Google Sheet and set limits.
+    Equivalent to UI:
+      - Iterative calculation: On
+      - Max number of iterations: 100
+      - Threshold: 0.05
+    """
+    try:
+        from googleapiclient.discovery import build
+        from google.oauth2.service_account import Credentials  # type: ignore
+        from google.auth import default  # type: ignore
+        import os
+
+        SCOPES = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
+
+        if 'SERVICE_ACCOUNT_FILE' in globals() and SERVICE_ACCOUNT_FILE and os.path.exists("./" + SERVICE_ACCOUNT_FILE):
+            creds = Credentials.from_service_account_file("./" + SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        else:
+            creds, _ = default(scopes=SCOPES)
+
+        service = build("sheets", "v4", credentials=creds, cache_discovery=False)
+        body = {
+            "requests": [
+                {
+                    "updateSpreadsheetProperties": {
+                        "properties": {
+                            "iterativeCalculationSettings": {
+                                "maxIterations": int(max_iterations),
+                                "convergenceThreshold": float(threshold),
+                            }
+                        },
+                        "fields": "iterativeCalculationSettings",
+                    }
+                }
+            ]
+        }
+        service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
+    except Exception as e:
+        # Non-fatal; log and continue
+        try:
+            print(f"⚠️ Unable to enable iterative calculation for spreadsheet {spreadsheet_id}: {e}")
+        except Exception:
+            pass
+
+
+    
 def run_full_sheet_update(
     spreadsheet,
     market_json,
@@ -5912,7 +6143,9 @@ def run_full_sheet_update(
     address,
     retail_income,
     expenses_json,
-    property_name
+    property_name,
+    development_model=False,
+    development_units_json=None
 ):
 
     industrial_model = False
@@ -6005,6 +6238,16 @@ def run_full_sheet_update(
         rent_roll_inserts = []
         rent_roll_values = []
 
+    
+    # If development model, override rental inserts/values with development totals
+    if development_model:
+        try:
+            dev_reqs, dev_values = get_development_rental_requests(spreadsheet, development_units_json or [])
+            rental_requests = dev_reqs
+            rental_value_payloads = dev_values
+        except Exception as e:
+            print(f"[run_full_sheet_update] Development rental requests failed: {e}")
+
 
     print(f"[run_full_sheet_update] Preparing amenity income inserts: items:{len(amenity_income_json)}")
     amenity_income_insert_request = get_amenity_income_insert_request(
@@ -6014,8 +6257,12 @@ def run_full_sheet_update(
 
     noi_walk_amenity_start_row = 25
     noi_amenity_start_row = 10
-    if len(operating_expenses_json) > 0:
-        
+    if development_model:
+        ## development model
+        noi_walk_amenity_start_row = 25
+        noi_amenity_start_row = 10
+    elif len(operating_expenses_json) > 0:
+        ## multifamily and mixed
         noi_walk_amenity_start_row = 25
         noi_amenity_start_row = 10
     else: 
@@ -6044,7 +6291,20 @@ def run_full_sheet_update(
 
     print(f"[run_full_sheet_update] amenity_noi_summary_insert_request ops:{len(amenity_noi_summary_insert_request)}")
 
-    if len(operating_expenses_json) > 0:
+    if development_model:
+        ## development model
+        operating_expenses_clear = get_operating_expenses_clear_request(spreadsheet, sheet_name="Operating Expenses")
+        print(f"[run_full_sheet_update] Preparing operating expenses inserts: items:{len(operating_expenses_json)}")
+        operating_expenses_insert = get_operating_expenses_insert_request(
+            spreadsheet, operating_expenses_json, start_row=5, sheet_name="Operating Expenses"
+        )
+        print(f"[run_full_sheet_update] operating_expenses_insert ops:{len(operating_expenses_insert)}")
+
+        operating_expense_rows_insert = get_operating_expense_row_insert_request(
+            spreadsheet, operating_expenses_json, amenity_income_json, sheet_name="NOI Walk", start_base_row=29
+        )
+        print(f"[run_full_sheet_update] operating_expense_rows_insert ops:{len(operating_expense_rows_insert)}")
+    elif len(operating_expenses_json) > 0:
         operating_expenses_clear = get_operating_expenses_clear_request(spreadsheet, sheet_name="Operating Expenses")
         print(f"[run_full_sheet_update] Preparing operating expenses inserts: items:{len(operating_expenses_json)}")
         operating_expenses_insert = get_operating_expenses_insert_request(
@@ -6080,12 +6340,20 @@ def run_full_sheet_update(
         )
     else: 
 
-        noi_expense_insert, noi_expense_update, noi_expense_reset_format = get_noi_expense_rows_insert_and_update(
-            spreadsheet, operating_expenses_json, amenity_income_json
-        )
+        if development_model:
+            noi_expense_insert, noi_expense_update, noi_expense_reset_format = get_noi_expense_rows_insert_and_update(
+                spreadsheet, operating_expenses_json, amenity_income_json, walk_start_row=29, year_row=11
+            )
+        else:
+            noi_expense_insert, noi_expense_update, noi_expense_reset_format = get_noi_expense_rows_insert_and_update(
+                spreadsheet, operating_expenses_json, amenity_income_json, year_row=14
+            )
+
+
+
     print(f"[run_full_sheet_update] NOI expense inserts:{len(noi_expense_insert)} updates:{len(noi_expense_update)} reset_format:{len(noi_expense_reset_format)}")
 
-    if len(rental_assumptions_json) > 0:
+    if len(rental_assumptions_json) > 0 and not development_model:
 
         print(f"[run_full_sheet_update] Building rent roll assumption inserts for {len(rental_assumptions_json)} rentals")
         rent_roll_assumptions_insert, rent_roll_output_values = get_rent_roll_assumption_row_inserts(
@@ -6167,11 +6435,21 @@ def run_full_sheet_update(
                 amenity_json=amenity_income_json, start_row=noi_walk_amenity_start_row, start_col=5, num_months=132
             )
         else:
+            if development_model:
+                inflation_factor_row = 13
+                month_row = 16
+            else:
+                inflation_factor_row = 10
+                month_row = 15
             amenity_income_formula_update = get_amenity_income_formula_update(
-                amenity_json=amenity_income_json, start_row=noi_walk_amenity_start_row, start_col=5, num_months=132
+                amenity_json=amenity_income_json, start_row=noi_walk_amenity_start_row, start_col=5, num_months=132, inflation_factor_row=inflation_factor_row, month_row=month_row
             )
+        if development_model:
+            year_row = 11
+        else:
+            year_row = 14
         noi_summary_update = get_noi_summary_row_update_payload(
-            num_rows=len(amenity_income_json), walk_start_row=noi_walk_amenity_start_row, noi_start_row=noi_amenity_start_row
+            num_rows=len(amenity_income_json), walk_start_row=noi_walk_amenity_start_row, noi_start_row=noi_amenity_start_row, year_row=year_row
     )
         print(f"[run_full_sheet_update] amenity_income_update ops:{len(amenity_income_update)} amenity_income_totals_update ops:{len(amenity_income_totals_update)} "
               f"amenity_income_format ops:{len(amenity_income_format)} amenity_income_formula_update ops:{len(amenity_income_formula_update)} "
@@ -6187,12 +6465,35 @@ def run_full_sheet_update(
         print("[run_full_sheet_update] No amenity_income_json; skipping amenity updates")
     
 
-    if len(operating_expenses_json) > 0:
+    if len(operating_expenses_json) > 0 or development_model:
         operating_expenses_header = get_operating_expenses_header_payload(sheet_name="Operating Expenses")
 
-        operating_expenses_update = get_operating_expenses_update_payload(
-            operating_expenses_json, rental_assumptions_json, amenity_income_json, model_variable_mapping, sheet_name="Operating Expenses", start_row=5
-        )
+        if development_model:
+            start_row = 5
+            total_row = 2
+            operating_expenses_update = get_operating_expenses_update_payload(
+                operating_expenses_json, 
+                development_units_json, 
+                amenity_income_json, 
+                model_variable_mapping, 
+                sheet_name="Operating Expenses", 
+                start_row=start_row, 
+                total_row=total_row,
+                development_model=development_model
+            )
+        else:
+            start_row = 5
+            total_row = 5
+            operating_expenses_update = get_operating_expenses_update_payload(
+                operating_expenses_json, 
+                rental_assumptions_json, 
+                amenity_income_json, 
+                model_variable_mapping, 
+                sheet_name="Operating Expenses", 
+                start_row=start_row, 
+                total_row=total_row,
+                development_model=development_model
+            )
 
         operating_expenses_format = get_operating_expenses_format_payload(
             operating_expenses_json, spreadsheet, sheet_name="Operating Expenses", start_row=5
@@ -6202,9 +6503,18 @@ def run_full_sheet_update(
             operating_expenses_json, sheet_name="Operating Expenses", start_row=5
         )
 
+        if development_model:
+            noi_opp_start_base_row = 29
+            inflation_factor_row = 14
+            egi_start_row = 26
+        else:
+            noi_opp_start_base_row = 30
+            inflation_factor_row = 11
+            egi_start_row = 27
+
         operating_expense_formula_updates = get_operating_expense_formula_update_payloads(
             operating_expenses_json, amenity_income_json, noi_sheet="NOI Walk",
-            op_exp_sheet="Operating Expenses", start_base_row=30, start_col=5, num_months=132
+            op_exp_sheet="Operating Expenses", start_base_row= noi_opp_start_base_row, start_col=5, num_months=132, inflation_factor_row=inflation_factor_row, egi_start_row=egi_start_row
         )
         print(f"[run_full_sheet_update] operating_expenses_update ops:{len(operating_expenses_update)} "
               f"operating_expenses_format ops:{len(operating_expenses_format)} "
@@ -6212,7 +6522,7 @@ def run_full_sheet_update(
               f"operating_expense_formula_updates ops:{len(operating_expense_formula_updates)}")
 
         expense_sum_row_to_noi_walk = get_expense_sum_row_to_noi_walk_payload(
-        amenity_income_json, operating_expenses_json
+        amenity_income_json, operating_expenses_json, row_offset=noi_opp_start_base_row
         )
         print(f"[run_full_sheet_update] expense_sum_row_to_noi_walk ops:{len(expense_sum_row_to_noi_walk)}")
 
@@ -6240,7 +6550,10 @@ def run_full_sheet_update(
 
 
     try:
-        re_stabilization_update = get_restabilization_update_payload(model_variable_mapping, rental_assumptions_json)
+        if(not development_model):
+            re_stabilization_update = get_restabilization_update_payload(model_variable_mapping, rental_assumptions_json)
+        else:
+            re_stabilization_update = []
     except Exception:
         re_stabilization_update = []
     print(f"[run_full_sheet_update] re_stabilization_update ops:{len(re_stabilization_update)}")
@@ -6254,7 +6567,10 @@ def run_full_sheet_update(
 
 
     # Update Cover tab I3/J3 and Assumptions E19 with dynamic references to Rental Assumptions totals row
-    cover_residential_update = get_cover_residential_update_payloads(rental_assumptions_json, amenity_income_json, rental_start_row=5, amenity_start_row=5)
+    if not development_model:
+        cover_residential_update = get_cover_residential_update_payloads(rental_assumptions_json, amenity_income_json, rental_start_row=5, amenity_start_row=5)
+    else:
+        cover_residential_update = []
 
     if industrial_model:
         # =COUNTA(UNIQUE('Retail Assumptions'!$B$6:B9))
@@ -6325,11 +6641,17 @@ def run_full_sheet_update(
     closing_costs_filtered = [expense for expense in expenses_json if expense.get('type') == 'Closing Costs']
     closing_cost_insert_request, closing_cost_update_payloads, closing_cost_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Closing Costs', closing_costs_filtered, model_variable_mapping)
     hard_costs_filtered = [expense for expense in expenses_json if expense.get('type') == 'Hard Costs']
-    hard_costs_insert_request, hard_costs_update_payloads, hard_costs_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Hard Costs', hard_costs_filtered, model_variable_mapping)
+    hard_costs_insert_request, hard_costs_update_payloads, hard_costs_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Hard Costs', hard_costs_filtered, model_variable_mapping, development_model)
     legal_costs_filtered = [expense for expense in expenses_json if expense.get('type') == 'Legal and Pre-Development Costs']
     legal_costs_insert_request, legal_costs_update_payloads, legal_costs_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Legal and Pre-Development Costs', legal_costs_filtered, model_variable_mapping)
-    reserves_filtered = [expense for expense in expenses_json if expense.get('type') == 'Reserves']
-    reserves_insert_request, reserves_update_payloads, reserves_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Reserves', reserves_filtered, model_variable_mapping)
+    if not development_model:
+        soft_costs_insert_request, soft_costs_update_payloads, soft_costs_format_requests = [], [], []
+        reserves_filtered = [expense for expense in expenses_json if expense.get('type') == 'Reserves']
+        reserves_insert_request, reserves_update_payloads, reserves_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Reserves', reserves_filtered, model_variable_mapping)
+    else:
+        soft_costs_filtered = [expense for expense in expenses_json if expense.get('type') == 'Soft Costs']
+        soft_costs_insert_request, soft_costs_update_payloads, soft_costs_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Soft Costs', soft_costs_filtered, model_variable_mapping, development_model)
+        reserves_insert_request, reserves_update_payloads, reserves_format_requests = [], [], []
     # === Combine Insert & Format Requests ===
     insert_requests = [
         market_insert_request,
@@ -6354,6 +6676,7 @@ def run_full_sheet_update(
         *([] if len(retail_expenses) == 0 else [retail_expenses_insert_request]),
         closing_cost_insert_request,
         hard_costs_insert_request,
+        soft_costs_insert_request,
         legal_costs_insert_request,
         reserves_insert_request,
         amenity_income_format,
@@ -6364,7 +6687,7 @@ def run_full_sheet_update(
     ]
 
     print("ALL INSERT REQUESTS", insert_requests)
-    format_requests = [growth_format_request, vacancy_format_request, total_summary_format, *closing_cost_format_requests, *hard_costs_format_requests, *legal_costs_format_requests, *reserves_format_requests, *operating_expenses_format]
+    format_requests = [growth_format_request, vacancy_format_request, total_summary_format, *closing_cost_format_requests, *hard_costs_format_requests, *soft_costs_format_requests, *legal_costs_format_requests, *reserves_format_requests, *operating_expenses_format]
 
     # === Combine Update Payloads ===
     update_payloads = [
@@ -6411,6 +6734,7 @@ def run_full_sheet_update(
         *([] if len(retail_expenses) == 0 else [retail_expenses_summary_update_payload]),
         closing_cost_update_payloads,
         hard_costs_update_payloads,
+        soft_costs_update_payloads,
         legal_costs_update_payloads,
         reserves_update_payloads
     ]
@@ -6423,6 +6747,10 @@ def run_full_sheet_update(
     print("✅ All inserts and updates applied.")
 
 
+    if development_model:
+        enable_iterative_calculation(spreadsheet.id, max_iterations=200)
+
+
 def update_google_sheet_and_get_values(
     copied_sheet_id,
     copied_sheet_url,
@@ -6433,7 +6761,9 @@ def update_google_sheet_and_get_values(
     amenity_income_json,
     expenses_json,
     operating_expenses_json,
-    retail_income_json
+    retail_income_json,
+    development_model,
+    development_units_json
 ):
     print("📤 Starting Google Sheet generation workflow...")
     timings = {}
@@ -6489,7 +6819,9 @@ def update_google_sheet_and_get_values(
         address="",
         retail_income=retail_income_json, 
         expenses_json=expenses_json,
-        property_name=''
+        property_name='',
+        development_model=development_model,
+        development_units_json=development_units_json
     )
 
     # Step 3: Extract tables (wait for Google Sheets recalculation after run_full_sheet_update)
@@ -6507,6 +6839,8 @@ def update_google_sheet_and_get_values(
     timings['extract_variables'] = t7 - t6
     print(f"📈 Extracted variables: {variables} in {timings['extract_variables']:.3f}s")
 
+
+
     # Total time
     timings['total'] = t7 - t0
     print(f"⏱️ Total time: {timings['total']:.3f}s")
@@ -6514,6 +6848,9 @@ def update_google_sheet_and_get_values(
     print(f"⏱️ Timings: {timings}")
 
 
+
+
+    
 
     return {
         "sheet_url": copied_sheet_url,
@@ -6536,6 +6873,8 @@ def update_google_sheet_and_get_values_intermediate(
     expenses_json,
     operating_expenses_json,
     retail_income_json,
+    development_model,
+    development_units_json,
     address,
     property_name
 ):
@@ -6590,7 +6929,9 @@ def update_google_sheet_and_get_values_intermediate(
         address=address,
         retail_income=retail_income_json, 
         operating_expenses_json=operating_expenses_json,
-        property_name=property_name
+        property_name=property_name,
+        development_model=development_model,
+        development_units_json=development_units_json
     )
     t5 = time.time()
     timings['run_full_sheet_update'] = t5 - t4
@@ -6753,7 +7094,8 @@ def update_google_sheet_and_get_values_final(
     rental_growth_json,
     amenity_income_json,
     expenses_json,
-    retail_income_json
+    retail_income_json,
+    development_model
 ):
     print("📤 Starting Google Sheet generation workflow...")
     timings = {}
@@ -6788,6 +7130,7 @@ def update_google_sheet_and_get_values_final(
     print(f"📈 Extracted variables: {variables} in {timings['extract_variables']:.3f}s")
 
     # Step 3: Insert blank rows/columns for expense table formatting
+
     add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs",
                                                      "Legal and Pre-Development Costs",
                                                      "Reserves",
@@ -6962,7 +7305,7 @@ def insert_expense_rows_to_sheet(spreadsheet, sheet_name, expenses):
 
     print(f"✅ Inserted {len(rows_to_insert)} expense rows into '{sheet_name}' and updated total row.")
 
-def update_user_model_expense_table(copied_sheet_id, sheet_name, expenses):
+def update_user_model_expense_table(copied_sheet_id, sheet_name, expenses, development_model=False):
     spreadsheet = gs_client.open_by_key(copied_sheet_id)
     
     # Clear existing rows between header and total row
@@ -6989,7 +7332,8 @@ def update_user_model_expense_table(copied_sheet_id, sheet_name, expenses):
 
     # Build payloads and apply
     insert_request, update_payloads, format_requests = insert_expense_rows_to_sheet_payloads(
-        spreadsheet, sheet_name, expenses, df
+        spreadsheet, sheet_name, expenses, df, 
+        development_model
     )
 
     # Perform row inserts
@@ -7169,7 +7513,8 @@ def generate_sensitivity_analysis_tables(sheet_id, max_price, min_cap_rate):
         exit_cap_cell = get_mapped_cell_location(df, 'Exit Assumptions', 'Multifamily Applied Exit Cap Rate')
         if not exit_cap_cell:
             exit_cap_cell = get_mapped_cell_location(df, 'Exit Assumptions', 'Retail Applied Exit Cap Rate')
-
+        if not exit_cap_cell:
+            exit_cap_cell = get_mapped_cell_location(df, 'Exit Assumptions', 'Exit Month')
 
         IRR_cell = get_mapped_cell_location(df, 'Other Reference', 'Levered IRR')
         MOIC_cell = get_mapped_cell_location(df, 'Other Reference', 'Levered MOIC')

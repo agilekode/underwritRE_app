@@ -12,11 +12,34 @@ export const OperatingExpensesBasic = [
     { id: '16', name: 'Reserves', factor: 0, broker: 0, cost_per: 'Percent of EGI' },
 ]
 
+export const OperatingExpensesBasicDevelopment = [
+  { id: 'd1',  name: 'Property Taxes',            factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd2',  name: 'Insurance',                 factor: 0, broker: 0, cost_per: 'Per unit' }
+]
+
 export const OperatingExpensesSuggested = [
   { id: '5', name: 'Bank fees', factor: 0, broker: 0, cost_per: 'Per unit' },
   { id: '7', name: 'Cleaning', factor: 0, broker: 0, cost_per: 'Per unit' },
   { id: '9', name: 'Internet', factor: 0, broker: 0, cost_per: 'Total' },
   { id: '10', name: 'Pest Control', factor: 0, broker: 0, cost_per: 'Per unit' },
+]
+
+
+export const OperatingExpensesSuggestedDevelopment = [
+  { id: 'd3',  name: 'Repairs & Maintenance',     factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd4',  name: 'Water & Sewer',             factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd5',  name: 'Super',                      factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd6',  name: 'Cleaning',                  factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd7',  name: 'Unit Turns',                factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd8',  name: 'Pest Control',              factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd9',  name: 'Landscaping',               factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd10', name: 'Snow Removal',              factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd11', name: 'Security',                  factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd12', name: 'Doorman',                   factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd13', name: 'General & Administrative',  factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd14', name: 'Property Management',       factor: 0, broker: 0, cost_per: 'Percent of EGI' },
+  { id: 'd15', name: 'Bank Fees',                 factor: 0, broker: 0, cost_per: 'Per unit' },
+  { id: 'd16', name: 'Reserves',                  factor: 0, broker: 0, cost_per: 'Percent of EGI' },
 ]
 
 export const GrowthRatesBasic = [
@@ -26,6 +49,13 @@ export const GrowthRatesBasic = [
     { name: 'Amenity Inflation', value: 2, type: 'amenity' },
     { name: 'Expense Inflation', value: 2, type: 'expense' },
     { name: 'Retail Expense Inflation', value: 2, type: 'retail' }
+]
+
+export const GrowthRatesDevelopment = [
+  { name: 'Rental Inflation', value: 3.0, type: 'rental' },
+  { name: 'Amenity Inflation', value: 2, type: 'amenity' },
+  { name: 'Expense Inflation', value: 2, type: 'expense' },
+  { name: 'Retail Expense Inflation', value: 2, type: 'retail' }
 ]
 
 export const AmenityIncomeSuggested = [
@@ -828,4 +858,343 @@ export const ExpensesIndustrial = [
 ]
 
 
-  
+export const ExpensesBasicDevelopment = [
+  // Hard Costs
+  {
+    id: "201",
+    name: "General Requirements / Logistics",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Hard Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "202",
+    name: "Demo / Site Clearing",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Hard Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "203",
+    name: "Stage 1",
+    statistic: 0,
+    factor: "$ / buildable sf",
+    cost_per: 0,
+    type: "Hard Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "204",
+    name: "Stage 2",
+    statistic: 0,
+    factor: "$ / buildable sf",
+    cost_per: 0,
+    type: "Hard Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "205",
+    name: "Stage 3",
+    statistic: 0,
+    factor: "$ / buildable sf",
+    cost_per: 0,
+    type: "Hard Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "207",
+    name: "Contingency",
+    statistic: null,
+    factor: "Total percent of other expenses",
+    cost_per: 0,
+    type: "Hard Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  // Soft Costs
+  {
+    id: "208",
+    name: "General Liability / Worker's Comp",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Soft Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "209",
+    name: "Building Permits",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Soft Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "206",
+    name: "GC Fee",
+    statistic: null,
+    factor: "Total percent of hard costs",
+    cost_per: 0,
+    type: "Soft Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "210",
+    name: "Property Tax",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Soft Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "211",
+    name: "Utility Hookup Fees",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Soft Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "212",
+    name: "Leasing Broker Fees",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Soft Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "213",
+    name: "Builder's Risk",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Soft Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "214",
+    name: "Developer's Fee",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Soft Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "215",
+    name: "Contingency",
+    statistic: null,
+    factor: "Total percent of other expenses",
+    cost_per: 0,
+    type: "Soft Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  // Legal and Pre-Development Costs
+  {
+    id: "216",
+    name: "Site & Civil Engineering",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Legal and Pre-Development Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "217",
+    name: "Building Architect",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Legal and Pre-Development Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "218",
+    name: "MEP Engineers",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Legal and Pre-Development Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "219",
+    name: "Land Use Attorney",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Legal and Pre-Development Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "220",
+    name: "Construction Loan - Lender's Legal",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Legal and Pre-Development Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "221",
+    name: "Construction Loan - Borrower's Legal",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Legal and Pre-Development Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "222",
+    name: "Contingency",
+    statistic: null,
+    factor: "Total percent of other expenses",
+    cost_per: 0,
+    type: "Legal and Pre-Development Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  // Closing Costs
+  {
+    id: "223",
+    name: "Acquisition Fee",
+    statistic: null,
+    factor: "Percent of Purchase Price",
+    cost_per: 0,
+    type: "Closing Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "224",
+    name: "Financing Fees: Construction Loan",
+    statistic: null,
+    factor: "Percent of Construction Loan",
+    cost_per: 0,
+    type: "Closing Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "225",
+    name: "Financing Fees: Pref / Mezz Loan",
+    statistic: null,
+    factor: "Percent of Pref / Mezz Loan",
+    cost_per: 0,
+    type: "Closing Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "226",
+    name: "Title Insurance & Other",
+    statistic: null,
+    factor: "Percent of Purchase Price",
+    cost_per: 0,
+    type: "Closing Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "227",
+    name: "Appraisal",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Closing Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "228",
+    name: "Property Closing Costs",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Closing Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "229",
+    name: "Legal Closing Costs",
+    statistic: null,
+    factor: "Total",
+    cost_per: 0,
+    type: "Closing Costs",
+    start_month: 0,
+    end_month: 0
+  },
+  {
+    id: "230",
+    name: "Contingency",
+    statistic: null,
+    factor: "Total percent of other expenses",
+    cost_per: 0,
+    type: "Closing Costs",
+    start_month: 0,
+    end_month: 0
+  }
+]
+
+
+  export const ExpensesSuggestedDevelopment = [
+    // Closing Costs
+    { id: "2010", name: "Broker Fee", statistic: null, factor: "Total", cost_per: 0, type: "Closing Costs", start_month: 0, end_month: 0 },
+    { id: "2011", name: "Due Diligence Fees", statistic: null, factor: "Total", cost_per: 0, type: "Closing Costs", start_month: 0, end_month: 0 },
+    { id: "2012", name: "Transfer Fees", statistic: null, factor: "Total", cost_per: 0, type: "Closing Costs", start_month: 0, end_month: 0 },
+    { id: "2013", name: "LLC Formation", statistic: null, factor: "Total", cost_per: 0, type: "Closing Costs", start_month: 0, end_month: 0 },
+
+    // Legal and Pre-Development Costs
+    { id: "2020", name: "Survey", statistic: null, factor: "Total", cost_per: 0, type: "Legal and Pre-Development Costs", start_month: 0, end_month: 0 },
+    { id: "2021", name: "Testing Fees", statistic: null, factor: "Total", cost_per: 0, type: "Legal and Pre-Development Costs", start_month: 0, end_month: 0 },
+    { id: "2022", name: "Geotech", statistic: null, factor: "Total", cost_per: 0, type: "Legal and Pre-Development Costs", start_month: 0, end_month: 0 },
+    { id: "2023", name: "Landscape Architect", statistic: null, factor: "Total", cost_per: 0, type: "Legal and Pre-Development Costs", start_month: 0, end_month: 0 },
+    { id: "2024", name: "Accounting & Audit", statistic: null, factor: "Total", cost_per: 0, type: "Legal and Pre-Development Costs", start_month: 0, end_month: 0 },
+
+    // Soft Costs
+    { id: "2030", name: "Environmental Phase I & II", statistic: null, factor: "Total", cost_per: 0, type: "Soft Costs", start_month: 0, end_month: 0 },
+    { id: "2031", name: "3rd Party Inspections", statistic: null, factor: "Total", cost_per: 0, type: "Soft Costs", start_month: 0, end_month: 0 },
+    { id: "2032", name: "Water Hook-up Fees", statistic: null, factor: "Total", cost_per: 0, type: "Soft Costs", start_month: 0, end_month: 0 },
+    { id: "2033", name: "Sanitation & Sewer Fees", statistic: null, factor: "Total", cost_per: 0, type: "Soft Costs", start_month: 0, end_month: 0 },
+    { id: "2034", name: "Electric and Gas Hookups", statistic: null, factor: "Total", cost_per: 0, type: "Soft Costs", start_month: 0, end_month: 0 },
+    { id: "2035", name: "Interior & Exterior Design", statistic: null, factor: "Total", cost_per: 0, type: "Soft Costs", start_month: 0, end_month: 0 },
+    { id: "2036", name: "Consultants", statistic: null, factor: "Total", cost_per: 0, type: "Soft Costs", start_month: 0, end_month: 0 },
+
+    // Hard Costs
+    { id: "2040", name: "Excavation & Foundation", statistic: null, factor: "Total", cost_per: 0, type: "Hard Costs", start_month: 0, end_month: 0 },
+    { id: "2041", name: "Site Work and Utilities", statistic: null, factor: "Total", cost_per: 0, type: "Hard Costs", start_month: 0, end_month: 0 },
+    { id: "2042", name: "Framing", statistic: null, factor: "Total", cost_per: 0, type: "Hard Costs", start_month: 0, end_month: 0 },
+    { id: "2043", name: "Rough-ins", statistic: null, factor: "Total", cost_per: 0, type: "Hard Costs", start_month: 0, end_month: 0 },
+    { id: "2044", name: "Finishes", statistic: null, factor: "Total", cost_per: 0, type: "Hard Costs", start_month: 0, end_month: 0 },
+    { id: "2045", name: "Project Manager", statistic: null, factor: "Total", cost_per: 0, type: "Hard Costs", start_month: 0, end_month: 0 },
+    { id: "2046", name: "Fencing", statistic: null, factor: "Total", cost_per: 0, type: "Hard Costs", start_month: 0, end_month: 0 },
+  ]

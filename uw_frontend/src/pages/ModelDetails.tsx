@@ -41,6 +41,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import GridOnIcon from "@mui/icons-material/GridOn";
 import RetailSummary from "../components/RetailSummary";
+import DevelopmentRentalAssumptionsReadOnly from "../components/DevelopmentRentalAssumptionsReadOnly";
 
 const ModelDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -1929,8 +1930,22 @@ const ModelDetails = () => {
           {tabIndex === 1 && modelDetails?.model_type?.show_rental_units === true && (
             <Box sx={{ mt: 2 }}>
              
-
-              {/* Table for Units */}
+              {modelDetails?.development_units?.length > 0 && (
+                <Box sx={{ mt: 2, p: 2 }}>
+                  <Typography variant="h6" sx={{ mb: 2, fontSize:"1.125rem", fontWeight:"bold" }}>
+                    Development Units
+                  </Typography>
+                  {/* Read-only development units table */}
+                  <Box sx={{ mt: 2 }}>
+                    {/*
+                      Component shows read-only development units with derived totals
+                    */}
+                    <DevelopmentRentalAssumptionsReadOnly rows={modelDetails.development_units} />
+                  </Box>
+                </Box>
+              )}
+              {modelDetails?.development_units?.length === 0 && (
+           
               <Box sx={{ mt: 2, p: 2 }}>
                 <Typography variant="h6" sx={{ mb: 2, fontSize:"1.125rem", fontWeight:"bold" }}>
                   Units
@@ -2089,6 +2104,7 @@ const ModelDetails = () => {
                   density="compact"
                 />
               </Box>
+              )}
 
               {/* Table for Amenity Income */}
               <Box sx={{ mt: 2, p: 2 }}>

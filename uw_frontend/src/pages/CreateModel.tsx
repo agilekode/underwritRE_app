@@ -16,7 +16,9 @@ import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
 import { SectionFields } from '../components/SectionFields';
 import RetailIncomeTable from '../components/RetailIncomeTable';
 import RefinancingSection from '../components/RefinancingSection';
-import { AmenityIncomeBasic, ExpensesBasic, ExpensesIndustrial, GrowthRatesBasic, MarketRentAssumptionsBasic, OperatingExpensesBasic } from '../utils/newModelConstants';
+import SeniorConstructionLoanSection from '../components/SeniorConstructionLoanSection';
+import SecondLienSection from '../components/SecondLienSection';
+import { AmenityIncomeBasic, ExpensesBasic, ExpensesBasicDevelopment, ExpensesIndustrial, GrowthRatesBasic, GrowthRatesDevelopment, MarketRentAssumptionsBasic, OperatingExpensesBasic, OperatingExpensesBasicDevelopment } from '../utils/newModelConstants';
 import { Expenses } from '../components/Expenses';
 import { Expense } from '../utils/interface';
 import AcquisitionFinancingSection from '../components/AcquisitionFinancingSection';
@@ -33,6 +35,8 @@ import { RetailExpensesIndustrial } from '../components/RetailExpensesIndustrial
 import GrossPotentialRetailIncomeTableIndustrial from '../components/GrossPotentialRetailIncomeTableIndustrial';
 import RetailSummary from '../components/RetailSummary';
 import { useLayout } from '../context/LayoutContext';
+import { DevelopmentRentalAssumptions, DevelopmentUnitRow } from '../components/DevelopmentRentalAssumptions';
+import DevelopmentRefinancingSection from '../components/DevelopmentRefinancingSection';
 
 type Section = {
   id: string;
@@ -44,6 +48,7 @@ type Section = {
 interface ModelTypeInfo {
   show_retail: boolean;
   show_rental_units?: boolean;
+  development_model?: boolean;
   sections: {
     id: string;
     name: string;
@@ -153,7 +158,8 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     state: '',
     zip_code: '',
     user_model_field_values: [],
-    market_rent_assumptions: []
+    market_rent_assumptions: [],
+    development_units: []
   });
   const [modelTypes, setModelTypes] = useState<{ id: string; name: string; is_active: boolean, show_retail: boolean }[]>([]);
   const [selectedModelTypeInfo, setSelectedModelTypeInfo] = useState<ModelTypeInfo | null>(null);
@@ -165,6 +171,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
   const [amenityIncome, setAmenityIncome] = useState<AmenityIncome[]>([]);
   const [retailIncome, setRetailIncome] = useState<RetailIncome[]>([]);
   const [operatingExpenses, setOperatingExpenses] = useState<OperatingExpense[]>([]);
+  const [developmentUnits, setDevelopmentUnits] = useState<DevelopmentUnitRow[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newRentalGrowthName, setNewRentalGrowthName] = useState('');
   const [modelMapping, setModelMapping] = useState({});
@@ -272,13 +279,49 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
       return;
     }
 
-      
+    console.log("selectedModelTypeInfo", selectedModelTypeInfo);
 
-    if (selectedModelTypeInfo?.show_retail) {
+
+    if(selectedModelTypeInfo?.development_model) {
+
+      
+        if(!existingModel){
+          setExpenses(ExpensesBasicDevelopment);
+          setOperatingExpenses(prev => prev.length > 0 ? prev : OperatingExpensesBasicDevelopment);
+        }
+
+    
+      setSteps(
+        [
+          "Property Address",
+          "General Property Assumptions",
+          "Rent Assumptions",
+          "Retail Income",
+          "Amenity Income",
+          "Operating Expenses",
+          "Hard Costs",
+          "Net Operating Income",
+          "Senior Construction Loan Financing",
+          "Second Lien",
+          "Refinancing",
+          "Leasing Assumptions",
+          "Closing Costs",
+          "Legal and Pre-Development Costs",
+          "Soft Costs",
+          "Exit Assumptions"
+        ]
+      )
+      // Default growth rates for development models (do not override existing model pulls)
+      if (!existingModel) {
+        setGrowthRates(GrowthRatesDevelopment);
+      }
+    }
+    else if (selectedModelTypeInfo?.show_retail && !selectedModelTypeInfo?.development_model) {
       if(selectedModelTypeInfo?.show_rental_units) {
-        setOperatingExpenses(prev => prev.length > 0 ? prev : OperatingExpensesBasic);
+        
         if(!existingModel){
           setExpenses(ExpensesBasic);
+          setOperatingExpenses(prev => prev.length > 0 ? prev : OperatingExpensesBasic);
         }
         setSteps(
           [
@@ -297,6 +340,9 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
             "Exit Assumptions"
           ]
         )
+        if (!existingModel) {
+          setGrowthRates(GrowthRatesBasic);
+        }
       }
       else {
         if(!existingModel){
@@ -320,15 +366,18 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
             "Exit Assumptions"
           ]
         )
-
+        if (!existingModel) {
+          setGrowthRates(GrowthRatesBasic);
+        }
       }
       
     } else {
 
       if(selectedModelTypeInfo?.show_rental_units) {
-        setOperatingExpenses(prev => prev.length > 0 ? prev : OperatingExpensesBasic);
+        
         if(!existingModel){
           setExpenses(ExpensesBasic);
+          setOperatingExpenses(prev => prev.length > 0 ? prev : OperatingExpensesBasic);
         }
         setSteps(
           [
@@ -347,6 +396,9 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
             "Exit Assumptions"
           ]
         )
+        if (!existingModel) {
+          setGrowthRates(GrowthRatesBasic);
+        }
       }
       else {
         if(!existingModel){
@@ -365,6 +417,9 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
             "Exit Assumptions"
           ]
         )
+        if (!existingModel) {
+          setGrowthRates(GrowthRatesBasic);
+        }
       }
     }
   }, [selectedModelTypeInfo]);
@@ -452,6 +507,15 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
           setRetailIncome(data.retail_income);
           setOperatingExpenses(data.operating_expenses);
           setExpenses(data.expenses);
+          setDevelopmentUnits(
+            (data.development_units || []).map((d: any) => ({
+              id: d.id,
+              unit_type: d.unit_type,
+              avg_sf: d.avg_sf,
+              units: d.units,
+              avg_rent: d.avg_rent // map backend key to FE key
+            }))
+          );
 
         } catch (err) {
           console.error('Error fetching model details:', err);
@@ -484,11 +548,21 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     // Secondary to initials -> new sheet
     // Secondary to secondary -> nothing UNLESS expense, then do expense update
 
-    if (PRIMARY_STEPS.includes(current) && SECONDARY_STEPS.includes(next)) {
+    let EXPANDED_PRIMARY_STEPS = [...PRIMARY_STEPS, "Rent Assumptions"];
+    let EXPANDED_SECONDARY_STEPS = [...SECONDARY_STEPS, "Senior Construction Loan Financing", "Second Lien"];
+    let EXPANDED_EXPENSE_STEPS = [...EXPENSE_STEPS, "Soft Costs"];
+
+    if(selectedModelTypeInfo?.development_model) {
+      EXPANDED_PRIMARY_STEPS = [...EXPANDED_PRIMARY_STEPS, "Hard Costs"];
+      EXPANDED_SECONDARY_STEPS = [...EXPANDED_SECONDARY_STEPS].filter((step: string) => step !== "Hard Costs");
+      EXPANDED_EXPENSE_STEPS = [...EXPANDED_EXPENSE_STEPS].filter((step: string) => step !== "Hard Costs");
+    }
+
+    if (EXPANDED_PRIMARY_STEPS.includes(current) && EXPANDED_SECONDARY_STEPS.includes(next)) {
     
       handleCreateIntermediate();
     }
-    else if (SECONDARY_STEPS.includes(current) && PRIMARY_STEPS.includes(next)) {
+    else if (EXPANDED_SECONDARY_STEPS.includes(current) && EXPANDED_PRIMARY_STEPS.includes(next)) {
       clearGoogleSheetUrl();
       setLeveredIrr('');
       setLeveredMoic('');
@@ -497,7 +571,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
       generateGoogleSheet(selectedModelType);
     }
 
-    else if (EXPENSE_STEPS.includes(current)) {
+    else if (EXPANDED_EXPENSE_STEPS.includes(current)) {
 
       handleUpdateExpenseTable(current);
     }
@@ -570,7 +644,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ sheet_name: sheet_name, expenses: expenses.filter((expense: any) => expense.type === sheet_name), google_sheet_url: sheetUrl })
+      body: JSON.stringify({ sheet_name: sheet_name, expenses: expenses.filter((expense: any) => expense.type === sheet_name), google_sheet_url: sheetUrl, development_model: selectedModelTypeInfo?.development_model === true })
     })
   }
 
@@ -840,6 +914,11 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     }
   }, []);
 
+  // Keep modelDetails.development_units in sync with table rows
+  useEffect(() => {
+    setModelDetails(prev => ({ ...prev, development_units: developmentUnits }));
+  }, [developmentUnits]);
+
   // Helper function to check if a field is complete
   const isFieldComplete = (field: any, fieldValue: any) => {
     if (fieldValue === undefined) {
@@ -879,6 +958,9 @@ const isStepComplete = (step: number) => {
         units.every(unit => unit.current_rent !== null)
       );
     }
+    else if (steps[activeStep] === "Rent Assumptions") {
+      return developmentUnits.every((unit) => unit.unit_type && unit.avg_sf && unit.units && unit.avg_rent);
+    }
     else if (activeStep === steps.indexOf("Market Rent Assumptions")) {
       return (
         units.length > 0 &&
@@ -886,6 +968,18 @@ const isStepComplete = (step: number) => {
         units.every(unit => unit.current_rent !== null)
       );
       // return marketRentAssumptions.every((assumption) => assumption.layout && assumption.pf_rent);
+    }
+    else if (steps[activeStep] === "Senior Construction Loan Financing") {
+      return true;
+    }
+    else if (steps[activeStep] === "Leasing Assumptions") {
+      return true;
+    }
+    else if (steps[activeStep] === "Second Lien") {
+      return true;
+    }
+    else if (steps[activeStep] === "Refinancing") {
+      return true;
     }
     else if (activeStep === steps.indexOf("Operating Expenses")) {
       return true;
@@ -908,6 +1002,9 @@ const isStepComplete = (step: number) => {
       return true;
     }
     else if (activeStep === steps.indexOf("Income Summary")) {
+      return true;
+    }
+    else if (activeStep === steps.indexOf("Soft Costs")) {
       return true;
     }
     else if (activeStep === steps.indexOf("Amenity Income")) {
@@ -991,6 +1088,12 @@ const isStepComplete = (step: number) => {
       operating_expenses: operatingExpenses,
       retail_income: retailIncome,
       expenses: expenses,
+      development_units: developmentUnits.map((d) => ({
+        unit_type: d.unit_type,
+        avg_sf: d.avg_sf,
+        units: d.units,
+        avg_rent: (d as any).avg_rent // map FE key to backend key
+      })),
     };
   };
 
@@ -1025,7 +1128,10 @@ const isStepComplete = (step: number) => {
       await waitForGoogleSheetUrl();
       const token = await getAccessTokenSilently();
       const data = prepareDataForPostRequest();
-      data.google_sheet_url = resolveGoogleSheetUrl();
+        data.google_sheet_url = resolveGoogleSheetUrl();
+        // Pass development_model to backend for intermediate processing
+        (data as any).development_model = selectedModelTypeInfo?.development_model === true;
+
 
       const response = await fetch(BACKEND_URL + '/api/user_models_intermediate', {
         method: 'POST',
@@ -1098,7 +1204,7 @@ const isStepComplete = (step: number) => {
       const token = await getAccessTokenSilently();
       const data = prepareDataForPostRequest();
       data.google_sheet_url = resolveGoogleSheetUrl();
-
+      (data as any).development_model = selectedModelTypeInfo?.development_model === true;
       const response = await fetch(BACKEND_URL + '/api/user_models_new_version', {
         method: 'POST',
         headers: {
@@ -1155,6 +1261,7 @@ const isStepComplete = (step: number) => {
       const token = await getAccessTokenSilently();
       const data = prepareDataForPostRequest();
       data.google_sheet_url = resolveGoogleSheetUrl();
+      (data as any).development_model = selectedModelTypeInfo?.development_model === true;
       const response = await fetch(BACKEND_URL + '/api/user_models', {
         method: 'POST',
         headers: {
@@ -1670,6 +1777,17 @@ const isStepComplete = (step: number) => {
             </Box>
           )}
 
+          {steps[activeStep] === "Rent Assumptions" && selectedModelTypeInfo?.development_model === true && (
+            <Box sx={{ maxWidth: "1200px", mx: "auto", px: { xs: 2, md: 0 }, pb: 4 }}>
+              <DevelopmentRentalAssumptions
+                rows={developmentUnits}
+                setRows={setDevelopmentUnits}
+                growthRates={growthRates}
+                setGrowthRates={setGrowthRates}
+              />
+            </Box>
+          )}
+
 {steps[activeStep] === "Retail Income" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === true && (
             <Box sx={{ maxWidth: "1200px", mx: "auto", px: { xs: 2, md: 0 }, pb: 4 }}>
               <Box sx={{ display: "grid", gap: 3 }}>
@@ -1946,6 +2064,36 @@ const isStepComplete = (step: number) => {
                 retailIncome={retailIncome} 
                 retailExpenses={expenses.filter((expense: any) => expense.type === "Retail")} 
                 industrialModel={selectedModelTypeInfo?.show_rental_units === false && selectedModelTypeInfo?.show_retail === true}
+                defaultShowMonths={selectedModelTypeInfo?.development_model === true}
+                showBuildableSQFt={steps[activeStep] === "Hard Costs"}
+                modelType={selectedModelTypeInfo}
+                buildableSQFt={steps[activeStep] === "Hard Costs" ?
+                  modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Buildable Square Feet")?.value ?? 0 : 0}               
+                />
+              {/* <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>{steps[activeStep]}</Typography> */}
+
+            </Box>
+          )}
+
+{steps[activeStep] === "Soft Costs" && (
+            <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
+              <Expenses 
+                operatingExpenses={operatingExpenses} 
+                variables={variables} 
+                modelDetails={modelDetails} 
+                expenses={expenses} 
+                modelType={selectedModelTypeInfo}
+                setExpenses={setExpenses} 
+                step={"Soft Costs"} 
+                units={units} 
+                amenityIncome={amenityIncome} 
+                retailIncome={retailIncome} 
+                retailExpenses={expenses.filter((expense: any) => expense.type === "Retail")} 
+                industrialModel={selectedModelTypeInfo?.show_rental_units === false && selectedModelTypeInfo?.show_retail === true}
+                defaultShowMonths={selectedModelTypeInfo?.development_model === true}
+                showBuildableSQFt={false}
+                buildableSQFt={selectedModelTypeInfo?.development_model === true ?
+                  modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Buildable Square Feet")?.value ?? 0 : 0}
                 />
               {/* <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>{steps[activeStep]}</Typography> */}
 
@@ -1996,9 +2144,34 @@ const isStepComplete = (step: number) => {
           )}
           {steps[activeStep] === "Operating Expenses" && (
             <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
+{selectedModelTypeInfo?.development_model === true && (
 
-              <OperatingExpensesTable operatingExpenses={operatingExpenses} setOperatingExpenses={setOperatingExpenses} units={units} amenityIncome={amenityIncome} modelDetails={modelDetails} retailIncome={retailIncome} 
+              <OperatingExpensesTable 
+              operatingExpenses={operatingExpenses} 
+              setOperatingExpenses={setOperatingExpenses} 
+              units={units} 
+              developmentUnits={developmentUnits}
+              isDevelopmentModel={true}
+              amenityIncome={amenityIncome} 
+              modelDetails={modelDetails} 
+              retailIncome={retailIncome} 
               retailExpenses={expenses.filter((expense: any) => expense.type === "Retail")} />
+)}
+
+{selectedModelTypeInfo?.development_model !== true && (
+
+<OperatingExpensesTable 
+operatingExpenses={operatingExpenses} 
+setOperatingExpenses={setOperatingExpenses} 
+units={units} 
+developmentUnits={developmentUnits}
+isDevelopmentModel={false}
+amenityIncome={amenityIncome} 
+modelDetails={modelDetails} 
+retailIncome={retailIncome} 
+retailExpenses={expenses.filter((expense: any) => expense.type === "Retail")} />
+)}
+
               <Box sx={{ mt: 2, width: '100%' }}>
                 {growthRates
                   .filter((rate: any) => rate.type === 'expense')
@@ -2041,10 +2214,22 @@ const isStepComplete = (step: number) => {
 
           {steps[activeStep] === "Refinancing" && (
             <>
-              <RefinancingSection modelDetails={modelDetails} handleFieldChange={handleFieldChange} finalMetricsCalculating={finalMetricsCalculating} variables={variables} />
+              {selectedModelTypeInfo?.development_model === true && (
+                <DevelopmentRefinancingSection modelDetails={modelDetails} handleFieldChange={handleFieldChange} finalMetricsCalculating={finalMetricsCalculating} variables={variables} />
+              )}
+              {selectedModelTypeInfo?.development_model !== true && (
+                <RefinancingSection modelDetails={modelDetails} handleFieldChange={handleFieldChange} finalMetricsCalculating={finalMetricsCalculating} variables={variables} />
+              )}
             </>
-          )
-          }
+          )}
+
+          {steps[activeStep] === "Senior Construction Loan Financing" && (
+            <SeniorConstructionLoanSection modelDetails={modelDetails} handleFieldChange={handleFieldChange} finalMetricsCalculating={finalMetricsCalculating} variables={variables} />
+          )}
+
+          {steps[activeStep] === "Second Lien" && (
+            <SecondLienSection modelDetails={modelDetails} handleFieldChange={handleFieldChange} finalMetricsCalculating={finalMetricsCalculating} variables={variables} />
+          )}
 
           {steps[activeStep] === "Net Operating Income" && (
             <Box sx={{ maxWidth: "1200px", mx: "auto", p:2 }}>
@@ -2115,10 +2300,12 @@ const isStepComplete = (step: number) => {
 
             // Only show the current section that matches the current step
             if (
-              steps[activeStep] === section.name && section.name !== "General Property Assumptions" 
-              && section.name !== "Acquisition Financing" 
-              && section.name !== "Refinancing" 
-              && section.name !== "Leasing Assumptions" 
+              steps[activeStep] === section.name && section.name !== "General Property Assumptions"
+              && section.name !== "Acquisition Financing"
+              && section.name !== "Refinancing"
+              && section.name !== "Senior Construction Loan Financing"
+              && section.name !== "Second Lien"
+              && section.name !== "Leasing Assumptions"
               && section.name !== "Exit Assumptions"
             ) {
               // Calculate the last step for finish button

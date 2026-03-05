@@ -10,12 +10,12 @@ type Props = {
 export default function TermsModal({ open, onAccept, onCancel }: Props) {
   return (
     <Dialog open={open}  maxWidth="md" fullWidth>
-      <DialogTitle><b>Underwritre Terms and Conditions</b></DialogTitle>
+      <DialogTitle><b>UnderwritRE Terms and Conditions</b></DialogTitle>
       <DialogContent dividers>
         <Typography sx={{ mb: 2 }}>
           By continuing, you acknowledge that you have read and agree to the UnderwritRE Terms and Conditions, and
           understand that the Platform does not provide financial, investment, or legal advice.{' '}
-          <Link href={'https://storage.googleapis.com/uw_resources/Underwritre_terms_and_conditions.pdf'} target="_blank" rel="noopener">
+          <Link href={'https://storage.googleapis.com/uw_resources/UnderwritRE_terms_and_conditions.pdf'} target="_blank" rel="noopener">
             View full Terms (PDF)
           </Link>
         </Typography>
@@ -47,7 +47,7 @@ export default function TermsModal({ open, onAccept, onCancel }: Props) {
           <Typography sx={{ mb: 1 }}><strong>10. Governing Law</strong><br/>
           These Terms are governed by and construed in accordance with the laws of the State of New Jersey, without regard to its conflict-of-law principles. Any disputes arising under or in connection with these Terms shall be resolved in the state or federal courts located in Essex County, New Jersey.</Typography>
           <Typography sx={{ mb: 1 }}><strong>11. Contact</strong><br/>
-          For questions or concerns regarding these Terms, contact: support@underwritre.com</Typography>
+          For questions or concerns regarding these Terms, contact: support@underwritRE.com</Typography>
         </Box>
       </DialogContent>
       <DialogActions>

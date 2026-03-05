@@ -9,7 +9,7 @@ import { NumberInputCell } from './NumberInputCell';
 import { HEADER_FOOTER_HEIGHT, ROW_HEIGHT } from '../utils/constants';
 import { calculateEGI } from "../utils/egi";
 import { NumberDecimalInputCell } from './NumberDecimalInputCell';
-import { OperatingExpensesSuggested, OperatingExpensesBasic } from '../utils/newModelConstants';
+import { OperatingExpensesSuggested, OperatingExpensesBasic, OperatingExpensesSuggestedDevelopment, OperatingExpensesBasicDevelopment } from '../utils/newModelConstants';
 import { colors } from '../theme';
 
 interface OperatingExpense {
@@ -28,21 +28,40 @@ const OperatingExpensesTable: React.FC<{
   operatingExpenses: OperatingExpense[];
   setOperatingExpenses: React.Dispatch<React.SetStateAction<OperatingExpense[]>>;
   units: any[];
+  developmentUnits: any[];
+  isDevelopmentModel?: boolean;
   amenityIncome: any[];
   modelDetails: any;
   retailIncome: any;
   retailExpenses: any;
-}> = ({ operatingExpenses, setOperatingExpenses, units, amenityIncome, modelDetails, retailIncome, retailExpenses }) =>  {
+}> = ({ operatingExpenses, setOperatingExpenses, units, developmentUnits, isDevelopmentModel, amenityIncome, modelDetails, retailIncome, retailExpenses }) =>  {
 
   const [editingNameRowId, setEditingNameRowId] = useState<string | null>(null);
   const [editingNameValue, setEditingNameValue] = useState<string>('');
   const [newExpenseName, setNewExpenseName] = useState<string>(''); // kept for compatibility (not controlling input)
   const newExpenseInputRef = React.useRef<HTMLInputElement | null>(null);
+  const perUnitCount = React.useMemo(() => {
+    if (isDevelopmentModel === true) {
+      const list = Array.isArray(developmentUnits) ? developmentUnits : [];
+      const total = list.reduce((sum: number, du: any) => {
+        const n = Number(du?.units ?? 0);
+        return sum + (Number.isFinite(n) ? n : 0);
+      }, 0);
+      return Number.isFinite(total) ? total : 0;
+    }
+    const count = Array.isArray(units) ? units.length : 0;
+    return Number.isFinite(count) ? count : 0;
+  }, [isDevelopmentModel, developmentUnits, units]);
   const suggestedOptions = React.useMemo(() => {
     const existing = new Set(operatingExpenses.map(e => (e.name || '').trim().toLowerCase()));
     const merged: string[] = [];
     const seen = new Set<string>();
-    const source = [...OperatingExpensesSuggested, ...OperatingExpensesBasic];
+    let source: any[] = [];
+    if (isDevelopmentModel) {
+      source = [...OperatingExpensesSuggestedDevelopment, ...OperatingExpensesBasicDevelopment];
+    } else {
+      source = [...OperatingExpensesSuggested, ...OperatingExpensesBasic];
+    }
     for (const item of source) {
       const name = (item?.name || '').trim();
       const key = name.toLowerCase();
@@ -81,6 +100,20 @@ const OperatingExpensesTable: React.FC<{
     annual: 1,
     delete: 0.4,
   };
+
+  const allCostPerOptions = [
+    'Per unit',
+    'Total',
+    'Percent of EGI',
+    'Per CA Square Foot',
+    'Per Total Square Feet'
+  ];
+  const filteredCostPerOptions = React.useMemo(() => {
+    // if (isDevelopmentModel) {
+    //   return allCostPerOptions.filter(opt => opt !== 'Per CA Square Foot').filter(opt => opt !== 'Percent of EGI');
+    // }
+    return allCostPerOptions;
+  }, [isDevelopmentModel]);
 
   const columns: GridColDef[] = [
     { field: 'name', headerName: 'Name', editable: false, flex: flexByField.name, minWidth: 140,
@@ -155,22 +188,10 @@ const OperatingExpensesTable: React.FC<{
       minWidth: 130,
       editable: false, 
       type: 'singleSelect',
-      valueOptions: [
-        'Per unit',
-        'Total',
-        'Percent of EGI',
-        'Per CA Square Foot',
-        'Per Total Square Feet'
-      ],
+      valueOptions: filteredCostPerOptions,
       renderCell: (params) => {
         // Canonical options with proper casing
-        const options = [
-          'Per unit',
-          'Total',
-          'Percent of EGI',
-          'Per CA Square Foot',
-          'Per Total Square Feet'
-        ];
+        const options = filteredCostPerOptions;
         // Find current value case-insensitively, default to first option
         const currentValue = typeof params.value === 'string'
           ? (options.find(opt => opt.toLowerCase() === params.value.toLowerCase()) || options[0])
@@ -287,17 +308,33 @@ const OperatingExpensesTable: React.FC<{
         let adornment = '';
 
         if (row.cost_per.toLowerCase() === 'per unit') {
-          value = units.length;
+          value = perUnitCount;
           adornment = ' units';
         } else if (row.cost_per.toLowerCase() === 'total') {
           value = null;
           adornment = '';
         } else if (row.cost_per.toLowerCase() === 'per ca square foot') {
-          let totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
-          value = (totalSf - units.reduce((sum: number, u: any) => sum + (u.square_feet || 0), 0));
+          if (isDevelopmentModel && Array.isArray(developmentUnits) && developmentUnits.length > 0) {
+            const grossBuildable = Number(
+              modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Buildable Square Feet")?.value ?? 0
+            );
+            const devUnitsSf = developmentUnits.reduce((sum: number, du: any) => {
+              const avgSf = Number(du?.avg_sf || 0);
+              const count = Number(du?.units || 0);
+              return sum + (Number.isFinite(avgSf) && Number.isFinite(count) ? avgSf * count : 0);
+            }, 0);
+            const retailSf = Array.isArray(retailIncome)
+              ? retailIncome.reduce((sum: number, r: any) => sum + Number(r?.square_feet || 0), 0)
+              : 0;
+            value = Math.max(0, grossBuildable - devUnitsSf - retailSf);
+          } else {
+            let totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
+            value = (totalSf - units.reduce((sum: number, u: any) => sum + (u.square_feet || 0), 0));
+          }
           adornment = ' sf';
         } else if (row.cost_per.toLowerCase() === 'per total square feet') {
-          let totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
+          let totalSfFieldKey = isDevelopmentModel ? "Gross Buildable Square Feet" : "Gross Square Feet";
+          let totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === totalSfFieldKey)?.value ?? 0);
           value = totalSf;
           adornment = ' sf';
         } else if (row.cost_per.toLowerCase() === 'percent of egi') {
@@ -325,17 +362,27 @@ const OperatingExpensesTable: React.FC<{
             (field: any) => field.field_key && field.field_key.trim() === "Annual Turnover"
           );
           const annualTurnover = Number(annualTurnoverField?.value ?? 20) / 100;
-          const rentalIncome = getRentalIncome(units);
           const totalAnnualAmenityIncome = getTotalAnnualAmenityIncome(amenityIncome);
           const totalRetailIncome = getRetailIncome(retailIncome);
-          const rawValue = calculateEGI({
-            modelDetails,
-            units,
-            amenityIncome,
-            retailIncome,
-            retailExpenses,
-            totalRetailIncome,
-          });
+          let rawValue = 0;
+          if (isDevelopmentModel && Array.isArray(developmentUnits) && developmentUnits.length > 0) {
+            // Development model: compute EGI from development units + amenities + retail
+            const devAnnualRental = developmentUnits.reduce((sum: number, du: any) => {
+              const unitsCount = Number(du?.units || 0);
+              const avgRentMonthly = Number(du?.avg_rent || 0);
+              return sum + (Number.isFinite(unitsCount) && Number.isFinite(avgRentMonthly) ? unitsCount * avgRentMonthly * 12 : 0);
+            }, 0);
+            rawValue = devAnnualRental + totalAnnualAmenityIncome + totalRetailIncome;
+          } else {
+            rawValue = calculateEGI({
+              modelDetails,
+              units,
+              amenityIncome,
+              retailIncome,
+              retailExpenses,
+              totalRetailIncome,
+            });
+          }
           value = rawValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
           
           adornment = '$ ';
@@ -377,7 +424,7 @@ const OperatingExpensesTable: React.FC<{
         }
         
         if (row.cost_per.toLowerCase() === 'per unit') {
-          value = Math.round((row.factor * (units ? units.length : 0) / 12) * 100) / 100;
+          value = Math.round((row.factor * perUnitCount / 12) * 100) / 100;
         } else if (row.cost_per.toLowerCase() === 'total') {
           value = Math.round((row.factor / 12) * 100) / 100;
         } else if (row.cost_per.toLowerCase() === 'per ca square foot') {
@@ -412,7 +459,7 @@ const OperatingExpensesTable: React.FC<{
         
         
         if (row.cost_per.toLowerCase() === 'per unit') {
-          value = row.factor * (units ? units.length : 0);
+          value = row.factor * perUnitCount;
         } else if (row.cost_per.toLowerCase() === 'total') {
           value = row.factor;
         } else if (row.cost_per.toLowerCase() === 'per ca square foot') {
@@ -520,8 +567,8 @@ const OperatingExpensesTable: React.FC<{
       let annual = 0;
       
       if (row.cost_per.toLowerCase() === 'per unit') {
-        monthly = Math.round((row.factor * (units ? units.length : 0) / 12) * 100) / 100;
-        annual = row.factor * (units ? units.length : 0);
+        monthly = Math.round((row.factor * perUnitCount / 12) * 100) / 100;
+        annual = row.factor * perUnitCount;
       } else if (row.cost_per.toLowerCase() === 'total') {
         monthly = Math.round((row.factor / 12) * 100) / 100;
         annual = row.factor;
@@ -548,14 +595,26 @@ const OperatingExpensesTable: React.FC<{
         // Replace inline EGI logic with utility
         const retailSF = retailIncome.reduce((sum: number, income: any) => sum + (income.square_feet || 0), 0);
         const totalRetailIncome = getRetailIncome(retailIncome);
-        const egi = calculateEGI({
-          modelDetails,
-          units,
-          amenityIncome,
-          retailIncome,
-          retailExpenses,
-          totalRetailIncome,
-        });
+        let egi = 0;
+        if (isDevelopmentModel && Array.isArray(developmentUnits) && developmentUnits.length > 0) {
+          // Use development units instead of existing units for rental income component
+          const devAnnualRental = developmentUnits.reduce((sum: number, du: any) => {
+            const unitsCount = Number(du?.units || 0);
+            const avgRentMonthly = Number(du?.avg_rent || 0);
+            return sum + (Number.isFinite(unitsCount) && Number.isFinite(avgRentMonthly) ? unitsCount * avgRentMonthly * 12 : 0);
+          }, 0);
+          const totalAnnualAmenityIncome = getTotalAnnualAmenityIncome(amenityIncome);
+          egi = devAnnualRental + totalAnnualAmenityIncome + totalRetailIncome;
+        } else {
+          egi = calculateEGI({
+            modelDetails,
+            units,
+            amenityIncome,
+            retailIncome,
+            retailExpenses,
+            totalRetailIncome,
+          });
+        }
 
         annual = row.factor * egi / 100;
         monthly = annual / 12;

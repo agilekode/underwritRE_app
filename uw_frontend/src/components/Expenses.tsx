@@ -10,7 +10,7 @@ import { NumberInputCell } from "./NumberInputCell";
 import { HEADER_FOOTER_HEIGHT, ROW_HEIGHT } from "../utils/constants";
 import { NumberDecimalInputCell } from "./NumberDecimalInputCell";
 import { getOperatingExpenseAnnualByName } from "../utils/operatingExpenseCalc";
-import { ExpensesSuggested, ExpensesBasic, ExpensesIndustrial} from "../utils/newModelConstants";
+import { ExpensesSuggested, ExpensesBasic, ExpensesIndustrial, ExpensesSuggestedDevelopment, ExpensesBasicDevelopment} from "../utils/newModelConstants";
 import { colors, typography } from "../theme";
 
 const EditableNameCell = React.memo(function EditableNameCell({
@@ -88,7 +88,8 @@ const EXPENSE_STEPS_MAPPING = {
   "Closing Costs": "Closing Costs",
   "Legal and Pre-Development Costs": "Legal and Pre-Development Costs",
   "Reserves": "Reserves",
-  "Hard Costs": "Hard Costs"
+  "Hard Costs": "Hard Costs",
+  "Soft Costs": "Soft Costs",
 };
 
 
@@ -106,6 +107,9 @@ const CustomFooter = ({
   onAddWithName,
   showMonths,
   setShowMonths,
+  buildableSqFt,
+  showBuildableSQFt,
+  isDevelopmentModel,
 }: {
   expenses: Expense[];
   expenseType: string;
@@ -120,6 +124,9 @@ const CustomFooter = ({
   onAddWithName: (name: string) => void;
   showMonths: boolean;
   setShowMonths: (value: boolean) => void;
+  buildableSqFt?: number;
+  showBuildableSQFt?: boolean;
+  isDevelopmentModel?: boolean;
 }) => {
   // Filter expenses for this specific type
   const filteredExpenses = expenses.filter(exp => exp.type === expenseType);
@@ -131,7 +138,7 @@ const CustomFooter = ({
     // Merge Suggested + Basic, filter by current type, dedupe by lowercase name
     const mergedNames: string[] = [];
     const seen = new Set<string>();
-    const source = [...ExpensesSuggested, ...ExpensesBasic].filter(s => s.type === expenseType);
+    const source = isDevelopmentModel ? [...ExpensesSuggestedDevelopment, ...ExpensesBasicDevelopment] : [...ExpensesSuggested, ...ExpensesBasic];
     for (const item of source) {
       const name = (item?.name || '').trim();
       const key = name.toLowerCase();
@@ -160,6 +167,13 @@ const CustomFooter = ({
       const totalCost = Number(row.cost_per || 0) * Number(row.statistic || 0);
       monthly = Math.round((totalCost / monthsInPeriod) * 100) / 100;
       annual = totalCost;
+    } else if (row.factor && row.factor.toLowerCase() === "$ / buildable sf".toLowerCase()) {
+      // For buildable SF factor, use provided buildableSqFt from props (read-only statistic)
+      const monthsInPeriod = (row.end_month || 12) - (row.start_month || 1) + 1;
+      const sf = Number(buildableSqFt || 0);
+      const totalCost = Number(row.cost_per || 0) * sf;
+      monthly = Math.round((totalCost / monthsInPeriod) * 100) / 100;
+      annual = totalCost;
     } else if (row.factor && row.factor.toLowerCase() === "Percent of Purchase Price".toLowerCase()) {
       const acquisitionPriceField = modelDetails?.user_model_field_values?.find(
         (field: any) => field.field_key && field.field_key.trim() === "Acquisition Price"
@@ -174,6 +188,49 @@ const CustomFooter = ({
       const monthsInPeriod = (row.end_month || 12) - (row.start_month || 1) + 1;
       monthly = Math.round((Number(row.cost_per)/100 * Number(acquisitionLoan) / monthsInPeriod) * 100) / 100;
       annual = Number(row.cost_per)/100 * Number(acquisitionLoan);
+    } else if (row.factor && row.factor.toLowerCase() === "Percent of Construction Loan".toLowerCase()) {
+      const candidates = [
+        variables?.["Sr. Cons: Exact Loan Amount"],
+      ];
+      let cl = 0;
+      for (const c of candidates) {
+        const n = typeof c === 'string' ? Number(String(c).replace(/,/g, '').trim()) : Number(c ?? 0);
+        if (Number.isFinite(n) && n) { cl = n; break; }
+      }
+      const monthsInPeriod = (row.end_month || 12) - (row.start_month || 1) + 1;
+      monthly = Math.round(((Number(row.cost_per)/100 * cl) / monthsInPeriod) * 100) / 100;
+      annual = (Number(row.cost_per)/100) * cl;
+    } else if (row.factor && row.factor.toLowerCase() === "Percent of Pref / Mezz Loan".toLowerCase()) {
+      const candidates = [
+        variables?.["Pref. / Mezz: Loan Amount"],
+      ];
+      let pm = 0;
+      for (const c of candidates) {
+        const n = typeof c === 'string' ? Number(String(c).replace(/,/g, '').trim()) : Number(c ?? 0);
+        if (Number.isFinite(n) && n) { pm = n; break; }
+      }
+      const monthsInPeriod = (row.end_month || 12) - (row.start_month || 1) + 1;
+      monthly = Math.round(((Number(row.cost_per)/100 * pm) / monthsInPeriod) * 100) / 100;
+      annual = (Number(row.cost_per)/100) * pm;
+    } else if (row.factor && row.factor.toLowerCase() === "Percent of Hard Costs".toLowerCase()) {
+      const monthsInPeriod = (row.end_month || 12) - (row.start_month || 1) + 1;
+      const hardCostsAnnual = (expenses || [])
+        .filter((e: any) => e.type === "Hard Costs")
+        .reduce((sum: number, e: any) => {
+          const f = String(e?.factor || '').toLowerCase();
+          const cp = Number(e?.cost_per || 0);
+          const stat = Number(e?.statistic || 0);
+          let annualAcc = 0;
+          if (f === "total") annualAcc = cp;
+          else if (f === "per unit" || f === "per sf" || f === "per month") {
+            annualAcc = cp * stat;
+          } else if (f === "$ / buildable sf") {
+            annualAcc = cp * Number(buildableSqFt || 0);
+          }
+          return sum + annualAcc;
+        }, 0);
+      monthly = Math.round((((Number(row.cost_per) / 100) * hardCostsAnnual) / monthsInPeriod) * 100) / 100;
+      annual = (Number(row.cost_per) / 100) * hardCostsAnnual;
     } else if (row.factor && row.factor.toLowerCase() === "Percent of Property Taxes".toLowerCase()) {
       const taxesAnnual = getOperatingExpenseAnnualByName({
         expenseName: "Property Taxes",
@@ -335,6 +392,11 @@ const CustomFooter = ({
           label={showMonths ? 'Hide Start/End Months' : 'Show Start/End Months'}
           sx={{ m: 0, '& .MuiFormControlLabel-label': { fontSize: 14, fontFamily: 'inherit', fontWeight: 500, color: colors.grey[700] } }}
         />
+        {showBuildableSQFt ? (
+          <Box sx={{ textAlign: 'right', color: colors.grey[700], fontWeight: 600, fontSize: 14 }}>
+            Buildable SF: {Number(buildableSqFt || 0).toLocaleString()}
+          </Box>
+        ) : null}
         <Box sx={{ textAlign: 'right', color: colors.grey[700], fontWeight: 600, fontSize: 14 }}>
           Total {expenseType}: ${totalAnnualExpenses.toLocaleString()}
         </Box>
@@ -355,7 +417,11 @@ export const Expenses = ({
   amenityIncome,
   retailIncome,
   retailExpenses,
-  industrialModel
+  industrialModel,
+  defaultShowMonths,
+  showBuildableSQFt,
+  buildableSQFt,
+  modelType
 }: {
   operatingExpenses: any[];
   expenses: Expense[];
@@ -368,15 +434,34 @@ export const Expenses = ({
   retailIncome: any[];
   retailExpenses: any[];
   industrialModel?: boolean;
+  defaultShowMonths: boolean;
+  showBuildableSQFt?: boolean;
+  buildableSQFt?: number;
+  modelType: any;
 }) => {
   const expenseType = EXPENSE_STEPS_MAPPING[step as keyof typeof EXPENSE_STEPS_MAPPING];
   const prevExpensesRef = useRef(expenses);
-  const [showMonths, setShowMonths] = useState<boolean>(false);
+  const [showMonths, setShowMonths] = useState<boolean>(defaultShowMonths);
   const [editingNameRowId, setEditingNameRowId] = useState<string | null>(null);
   const [editingNameValue, setEditingNameValue] = useState<string>('');
+  const isDevelopmentModel = Boolean(modelType?.development_model);
 
   // Only show expenses for this type
   const filteredExpenses = expenses.filter(exp => exp.type === expenseType);
+
+  // Always render "Total percent of other expenses" rows at the bottom
+  const orderedFilteredExpenses = useMemo(() => {
+    const isTotalPercent = (row: Expense) =>
+      typeof row?.factor === 'string' &&
+      row.factor.toLowerCase() === 'total percent of other expenses'.toLowerCase();
+    const others: Expense[] = [];
+    const totals: Expense[] = [];
+    for (const row of filteredExpenses) {
+      if (isTotalPercent(row)) totals.push(row);
+      else others.push(row);
+    }
+    return [...others, ...totals];
+  }, [filteredExpenses]);
 
 
 const handleCellChange = (id: string, field: string, value: string | number) => {
@@ -441,7 +526,7 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
     }
     if (field === "statistic") {
       const factor = (row.factor ?? "").toLowerCase();
-      return factor !== "total" && factor !== "total percent of other expenses";
+      return factor !== "total" && factor !== "total percent of other expenses" && factor !== "$ / buildable sf";
     }
     if (field === "total_cost") {
       return false; // Always read-only
@@ -452,7 +537,7 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
   const flexByField: Record<string, number> = {
     name: 1.6,
     factor: 1.5,
-    cost_per: 1,
+    cost_per: 1.5,
     statistic: 1,
     total_cost: 1,
     start_month: 0.9,
@@ -528,7 +613,7 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
         // Total percent of other expenses
         
         // Only hide "Total percent of other expenses" if it is actually selected in another row
-        const options = [
+        let options: { value: string; label: string }[] = [
           { value: "Total", label: "Total" },
           { value: "per Unit", label: "per Unit" },
           { value: "per SF", label: "per SF" },
@@ -536,26 +621,71 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
         ];
         // Determine this row's type from data (avoids relying on outer expenseType)
         const thisType = params.row.type as string;
+    
+        if (isDevelopmentModel) {
+          if (thisType === "Closing Costs") {
+         
+            options = [
+              { value: "Percent of Purchase Price", label: "Percent of Purchase Price" },
+              { value: "Percent of Construction Loan", label: "Percent of Construction Loan" },
+              { value: "Percent of Pref / Mezz Loan", label: "Percent of Pref / Mezz Loan" },
+              { value: "per Unit", label: "per Unit" },
+              { value: "per SF", label: "per SF" },
+              { value: "Total", label: "Total" },
+            ];
+          } else if (thisType === "Legal and Pre-Development Costs") {
+            options = [
+              { value: "Percent of Construction Loan", label: "Percent of Construction Loan" },
+              { value: "Percent of Pref / Mezz Loan", label: "Percent of Pref / Mezz Loan" },
+              { value: "per Unit", label: "per Unit" },
+              { value: "per SF", label: "per SF" },
+              { value: "per Month", label: "per Month" },
+              { value: "Total", label: "Total" },
+            ];
+          } else if (thisType === "Soft Costs") {
+            options = [
+              { value: "Percent of Hard Costs", label: "Percent of Hard Costs" },
+              { value: "per Unit", label: "per Unit" },
+              { value: "per SF", label: "per SF" },
+              { value: "per Month", label: "per Month" },
+              { value: "Total", label: "Total" },
+            ];
+          } else if (thisType === "Hard Costs") {
+            options = [
+              { value: "per Unit", label: "per Unit" },
+              { value: "per SF", label: "per SF" },
+              { value: "per Month", label: "per Month" },
+              { value: "Total", label: "Total" },
+            ];
+          }
+        } else {
+          if (thisType === "Closing Costs") {
+            options.push({
+              value: "Percent of Purchase Price",
+              label: "Percent of Purchase Price"
+            });
+            options.push({
+              value: "Percent of Acquisition Loan",
+              label: "Percent of Acquisition Loan"
+            });
 
-        if (thisType === "Closing Costs") {
-          options.push({
-            value: "Percent of Purchase Price",
-            label: "Percent of Purchase Price"
-          });
-          options.push({
-            value: "Percent of Acquisition Loan",
-            label: "Percent of Acquisition Loan"
-          });
-
-          if (!industrialModel) {
-          options.push({
-            value: "Percent of Property Taxes",
-            label: "Percent of Property Taxes"
-          });
-          options.push({
-            value: "Percent of Insurance Cost",
-            label: "Percent of Insurance Cost"
-          });
+            if (!industrialModel) {
+              options.push({
+                value: "Percent of Property Taxes",
+                label: "Percent of Property Taxes"
+              });
+              options.push({
+                value: "Percent of Insurance Cost",
+                label: "Percent of Insurance Cost"
+              });
+            }
+          }
+          // Add $ / buildable SF only for Hard Costs when buildable SF context is available
+          if (thisType === "Hard Costs" && showBuildableSQFt) {
+            options.push({
+              value: "$ / buildable SF",
+              label: "$ / buildable SF"
+            });
           }
         }
         // Recompute rows limited to this type for the option gating to avoid cross-influence
@@ -627,6 +757,10 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
             preAdornment = "$";
             adornment = "/ sf";
             break;
+          case "$ / buildable sf".toLowerCase():
+            preAdornment = "$";
+            adornment = "/ buildable sf";
+            break;
           case "per Month".toLowerCase():
             preAdornment = "$";
             adornment = "/ month";
@@ -648,6 +782,18 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
             adornment = "%";
             break;
           case "Percent of Acquisition Loan".toLowerCase():
+            preAdornment = "";
+            adornment = "%";
+            break;
+          case "Percent of Construction Loan".toLowerCase():
+            preAdornment = "";
+            adornment = "%";
+            break;
+          case "Percent of Pref / Mezz Loan".toLowerCase():
+            preAdornment = "";
+            adornment = "%";
+            break;
+          case "Percent of Hard Costs".toLowerCase():
             preAdornment = "";
             adornment = "%";
             break;
@@ -697,6 +843,10 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
             preAdornment = "";
             adornment = "sf";
             break;
+          case "$ / buildable sf".toLowerCase():
+            preAdornment = "";
+            adornment = "sf";
+            break;
           case "per Month".toLowerCase():
             preAdornment = "";
             adornment = "months";
@@ -710,6 +860,18 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
             adornment = "";
             break;
           case "Percent of Acquisition Loan".toLowerCase():
+            preAdornment = "$";
+            adornment = "";
+            break;
+          case "Percent of Construction Loan".toLowerCase():
+            preAdornment = "$";
+            adornment = "";
+            break;
+          case "Percent of Pref / Mezz Loan".toLowerCase():
+            preAdornment = "$";
+            adornment = "";
+            break;
+          case "Percent of Hard Costs".toLowerCase():
             preAdornment = "$";
             adornment = "";
             break;
@@ -787,6 +949,17 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
             </span>
           );
         }
+        // Show read-only buildable SF when using "$ / buildable SF"
+        if (params.row.factor.toLowerCase() === "$ / buildable sf".toLowerCase()) {
+          const sf = Number(buildableSQFt || 0);
+          return (
+            <span style={{ color: editable ? "inherit" : "#999" }}>
+              {preAdornment && <span style={{ color: "#888", marginRight: 4 }}>{preAdornment}</span>}
+              {sf.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              <span style={{ color: "#888", marginLeft: 6 }}>{adornment}</span>
+            </span>
+          );
+        }
         else if (params.row.factor.toLowerCase() === "Percent of Purchase Price".toLowerCase()) {
           const acquisitionPriceField = modelDetails?.user_model_field_values?.find(
             (field: any) => field.field_key && field.field_key.trim() === "Acquisition Price"
@@ -807,6 +980,73 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
                     ? variables["AQ: Max Acquisition Loan at Closing"].trim()
                     : (variables["AQ: Max Acquisition Loan at Closing"] as number).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
                 : "N/A"}
+            </span>
+          );
+        }
+        else if (params.row.factor.toLowerCase() === "Percent of Construction Loan".toLowerCase()) {
+          const candidates = [
+            variables?.["Sr. Cons: Exact Loan Amount"],
+            variables?.["CN: Max Construction Loan"],
+            variables?.["Construction Loan Amount"],
+            variables?.["Max Construction Loan"],
+            variables?.["Construction Loan"],
+          ];
+          const amt = (() => {
+            for (const c of candidates) {
+              const n = typeof c === 'string' ? Number(c.replace(/,/g, '').trim()) : Number(c || 0);
+              if (Number.isFinite(n) && n) return n;
+            }
+            return 0;
+          })();
+          return (
+            <span style={{ color: editable ? "inherit" : "#999" }}>
+              ${amt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </span>
+          );
+        }
+        else if (params.row.factor.toLowerCase() === "Percent of Pref / Mezz Loan".toLowerCase()) {
+          const candidates = [
+            variables?.["Pref. / Mezz: Loan Amount"],
+
+          ];
+          const amt = (() => {
+            for (const c of candidates) {
+              const n = typeof c === 'string' ? Number(c.replace(/,/g, '').trim()) : Number(c || 0);
+              if (Number.isFinite(n) && n) return n;
+            }
+            return 0;
+          })();
+          return (
+            <span style={{ color: editable ? "inherit" : "#999" }}>
+              ${amt.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </span>
+          );
+        }
+        else if (params.row.factor.toLowerCase() === "Percent of Hard Costs".toLowerCase()) {
+          const hardCostsAnnual = (expenses || [])
+            .filter((e: any) => e.type === "Hard Costs")
+            .reduce((sum: number, e: any) => {
+              const f = String(e?.factor || '').toLowerCase();
+              const cp = Number(e?.cost_per || 0);
+              const stat = Number(e?.statistic || 0);
+              let annual = 0;
+              if (f === "total") annual = cp;
+              else if (f === "per unit" || f === "per sf" || f === "per month") {
+                annual = cp * stat;
+              } else if (f === "$ / buildable sf") {
+                annual = cp * Number(buildableSQFt || 0);
+              }
+              return sum + annual;
+            }, 0);
+          // Persist computed statistic on the row to mirror footer behavior
+          try {
+            if (typeof params.row.statistic !== 'number' || Number(params.row.statistic) !== Number(hardCostsAnnual)) {
+              (params.row as any).statistic = Number(hardCostsAnnual);
+            }
+          } catch {}
+          return (
+            <span style={{ color: editable ? "inherit" : "#999" }}>
+              ${hardCostsAnnual.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </span>
           );
         }
@@ -872,6 +1112,8 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           value = cost_per;
         } else if (factor && factor.toLowerCase() === "per Unit".toLowerCase() || factor && factor.toLowerCase() === "per SF".toLowerCase() || factor && factor.toLowerCase() === "per Month".toLowerCase()) {
           value = Number(cost_per) * Number(statistic);
+        } else if (factor && factor.toLowerCase() === "$ / buildable sf".toLowerCase()) {
+          value = Number(cost_per) * Number(buildableSQFt || 0);
         } else if (factor == "Percent of Purchase Price"){
           const acquisitionPriceField = modelDetails?.user_model_field_values?.find(
             (field: any) => field.field_key && field.field_key.trim() === "Acquisition Price"
@@ -882,6 +1124,50 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           const rawLoan = variables?.["AQ: Max Acquisition Loan at Closing"];
           const acquisitionLoan = Number(typeof rawLoan === "string" ? rawLoan.replace(/,/g, '').trim() : rawLoan || 0);
           value = Number(cost_per)/100 * Number(acquisitionLoan);
+        } else if (factor && factor.toLowerCase() === "Percent of Construction Loan".toLowerCase()) {
+          const cand = [
+            variables?.["Sr. Cons: Exact Loan Amount"],
+            variables?.["CN: Max Construction Loan"],
+            variables?.["Construction Loan Amount"],
+            variables?.["Max Construction Loan"],
+            variables?.["Construction Loan"],
+          ];
+          let cl = 0;
+          for (const c of cand) {
+            const n = typeof c === 'string' ? Number(c.replace(/,/g, '').trim()) : Number(c || 0);
+            if (Number.isFinite(n) && n) { cl = n; break; }
+          }
+          value = (Number(cost_per) / 100) * cl;
+        } else if (factor && factor.toLowerCase() === "Percent of Pref / Mezz Loan".toLowerCase()) {
+          const cand = [
+            variables?.["Pref. / Mezz: Loan Amount"],
+            variables?.["Max Pref / Mezz Loan"],
+            variables?.["Pref / Mezz Loan Amount"],
+            variables?.["Pref / Mezz Loan"],
+          ];
+          let pm = 0;
+          for (const c of cand) {
+            const n = typeof c === 'string' ? Number(c.replace(/,/g, '').trim()) : Number(c || 0);
+            if (Number.isFinite(n) && n) { pm = n; break; }
+          }
+          value = (Number(cost_per) / 100) * pm;
+        } else if (factor && factor.toLowerCase() === "Percent of Hard Costs".toLowerCase()) {
+          const hardCostsAnnual = (expenses || [])
+            .filter((e: any) => e.type === "Hard Costs")
+            .reduce((sum: number, e: any) => {
+              const f = String(e?.factor || '').toLowerCase();
+              const cp = Number(e?.cost_per || 0);
+              const stat = Number(e?.statistic || 0);
+              let annual = 0;
+              if (f === "total") annual = cp;
+              else if (f === "per unit" || f === "per sf" || f === "per month") {
+                annual = cp * stat;
+              } else if (f === "$ / buildable sf") {
+                annual = cp * Number(buildableSQFt || 0);
+              }
+              return sum + annual;
+            }, 0);
+          value = (Number(cost_per) / 100) * hardCostsAnnual;
         } else if (factor && factor.toLowerCase() === "Percent of Property Taxes".toLowerCase()) {
           const taxesAnnual = getOperatingExpenseAnnualByName({
             expenseName: "Property Taxes",
@@ -996,7 +1282,7 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
         </span>
       ),
     },
-  ], [expenses, totalPercentUsed, variables, modelDetails, operatingExpenses, expenseType, editingNameRowId, editingNameValue]);
+  ], [expenses, totalPercentUsed, variables, modelDetails, operatingExpenses, expenseType, editingNameRowId, editingNameValue, showBuildableSQFt, buildableSQFt]);
 
   const columns = useMemo<GridColDef<Expense>[]>(() => {
     if (showMonths) return allColumns;
@@ -1092,7 +1378,7 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           disableColumnFilter
           disableColumnSelector
           disableColumnSorting
-          rows={filteredExpenses}
+          rows={orderedFilteredExpenses}
           columns={columns.map(col => ({ ...col, sortable: false }))}
           disableRowSelectionOnClick
           processRowUpdate={processRowUpdate}
@@ -1114,6 +1400,9 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
                 onAddWithName={addRowWithName}
                 showMonths={showMonths}
                 setShowMonths={setShowMonths}
+                buildableSqFt={buildableSQFt}
+                showBuildableSQFt={showBuildableSQFt}
+                isDevelopmentModel={isDevelopmentModel}
               />
             )
           }}
