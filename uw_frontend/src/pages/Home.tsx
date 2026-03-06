@@ -106,7 +106,7 @@ const Home = () => {
       const token = await getAccessTokenSilently({ authorizationParams: { audience: process.env.REACT_APP_AUTH0_AUDIENCE } });
       await fetch(`${BACKEND_URL}/api/user_info`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-User-Email': user.email },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-User-Email': user?.email || '' },
         credentials: 'include',
         body: JSON.stringify({
           job_role: data.jobRole || '',
@@ -171,7 +171,7 @@ const Home = () => {
       if (!user) return;
       try {
         const token = await getAccessTokenSilently();
-        const response = await fetch(BACKEND_URL + `/api/user_models?user_id=${user.id}`, {
+        const response = await fetch(BACKEND_URL + `/api/user_models?user_id=${user?.id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

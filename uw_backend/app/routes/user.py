@@ -458,7 +458,8 @@ def check_user():
                                 'subscription_status': user.subscription_status,
                                 'current_period_end': user.current_period_end,
                                 'cancel_at_period_end': user.cancel_at_period_end,
-                                'plan_price_id': user.plan_price_id}), 201
+                                'plan_price_id': user.plan_price_id,
+                                'plan_tier': user.plan_tier or 'freemium'}), 201
             except IntegrityError:
                 # Another concurrent request created the user; fetch and return existing
                 session.rollback()
@@ -480,7 +481,8 @@ def check_user():
                     'subscription_status': user.subscription_status,
                     'current_period_end': user.current_period_end,
                     'cancel_at_period_end': user.cancel_at_period_end,
-                    'plan_price_id': user.plan_price_id
+                    'plan_price_id': user.plan_price_id,
+                    'plan_tier': user.plan_tier or 'freemium'
                 }), 200
         # Refresh from Stripe on login if we have a customer id
         try:
@@ -497,7 +499,8 @@ def check_user():
             'subscription_status': user.subscription_status,
             'current_period_end': user.current_period_end,
             'cancel_at_period_end': user.cancel_at_period_end,
-            'plan_price_id': user.plan_price_id
+            'plan_price_id': user.plan_price_id,
+            'plan_tier': user.plan_tier or 'freemium'
         }), 200
     except Exception as e:
         db.session.rollback()
