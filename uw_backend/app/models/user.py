@@ -21,6 +21,7 @@ class User(Base):
     current_period_end = Column(Integer, nullable=True)   # or DateTime if you prefer
     cancel_at_period_end = Column(Boolean, default=False)
     plan_price_id = Column(String, nullable=True)
+    plan_tier = Column(String, nullable=True, default="freemium")
 
 
 class UserInfo(Base):

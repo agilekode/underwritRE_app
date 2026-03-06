@@ -9,10 +9,11 @@ import { useLocation } from 'react-router-dom';
 
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PK as string);
 
-function EmbeddedCheckoutForm({ onSuccess }: { onSuccess: () => void }) {
+function EmbeddedCheckoutForm({ onSuccess, tier }: { onSuccess: () => void; tier: string }) {
   const stripe = useStripe();
   const elements = useElements();
   const { getAccessTokenSilently } = useAuth0();
+  const { refreshUser } = useUser();
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string>("");
 
@@ -38,9 +39,13 @@ function EmbeddedCheckoutForm({ onSuccess }: { onSuccess: () => void }) {
           Authorization: `Bearer ${token}`
         },
         credentials: 'include',
-        body: JSON.stringify({ payment_method: setupIntent?.payment_method })
+        body: JSON.stringify({
+          payment_method: setupIntent?.payment_method,
+          tier: tier
+        })
       });
       if (!resp.ok) throw new Error('Failed to start subscription');
+      await refreshUser();
       onSuccess();
     } catch (e: any) {
       setError(e.message || 'Failed to start subscription');
@@ -77,13 +82,14 @@ const formatMoney = (amount?: number | null, currency?: string | null, interval?
 
 const Settings = () => {
   const { isLoading, getAccessTokenSilently } = useAuth0();
-  const { user: appUser, isAuthenticated } = useUser();
+  const { user: appUser, isAuthenticated, refreshUser } = useUser();
   const location = useLocation();
 
   const [clientSecret, setClientSecret] = React.useState<string | null>(null);
   const [showPayment, setShowPayment] = React.useState(false);
   const [message, setMessage] = React.useState<string>("");
   const [subJustStarted, setSubJustStarted] = React.useState(false);
+  const [selectedTier, setSelectedTier] = React.useState<string>("pro");
 
   const [subDetails, setSubDetails] = React.useState<any | null>(null);
   const [subLoading, setSubLoading] = React.useState(false);
@@ -152,7 +158,7 @@ const Settings = () => {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
-            'X-User-Email': appUser.email
+            'X-User-Email': appUser?.email || ''
           },
           credentials: 'include'
         });
@@ -204,6 +210,14 @@ const Settings = () => {
     const d = await r.json();
     setClientSecret(d.clientSecret);
     setShowPayment(true);
+  };
+
+  const handleTierChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedTier(e.target.value);
+    if (showPayment) {
+      setShowPayment(false);
+      setClientSecret(null);
+    }
   };
 
   const openPortal = async () => {
@@ -442,6 +456,9 @@ const Settings = () => {
               }}>
                 {subDetails?.status && (
                   <>
+                    <Typography variant="body2" color="text.secondary">Tier</Typography>
+                    <Typography variant="body1" sx={{ textTransform: 'capitalize' }}>{subDetails?.plan_tier || '—'}</Typography>
+
                     <Typography variant="body2" color="text.secondary">Status</Typography>
                     <Typography variant="body1">{subDetails?.status || status || '—'}</Typography>
                   </>
@@ -516,20 +533,46 @@ const Settings = () => {
 
           {/* Actions */}
           {!showPayment && !isLoading && !subLoading && (
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {(canStartTrial || isCanceled) && (
-                <Button variant="contained" onClick={beginSignup}>{isCanceled ? 'Restart subscription' : 'Start 14‑day free trial'}</Button>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <select
+                    value={selectedTier}
+                    onChange={handleTierChange}
+                    style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '1rem' }}
+                  >
+                    <option value="freemium">Freemium ($0/mo)</option>
+                    <option value="pro">Pro ($20/mo)</option>
+                    <option value="max">Max ($50/mo)</option>
+                  </select>
+                  <Button variant="contained" onClick={beginSignup}>
+                    {isCanceled ? 'Restart subscription' : 'Start 14‑day free trial'}
+                  </Button>
+                </Box>
               )}
               {(canManage || subJustStarted) && (
-                <Button variant="outlined" onClick={openPortal}>Manage billing</Button>
+                <Button variant="outlined" onClick={openPortal} sx={{ alignSelf: 'flex-start' }}>
+                  Manage billing
+                </Button>
               )}
             </Box>
           )}
 
           {showPayment && clientSecret && (
             <Box sx={{ mt: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Checkout for {selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)} Tier
+              </Typography>
               <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <EmbeddedCheckoutForm onSuccess={() => { setShowPayment(false); setMessage('Subscription started!'); setSubJustStarted(true); openPortal(); }} />
+                <EmbeddedCheckoutForm
+                  tier={selectedTier}
+                  onSuccess={() => {
+                    setShowPayment(false);
+                    setMessage('Subscription started!');
+                    setSubJustStarted(true);
+                    openPortal();
+                  }}
+                />
               </Elements>
             </Box>
           )}
