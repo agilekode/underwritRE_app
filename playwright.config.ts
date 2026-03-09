@@ -5,7 +5,11 @@ import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 export default defineConfig({
-  testDir: './tests',
+  testDir: './',
+  testMatch: [
+    'tests/**/*.spec.ts',
+    'uw_frontend/src/tests/e2e/**/*.spec.ts',
+  ],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

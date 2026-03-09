@@ -187,3 +187,6 @@ cloud-sql-proxy
 
 
 *.json
+
+node_modules/
+playwright-report/
