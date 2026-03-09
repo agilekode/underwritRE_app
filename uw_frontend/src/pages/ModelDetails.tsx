@@ -167,7 +167,10 @@ const ModelDetails = () => {
     if (isNaN(num)) return str;
 
     if (type === 'irr' || (type === 'auto' && str.endsWith('%'))) {
-      return `${num.toFixed(1)}%`;
+      // Preserve original decimal precision for percentages (e.g., 5.75% stays 5.75%)
+      const m = str.match(/\.([0-9]+)\s*%$/);
+      const decimals = m ? Math.min(Math.max(m[1].length, 0), 4) : 0;
+      return `${num.toFixed(decimals)}%`;
     }
     if (type === 'moic') {
       return `${num.toFixed(2)}x`;
@@ -1070,26 +1073,43 @@ const ModelDetails = () => {
         padding: "8px 16px",
         backgroundColor: colors.grey[50],
         borderTop: `1px solid ${colors.grey[300]}`,
-        display: "flex",
-        justifyContent: "flex-end",
-        alignItems: "center",
       }}
     >
-      <div style={{ display: "flex", gap: "24px", justifyContent: "flex-end", width: "100%" }}>
-        <div style={{ textAlign: "right" }}>
-          <strong>Total Units:</strong> {units.length}
+      {/* Align to visible columns: 0.6fr | 1fr | 1fr | 1fr | 1fr | 1fr | 0.8fr | 1fr */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "0.6fr 1fr 1fr 1fr 1fr 1fr 0.8fr 1fr",
+          columnGap: 16,
+          width: "100%",
+          alignItems: "center",
+          minHeight: 36,
+        }}
+      >
+        {/* Under 'Unit' */}
+        <div style={{ gridColumn: 1, textAlign: "left", fontWeight: 700, color: colors.grey[900] }}>
+          Total: {units.length}
         </div>
-        <div style={{ textAlign: "right" }}>
-          <strong>Total Rentable Square Feet:</strong>{" "}
-          {totalSquareFeet.toLocaleString()}
+        {/* Under 'Layout' spacer */}
+        <div style={{ gridColumn: 2 }} />
+        {/* Under 'Square Feet' */}
+        <div style={{ gridColumn: 3, textAlign: "right", fontWeight: 700, color: colors.grey[900] }}>
+          {totalSquareFeet.toLocaleString()} sf
         </div>
-        <div style={{ textAlign: "right" }}>
-          <strong>Total Current Rent:</strong> $
-          {totalCurrentRent.toLocaleString()}
+        {/* Under 'Current Rent' */}
+        <div style={{ gridColumn: 4, textAlign: "right", fontWeight: 700, color: colors.grey[900] }}>
+          {/* <span>Total Current Rent:</span>{' '} */}
+          <span>${totalCurrentRent.toLocaleString()}</span>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <strong>Total Pro Forma Rent:</strong> ${totalPfRent.toLocaleString()}
+        <div style={{ gridColumn: 5 }} />
+
+        {/* Under 'Pro Forma Rent' */}
+        <div style={{ gridColumn: 6, textAlign: "right", fontWeight: 700, color: colors.grey[900] }}>
+          {/* <span>Total Pro Forma Rent:</span>{' '} */}
+          <span>${totalPfRent.toLocaleString()}</span>
         </div>
+        <div style={{ gridColumn: 7 }} />
+        <div style={{ gridColumn: 8 }} />
       </div>
       {modelDetails.units.length > 100 && <GridPagination />}
     </div>
@@ -1142,6 +1162,7 @@ const ModelDetails = () => {
 
   // Render a styled table mapping after removing entirely blank rows and columns
   const renderTableMappingRows = (mapping: any, maxWidth: number | null = null) => {
+    console.log('mapping', mapping);
     const data: any[][] = Array.isArray(mapping?.data) ? mapping.data : [];
     const styles: any[][] = Array.isArray(mapping?.styles)
       ? mapping.styles
@@ -1580,10 +1601,24 @@ const ModelDetails = () => {
             ))}
             <Tab label="Notes & Pictures" />
           </Tabs>
+          <Box sx={{ p:1, maxWidth: '1100px', margin: '0 auto' }}>
+
+
           {tabIndex === 0 && (
             <Box sx={{ mt: 2 }}>
-              {/* Key Performance Metrics */}
-              <Box sx={{ mb: 2, mt: 4, px:2 }}>
+             
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 2, mt: 1 }}>
+                {summaryTables.map((tbl: any, idx: number) => (
+                  <Box key={idx}>
+                    <table style={{ borderCollapse: "collapse", width: "100%", border: `2px solid ${colors.navy}`, fontFamily: 'inherit', fontSize: '0.875rem' }}>
+                      <tbody>{renderTableMappingRows(tbl)}</tbody>
+                    </table>
+                  </Box>
+                ))}
+              </Box>
+
+               {/* Key Performance Metrics */}
+               <Box sx={{ mb: 2, mt: 4, px:2 }}>
                 <Box
                   sx={{
                     display: "grid",
@@ -1631,17 +1666,6 @@ const ModelDetails = () => {
                   )}
                 </Box>
               </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 2, mt: 1 }}>
-                {summaryTables.map((tbl: any, idx: number) => (
-                  <Box key={idx}>
-                    <table style={{ borderCollapse: "collapse", width: "100%", border: `2px solid ${colors.navy}`, fontFamily: 'inherit', fontSize: '0.875rem' }}>
-                      <tbody>{renderTableMappingRows(tbl)}</tbody>
-                    </table>
-                  </Box>
-                ))}
-              </Box>
-
-              
               <Box sx={{ mt: 2, px:2 }}>
                 {/* <Typography
                   variant="h5"
@@ -1657,12 +1681,60 @@ const ModelDetails = () => {
                   Sensitivity Analysis
                 </Typography> */}
 
-                <Box
+               
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {/* IRR Sensitivity */}
+                  <Card
+                    elevation={0}
+                    sx={{
+                      borderRadius: 1,
+                      overflow: "hidden",
+                      border: `2px solid ${colors.navy}`,
+                      // transition: "all 0.2s ease-in-out",
+                      // "&:hover": {
+                      //   boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                      // },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        p: 2,
+                        bgcolor: "grey.50",
+                        borderBottom: "1px solid",
+                        borderColor: "divider",
+                        backgroundColor: colors.navy,
+                      }}
+                    >
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          fontWeight: 600,
+                          fontFamily:
+                            '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+                          fontSize: "1.25rem",
+                          color: "#fff",
+                        }}
+                      >
+                        Levered IRR Sensitivity Analysis
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontFamily:
+                            '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+                          color: "#fff",
+                          mt: 0.5,
+                        }}
+                      >
+                        Impact of exit cap rate and purchase price on IRR
+                      </Typography>
+                      <Box
                   sx={{
                     display: "flex",
                     alignItems: "center",
                     gap: 2,
-                    mb: 3,
+                    mb: 1,
+                    mt: 1,
                     backgroundColor: "grey.50",
                     p: 2,
                     borderRadius: 2,
@@ -1776,52 +1848,6 @@ const ModelDetails = () => {
                   </Button>
                 </Box>
 
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {/* IRR Sensitivity */}
-                  <Card
-                    elevation={0}
-                    sx={{
-                      borderRadius: 1,
-                      overflow: "hidden",
-                      border: `2px solid ${colors.navy}`,
-                      // transition: "all 0.2s ease-in-out",
-                      // "&:hover": {
-                      //   boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                      // },
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        p: 2,
-                        bgcolor: "grey.50",
-                        borderBottom: "1px solid",
-                        borderColor: "divider",
-                        backgroundColor: colors.navy,
-                      }}
-                    >
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          fontWeight: 600,
-                          fontFamily:
-                            '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-                          fontSize: "1.25rem",
-                          color: "#fff",
-                        }}
-                      >
-                        Levered IRR Sensitivity Analysis
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontFamily:
-                            '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-                          color: "#fff",
-                          mt: 0.5,
-                        }}
-                      >
-                        Impact of exit cap rate and purchase price on IRR
-                      </Typography>
                     </Box>
                     <Box sx={{ p: 3 }}>
                       {irrSensitivityData.values.length === 0 && (
@@ -2046,6 +2072,18 @@ const ModelDetails = () => {
                       minWidth: 100,
                       align: 'right',
                       headerAlign: 'right',
+                      renderCell: (params: any) => {
+                        const v = params.value !== undefined && params.value !== null ? Number(params.value) : null;
+                        const label =
+                          v === 0
+                            ? "Keep Tenant"
+                            : v === 1
+                            ? "Vacate & Re-Lease"
+                            : v === 2
+                            ? "Market Adjustment"
+                            : "";
+                        return <span>{label}</span>;
+                      },
                     },
                     {
                       field: "vacate_month",
@@ -2054,6 +2092,13 @@ const ModelDetails = () => {
                       minWidth: 100,
                       align: 'right',
                       headerAlign: 'right',
+                      renderCell: (params: any) => (
+                        <span>
+                          {params.value !== undefined && params.value !== null && params.value !== ""
+                            ? `Month ${params.value}`
+                            : ""}
+                        </span>
+                      ),
                     },
                   ]}
                   rows={modelDetails.units.map((unit: any, index: number) => ({
@@ -2133,6 +2178,13 @@ const ModelDetails = () => {
                       minWidth: 120,
                       align: 'right',
                       headerAlign: 'right',
+                      renderCell: (params: any) => (
+                        <span>
+                          {params.value !== undefined && params.value !== null && params.value !== ""
+                            ? `Month ${params.value}`
+                            : ""}
+                        </span>
+                      ),
                     },
                     {
                       field: "utilization",
@@ -2646,6 +2698,7 @@ const ModelDetails = () => {
             return null;
           })()}
         </Box>
+      </Box>
       </Box>
     </Box>
   );
