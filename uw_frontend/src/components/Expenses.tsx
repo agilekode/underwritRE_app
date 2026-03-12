@@ -649,10 +649,12 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
               { value: "per SF", label: "per SF" },
               { value: "per Month", label: "per Month" },
               { value: "Total", label: "Total" },
+
             ];
           } else if (thisType === "Hard Costs") {
             options = [
               { value: "per Unit", label: "per Unit" },
+              { value: "$ / buildable SF", label: "$ / buildable SF" },
               { value: "per SF", label: "per SF" },
               { value: "per Month", label: "per Month" },
               { value: "Total", label: "Total" },

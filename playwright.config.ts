@@ -5,7 +5,11 @@ import path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 export default defineConfig({
-  testDir: './tests',
+  testDir: './',
+  testMatch: [
+    'tests/**/*.spec.ts',
+    'uw_frontend/src/tests/e2e/**/*.spec.ts',
+  ],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -15,8 +19,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
-    video: 'retain-on-failure',
-    screenshot: 'only-on-failure',
+    video: 'on',
+    screenshot: 'on',
   },
 
   projects: [
@@ -28,20 +32,17 @@ export default defineConfig({
 
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'], storageState: '.auth/state.json' },
-      dependencies: ['setup'],
+      use: { ...devices['Desktop Chrome'] },
     },
 
     {
       name: 'firefox',
-      use: { ...devices['Desktop Firefox'], storageState: '.auth/state.json' },
-      dependencies: ['setup'],
+      use: { ...devices['Desktop Firefox'] },
     },
 
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'], storageState: '.auth/state.json' },
-      dependencies: ['setup'],
+      use: { ...devices['Desktop Safari'] },
     },
   ],
 });

@@ -463,68 +463,62 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
 
 
   useEffect(() => {
-
-
     // Create a unique key for this fetch operation
     const fetchKey = `${existingModel}-${modelId}-${user?.id}`;
 
+    if (!existingModel || !modelId || !user?.id) return;
 
-    if (existingModel && modelId && user?.id) {
+    // Skip if this exact fetch was already started (e.g. React Strict Mode double-invokes the effect)
+    if (fetchModelDetailsRef.current === fetchKey) return;
+    fetchModelDetailsRef.current = fetchKey;
 
-      // Mark as fetched immediately using global flag
-      (window as any).__modelDetailsFetchFlag.add(fetchKey);
+    (window as any).__modelDetailsFetchFlag.add(fetchKey);
+    clearGoogleSheetUrl();
+    setModelCreationStarted(true);
 
-      clearGoogleSheetUrl();
-
-      // setIntroStepComplete(true);
-      setModelCreationStarted(true);
-
-      const fetchModelDetails = async () => {
-
-        try {
-          const token = await getAccessTokenSilently();
-          const response = await fetch(BACKEND_URL + `/api/user_models_version/${modelId}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            credentials: 'include',
-          });
-          const data = await response.json();
-          if (data.error) {
-            console.error("ERROR", data.error)
-            return;
-          }
-          data.google_sheet_url = '';
-          generateGoogleSheet(data.model_type.id);
-          setModelDetails(data);
-          setMarketRentAssumptions(data.market_rent_assumptions);
-          setSelectedModelType(data.model_type.id);
-          setUnits(data.units);
-          setMarketRentAssumptions(data.market_rent_assumptions);
-          setGrowthRates(data.growth_rates);
-          setAmenityIncome(data.amenity_income);
-          setRetailIncome(data.retail_income);
-          setOperatingExpenses(data.operating_expenses);
-          setExpenses(data.expenses);
-          setDevelopmentUnits(
-            (data.development_units || []).map((d: any) => ({
-              id: d.id,
-              unit_type: d.unit_type,
-              avg_sf: d.avg_sf,
-              units: d.units,
-              avg_rent: d.avg_rent // map backend key to FE key
-            }))
-          );
-
-        } catch (err) {
-          console.error('Error fetching model details:', err);
+    const fetchModelDetails = async () => {
+      try {
+        const token = await getAccessTokenSilently();
+        const response = await fetch(BACKEND_URL + `/api/user_models_version/${modelId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (data.error) {
+          console.error("ERROR", data.error)
+          return;
         }
-      };
-      fetchModelDetails();
-    }
+        data.google_sheet_url = '';
+        console.log("EXISTING MODEL GEN")
+        generateGoogleSheet(data.model_type.id);
+        setModelDetails(data);
+        setMarketRentAssumptions(data.market_rent_assumptions);
+        setSelectedModelType(data.model_type.id);
+        setUnits(data.units);
+        setMarketRentAssumptions(data.market_rent_assumptions);
+        setGrowthRates(data.growth_rates);
+        setAmenityIncome(data.amenity_income);
+        setRetailIncome(data.retail_income);
+        setOperatingExpenses(data.operating_expenses);
+        setExpenses(data.expenses);
+        setDevelopmentUnits(
+          (data.development_units || []).map((d: any) => ({
+            id: d.id,
+            unit_type: d.unit_type,
+            avg_sf: d.avg_sf,
+            units: d.units,
+            avg_rent: d.avg_rent // map backend key to FE key
+          }))
+        );
+      } catch (err) {
+        console.error('Error fetching model details:', err);
+      }
+    };
+    fetchModelDetails();
 
-    // Cleanup function to reset global flag when dependencies change
     return () => {
       (window as any).__modelDetailsFetchFlag.delete(fetchKey);
     };
@@ -559,7 +553,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     }
 
     if (EXPANDED_PRIMARY_STEPS.includes(current) && EXPANDED_SECONDARY_STEPS.includes(next)) {
-    
+      console.log("CREATING INT from stepper")
       handleCreateIntermediate();
     }
     else if (EXPANDED_SECONDARY_STEPS.includes(current) && EXPANDED_PRIMARY_STEPS.includes(next)) {
@@ -1192,11 +1186,22 @@ const isStepComplete = (step: number) => {
       });
     };
     try {
+
+      let EXPANDED_PRIMARY_STEPS = [...PRIMARY_STEPS, "Rent Assumptions"];
+      let EXPANDED_SECONDARY_STEPS = [...SECONDARY_STEPS, "Senior Construction Loan Financing", "Second Lien"];
+      let EXPANDED_EXPENSE_STEPS = [...EXPENSE_STEPS, "Soft Costs"];
+
+      if(selectedModelTypeInfo?.development_model) {
+        EXPANDED_PRIMARY_STEPS = [...EXPANDED_PRIMARY_STEPS, "Hard Costs"];
+        EXPANDED_SECONDARY_STEPS = [...EXPANDED_SECONDARY_STEPS].filter((step: string) => step !== "Hard Costs");
+        EXPANDED_EXPENSE_STEPS = [...EXPANDED_EXPENSE_STEPS].filter((step: string) => step !== "Hard Costs");
+      }
       let current = steps[activeStep];
-      if (PRIMARY_STEPS.includes(current)) {
+      if (EXPANDED_PRIMARY_STEPS.includes(current)) {
+        console.log("Creating intermediate for primary step", current);
         await handleCreateIntermediate();
       }
-      else if (EXPENSE_STEPS.includes(current)) {
+      else if (EXPANDED_EXPENSE_STEPS.includes(current)) {
         await handleUpdateExpenseTable(current);
       }
       await waitForGoogleSheetUrlAndNotCreating();
@@ -1338,6 +1343,7 @@ const isStepComplete = (step: number) => {
           ...prevDetails,
           google_sheet_url: data.sheet_url
         }));
+        console.log("generateGoogleSheet")
         console.log("google sheet url", data.sheet_url);
         (window as any).__generatedSheetUrl = data.sheet_url;
       } else {
@@ -1351,7 +1357,8 @@ const isStepComplete = (step: number) => {
   const getStarted = async () => {
     setModelCreationStarted(true);
     // setIntroStepComplete(true);
-    if (selectedModelType) {
+    if (selectedModelType && !existingModel) {
+      console.log("GETTING STARTED - no existing model")
       generateGoogleSheet(selectedModelType);
     }
   };

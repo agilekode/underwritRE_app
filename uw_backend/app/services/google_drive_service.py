@@ -6742,13 +6742,13 @@ def run_full_sheet_update(
     # === Run all operations ===
     spreadsheet.batch_update({"requests": insert_requests + format_requests})
     # spreadsheet.batch_update({"requests": insert_requests})
+    if development_model:
+        enable_iterative_calculation(spreadsheet.id, max_iterations=200)
 
     spreadsheet.values_batch_update({"valueInputOption": "USER_ENTERED", "data": update_payloads})
     print("✅ All inserts and updates applied.")
 
 
-    if development_model:
-        enable_iterative_calculation(spreadsheet.id, max_iterations=200)
 
 
 def update_google_sheet_and_get_values(
@@ -6806,7 +6806,7 @@ def update_google_sheet_and_get_values(
     print(f"✅ Sheet update complete in {timings['update_sheet']:.3f}s")
 
     # ✅ Step 2.5: Run full structured insert/update
-    print("🚀 Running full sheet data inserts/formulas...")
+    print("🚀 Running full sheet data inserts/formulas --- update_google_sheet_and_get_values...")
     spreadsheet = gs_client.open_by_key(copied_sheet_id)
     run_full_sheet_update(
         spreadsheet,
@@ -6878,7 +6878,7 @@ def update_google_sheet_and_get_values_intermediate(
     address,
     property_name
 ):
-    print("📤 Starting Google Sheet generation workflow...")
+    print("📤 Starting Google Sheet generation workflow intermediate...")
     timings = {}
 
     sheets_service = build("sheets", "v4", credentials=creds)
@@ -6916,7 +6916,7 @@ def update_google_sheet_and_get_values_intermediate(
     print(f"✅ Sheet update complete in {timings['update_sheet']:.3f}s")
     t4 = time.time()
     # ✅ Step 2.5: Run full structured insert/update
-    print("🚀 Running full sheet data inserts/formulas...")
+    print("🚀 Running full sheet data inserts/formulas --- update_google_sheet_and_get_values_intermediate...")
     spreadsheet = gs_client.open_by_key(copied_sheet_id)
     run_full_sheet_update(
         spreadsheet,
@@ -6995,7 +6995,7 @@ def update_google_sheet_field_values_and_get_values(
     model_mapping,
     variable_mapping
 ):
-    print("📤 Starting Google Sheet generation workflow...")
+    print("📤 Starting update_google_sheet_field_values_and_get_value workflow...")
     timings = {}
 
     # Convert model_mapping (list of dicts) back to DataFrame
@@ -7012,7 +7012,7 @@ def update_google_sheet_field_values_and_get_values(
     timings['update_sheet'] = t3 - t2
     print(f"✅ Sheet update complete in {timings['update_sheet']:.3f}s")
     # ✅ Step 2.5: Run full structured insert/update
-    print("🚀 Running full sheet data inserts/formulas...")
+    print("🚀 Running full sheet data inserts/formulas --- update_google_sheet_field_values_and_get_value...")
     # Step 4: Extract variables
     t6 = time.time()
     variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service)
@@ -7081,6 +7081,21 @@ def add_blank_row_and_column_to_sheets(spreadsheet, sheet_names):
                 "inheritFromBefore": False
             }
         })
+        # Set the new column width to 20px
+        requests.append({
+            "updateDimensionProperties": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "dimension": "COLUMNS",
+                    "startIndex": 0,
+                    "endIndex": 1
+                },
+                "properties": {
+                    "pixelSize": 20
+                },
+                "fields": "pixelSize"
+            }
+        })
     if requests:
         spreadsheet.batch_update({"requests": requests})
 
@@ -7130,11 +7145,17 @@ def update_google_sheet_and_get_values_final(
     print(f"📈 Extracted variables: {variables} in {timings['extract_variables']:.3f}s")
 
     # Step 3: Insert blank rows/columns for expense table formatting
-
-    add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs",
-                                                     "Legal and Pre-Development Costs",
-                                                     "Reserves",
-                                                     "Hard Costs"])
+    if development_model:
+        add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs",
+                                                        "Legal and Pre-Development Costs",
+                                                        "Soft Costs",
+                                                        "Hard Costs"])
+    else:
+        add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs",
+                                                        "Legal and Pre-Development Costs",
+                                                        "Reserves",
+                                                        "Hard Costs"
+                                                        ])
 
     # Step 4: Extract tables (after structural changes so tables have correct formatting)
     # Wait for Google Sheets to recalculate after blank row/column insertion
