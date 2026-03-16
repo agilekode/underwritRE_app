@@ -1365,6 +1365,7 @@ def get_user_model(user_model_id):
                 'name': model_type.name,
                 'description': model_type.description,
                 'is_active': model_type.is_active,
+                'development_model': getattr(model_type, 'development_model', False),
                 'show_retail': model_type.show_retail,
                 'show_rental_units': model_type.show_rental_units
             },
@@ -1593,6 +1594,7 @@ def get_user_model_version(user_model_version_id):
                 'name': model_type.name,
                 'description': model_type.description,
                 'is_active': model_type.is_active,
+                'development_model': getattr(model_type, 'development_model', False),
                 'show_retail': model_type.show_retail,
                 'show_rental_units': model_type.show_rental_units
             },
@@ -1672,16 +1674,16 @@ def get_all_user_models():
             v_ms = int((time.monotonic() - v_started) * 1000)
             version_count = len(versions)
             # print(f"   • user_model_id={user_model.id} versions={version_count} (loaded in {v_ms} ms)")
-            # Get the most recent version (by created_at or version_number, fallback to first if none)
+            # Get the most recent version and the first version (by created_at / version_number)
             most_recent_version = None
+            first_version = None
             if version_count > 0:
-                most_recent_version = max(
-                    versions,
-                    key=lambda v: (
-                        getattr(v, 'created_at', None) or getattr(v, 'updated_at', None) or 0,
-                        getattr(v, 'version_number', 0)
-                    )
+                _version_key = lambda v: (
+                    getattr(v, 'created_at', None) or getattr(v, 'updated_at', None) or 0,
+                    getattr(v, 'version_number', 0)
                 )
+                most_recent_version = max(versions, key=_version_key)
+                first_version = min(versions, key=_version_key)
             # Load active model tags
             tags = session.query(ModelTag).filter(
                 ModelTag.user_model_id == user_model.id,
@@ -1695,6 +1697,10 @@ def get_all_user_models():
                 'created_at': t.created_at.isoformat() if getattr(t, 'created_at', None) else None,
                 'updated_at': t.updated_at.isoformat() if getattr(t, 'updated_at', None) else None,
             } for t in tags]
+            # created_at = when the 1st version was created; updated_at = when the most recent version was created
+            created_at_value = first_version.created_at.isoformat() if first_version and getattr(first_version, 'created_at', None) else (user_model.created_at.isoformat() if user_model.created_at else None)
+            updated_at_value = most_recent_version.created_at.isoformat() if most_recent_version and getattr(most_recent_version, 'created_at', None) else None
+
             # Prepare the data
             user_models_data.append({
                 'id': str(user_model.id),
@@ -1703,7 +1709,8 @@ def get_all_user_models():
                 'city': user_model.city,
                 'state': user_model.state,
                 'zip_code': user_model.zip_code,
-                'created_at': user_model.created_at.isoformat() if user_model.created_at else None,
+                'created_at': created_at_value,
+                'updated_at': updated_at_value,
                 'levered_irr': most_recent_version.levered_irr if most_recent_version else None,
                 'levered_moic': most_recent_version.levered_moic if most_recent_version else None,
                 'version_count': version_count,

@@ -62,6 +62,7 @@ export const AmenityIncomeSuggested = [
   { id: '2', name: 'Storage', start_month: 0, utilization: 0, unit_count: 0, monthly_fee: 0 },
   { id: '3', name: 'Laundry', start_month: 0, utilization: 0, unit_count: 0, monthly_fee: 0 },
   { id: '4', name: 'Gym/Amenity Space', start_month: 0, utilization: 0, unit_count: 0, monthly_fee: 0 },
+  { id: '5', name: 'RUBS', start_month: 0, utilization: 0, unit_count: 0, monthly_fee: 0 },
 ]
 
 export const AmenityIncomeBasic = [

@@ -78,8 +78,8 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
       const totalSf = Math.max(0, Math.round(avgSf * units));
       const monthlyRent = Math.max(0, Math.round(avgRent * units));
       const annualRent = monthlyRent * 12;
-      // Rent PSF should be based on ANNUAL rent divided by total square feet
-      const rentPsf = totalSf > 0 ? annualRent / totalSf : 0;
+      // Rent PSF = Avg. Rent / Avg. SF (per sq ft)
+      const rentPsf = avgSf > 0 ? avgRent / avgSf : 0;
       return { ...r, totalSf, rentPsf, monthlyRent, annualRent };
     });
     const totals = withDerived.reduce(
@@ -92,8 +92,8 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
       },
       { units: 0, totalSf: 0, monthlyRent: 0, annualRent: 0 }
     );
-    // Table Rent PSF should be total annual rent divided by total SF
-    const weightedRentPsf = totals.totalSf > 0 ? totals.annualRent / totals.totalSf : 0;
+    // Rent PSF total = total monthly rent / total SF
+    const weightedRentPsf = totals.totalSf > 0 ? totals.monthlyRent / totals.totalSf : 0;
     // Avg Rent should be total annual rent divided by total units
     const avgRent = totals.units > 0 ? Math.round(totals.annualRent / totals.units) : 0;
     return { withDerived, totals, weightedRentPsf, avgRent };
@@ -257,7 +257,7 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
       valueGetter: (p: any) => ((p && p.row && p.row.monthlyRent) ?? 0),
       renderCell: (params: any) => (
         <span className="u-muted">
-          {Number(params.row.monthlyRent ?? 0).toLocaleString()}
+          ${Number(params.row.monthlyRent ?? 0).toLocaleString()}
         </span>
       ),
     },
@@ -269,7 +269,7 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
       valueGetter: (p: any) => ((p && p.row && p.row.annualRent) ?? 0),
       renderCell: (params: any) => (
         <span className="u-muted">
-          {Number(params.row.annualRent ?? 0).toLocaleString()}
+          ${Number(params.row.annualRent ?? 0).toLocaleString()}
         </span>
       ),
     },
@@ -386,9 +386,9 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
             <div><span style={{ fontWeight: 600 }}>Units:</span> {computed.totals.units.toLocaleString()}</div>
             <div><span style={{ fontWeight: 600 }}>Total SF:</span> {computed.totals.totalSf.toLocaleString()}</div>
             <div><span style={{ fontWeight: 600 }}>Rent PSF:</span> ${computed.weightedRentPsf.toFixed(2)}</div>
-            <div><span style={{ fontWeight: 600 }}>Avg. Rent:</span> {computed.avgRent.toLocaleString()}</div>
-            <div><span style={{ fontWeight: 600 }}>Monthly Rent:</span> {computed.totals.monthlyRent.toLocaleString()}</div>
-            <div><span style={{ fontWeight: 600 }}>Annual Rent:</span> {computed.totals.annualRent.toLocaleString()}</div>
+            <div><span style={{ fontWeight: 600 }}>Avg. Rent:</span> ${computed.avgRent.toLocaleString()}</div>
+            <div><span style={{ fontWeight: 600 }}>Monthly Rent:</span> ${computed.totals.monthlyRent.toLocaleString()}</div>
+            <div><span style={{ fontWeight: 600 }}>Annual Rent:</span> ${computed.totals.annualRent.toLocaleString()}</div>
           </div>
         </div>
       );

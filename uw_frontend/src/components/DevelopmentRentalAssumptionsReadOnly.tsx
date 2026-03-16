@@ -17,7 +17,8 @@ export const DevelopmentRentalAssumptionsReadOnly: React.FC<Props> = ({ rows }) 
       const totalSf = Math.max(0, Math.round(avgSf * units));
       const monthlyRent = Math.max(0, Math.round(avgRent * units));
       const annualRent = monthlyRent * 12;
-      const rentPsf = totalSf > 0 ? annualRent / totalSf : 0;
+      // Rent PSF = Avg. Rent / Avg. SF
+      const rentPsf = avgSf > 0 ? avgRent / avgSf : 0;
       return { ...r, totalSf, rentPsf, monthlyRent, annualRent };
     });
     const totals = withDerived.reduce(
@@ -30,7 +31,8 @@ export const DevelopmentRentalAssumptionsReadOnly: React.FC<Props> = ({ rows }) 
       },
       { units: 0, totalSf: 0, monthlyRent: 0, annualRent: 0 }
     );
-    const weightedRentPsf = totals.totalSf > 0 ? totals.annualRent / totals.totalSf : 0;
+    // Rent PSF total = total monthly rent / total SF
+    const weightedRentPsf = totals.totalSf > 0 ? totals.monthlyRent / totals.totalSf : 0;
     const avgRent = totals.units > 0 ? Math.round(totals.annualRent / totals.units) : 0;
     return { withDerived, totals, weightedRentPsf, avgRent };
   }, [rows]);
@@ -112,7 +114,7 @@ export const DevelopmentRentalAssumptionsReadOnly: React.FC<Props> = ({ rows }) 
       valueGetter: (p: any) => ((p && p.row && (p.row as any).monthlyRent) ?? 0),
       renderCell: (params) => (
         <span className="u-muted">
-          {Number((params.row as any).monthlyRent ?? 0).toLocaleString()}
+          ${Number((params.row as any).monthlyRent ?? 0).toLocaleString()}
         </span>
       ),
     },
@@ -125,32 +127,38 @@ export const DevelopmentRentalAssumptionsReadOnly: React.FC<Props> = ({ rows }) 
       valueGetter: (p: any) => ((p && p.row && (p.row as any).annualRent) ?? 0),
       renderCell: (params) => (
         <span className="u-muted">
-          {Number((params.row as any).annualRent ?? 0).toLocaleString()}
+          ${Number((params.row as any).annualRent ?? 0).toLocaleString()}
         </span>
       ),
     },
   ];
 
+  // Match DataGrid column flex: Unit Type, Avg. SF, Units, Total SF, Rent PSF, Avg. Rent, Monthly Rent, Annual Rent
+  const footerGridTemplateColumns = '1.2fr 0.8fr 0.7fr 0.9fr 0.8fr 0.9fr 1fr 1fr';
+
+  const cellPadding = '0 12px';
   const Footer = () => {
     return (
       <div
         style={{
-          padding: '8px 16px',
+          padding: '8px 0',
           backgroundColor: '#f5f5f5',
           borderTop: '1px solid #e0e0e0',
-          display: 'flex',
-          justifyContent: 'flex-end',
+          display: 'grid',
+          gridTemplateColumns: footerGridTemplateColumns,
           alignItems: 'center',
           fontSize: 14.5,
-          gap: 24,
+          minWidth: 0,
         }}
       >
-        <div><strong>Units:</strong> {computed.totals.units.toLocaleString()}</div>
-        <div><strong>Total SF:</strong> {computed.totals.totalSf.toLocaleString()}</div>
-        <div><strong>Rent PSF:</strong> ${computed.weightedRentPsf.toFixed(2)}</div>
-        <div><strong>Avg. Rent:</strong> {computed.avgRent.toLocaleString()}</div>
-        <div><strong>Monthly Rent:</strong> {computed.totals.monthlyRent.toLocaleString()}</div>
-        <div><strong>Annual Rent:</strong> {computed.totals.annualRent.toLocaleString()}</div>
+        <div style={{ fontWeight: 600, padding: cellPadding }}>Total</div>
+        <div style={{ padding: cellPadding }} />
+        <div style={{ textAlign: 'right', padding: cellPadding }}>{computed.totals.units.toLocaleString()}</div>
+        <div style={{ textAlign: 'right', padding: cellPadding }}>{computed.totals.totalSf.toLocaleString()}</div>
+        <div style={{ textAlign: 'right', padding: cellPadding }}>${computed.weightedRentPsf.toFixed(2)}</div>
+        <div style={{ textAlign: 'right', padding: cellPadding }}>${computed.avgRent.toLocaleString()}</div>
+        <div style={{ textAlign: 'right', padding: cellPadding }}>${computed.totals.monthlyRent.toLocaleString()}</div>
+        <div style={{ textAlign: 'right', padding: cellPadding }}>${computed.totals.annualRent.toLocaleString()}</div>
       </div>
     );
   };

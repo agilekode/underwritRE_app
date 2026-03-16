@@ -241,7 +241,7 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
                       )}
                     </ListItemIcon>
                     <ListItemText
-                      primary={step}
+                      primary={step === "Legal and Pre-Development Costs" ? "Legal and Setup Costs" : step}
                       primaryTypographyProps={{
                         fontWeight: current ? 600 : 500,
                         fontSize: '0.875rem',
@@ -354,10 +354,12 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
               width: '100%',
             }}
           >
-            <Typography variant="h3" sx={{ fontWeight: 400, color: 'white' }}>
-              {currentStepTitle}
+            <Typography variant="h3" sx={{ color: 'white' }}>
+              <span style={{ fontWeight: 700, textTransform: 'uppercase' }}>
+                {currentStepTitle === "Legal and Pre-Development Costs" ? "Legal and Setup Costs" : currentStepTitle}
+              </span>
               {modelDetails?.name && (
-                <span style={{ fontWeight: 400 }}>
+                <span style={{ fontWeight: 400, textTransform: 'none' }}>
                   : {modelDetails.name}
                 </span>
               )}

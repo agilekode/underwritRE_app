@@ -1093,6 +1093,7 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
 
     # 4. Number Formatting (Zero to dashes)
     if market_num_rows > 0:
+        # Default number formatting for numeric columns (Pro Forma Rent, Avg $/SF, etc.)
         format_requests.append({
             "repeatCell": {
                 "range": {
@@ -1107,6 +1108,28 @@ def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, 
                         "numberFormat": {
                             "type": "NUMBER",
                             "pattern": "#,##0;(#,##0);\"-\""
+                        }
+                    }
+                },
+                "fields": "userEnteredFormat.numberFormat"
+            }
+        })
+
+        # Override for Avg. Current Rent column (4th column in this table) to show as $ with 2 decimals
+        format_requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": market_ws._properties["sheetId"],
+                    "startRowIndex": 4,
+                    "endRowIndex": 4 + market_num_rows,
+                    "startColumnIndex": 4,  # Column E in the sheet, 4th column in B:H range
+                    "endColumnIndex": 5
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "numberFormat": {
+                            "type": "NUMBER",
+                            "pattern": "$#,##0.00;($#,##0.00);\"-\""
                         }
                     }
                 },
@@ -1304,6 +1327,25 @@ def get_rental_assumptions_insert_ops(rental_ws, rental_assumptions_json, market
         }
     })
 
+    # Vertical align middle for all inserted data rows
+    format_request.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": rental_start_row - 1,
+                "endRowIndex": rental_end_row,
+                "startColumnIndex": 1,
+                "endColumnIndex": 11
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "verticalAlignment": "MIDDLE"
+                }
+            },
+            "fields": "userEnteredFormat.verticalAlignment"
+        }
+    })
+
     format_request.append({
         "repeatCell": {
             "range": {
@@ -1436,6 +1478,7 @@ def get_rental_assumptions_insert_ops(rental_ws, rental_assumptions_json, market
         }
     })
 
+    # Totals row: background #434343, white text, bold, top border, vertical align middle
     format_request.append({
         "repeatCell": {
             "range": {
@@ -1447,14 +1490,26 @@ def get_rental_assumptions_insert_ops(rental_ws, rental_assumptions_json, market
             },
             "cell": {
                 "userEnteredFormat": {
-                    "textFormat": {"bold": True},
+                    "backgroundColor": {
+                        "red": 67 / 255,
+                        "green": 67 / 255,
+                        "blue": 67 / 255
+                    },
+                    "textFormat": {
+                        "foregroundColor": {"red": 1, "green": 1, "blue": 1},
+                        "bold": True
+                    },
+                    "verticalAlignment": "MIDDLE",
                     "borders": {
                         "top": {"style": "SOLID"}
                     }
                 }
             },
             "fields": (
+                "userEnteredFormat.backgroundColor,"
+                "userEnteredFormat.textFormat.foregroundColor,"
                 "userEnteredFormat.textFormat.bold,"
+                "userEnteredFormat.verticalAlignment,"
                 "userEnteredFormat.borders"
             )
         }
@@ -1624,9 +1679,9 @@ def get_rental_assumptions_insert_ops(rental_ws, rental_assumptions_json, market
     total_row_data = {
         "range": f"'{sheet_name}'!B{total_row_index}:K{total_row_index}",
         "values": [[
-            "", "", "",
+            "Total Rental Income", "", "",
             f"=COUNTA(B{rental_start_row}:B{rental_end_row})",
-            f"=SUM(F{rental_start_row}:F{rental_end_row})/E{total_row_index}",
+            f"=SUM(F{rental_start_row}:F{rental_end_row})",
             "", "",
             f"=SUM(I{rental_start_row}:I{rental_end_row})",
             f"=SUM(J{rental_start_row}:J{rental_end_row})",
@@ -1902,9 +1957,7 @@ def get_rent_roll_assumption_row_inserts(rent_roll_ws, rental_assumptions_json, 
             "inheritFromBefore": False
         }
     }
-    print("RENT ROLL assumptions", rental_assumptions_json)
 
-    print("RENT ROLL insert_request", insert_request)
     rows_to_insert = []
 
 
@@ -3112,7 +3165,10 @@ def get_operating_expense_row_insert_request_industrial(
 
 
 
-def get_inflation_reference_updates(assumption_row_mapping):
+def get_inflation_reference_updates(assumption_row_mapping, model_variable_mapping):
+
+    NOI_AMENITY_RANGE = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Amenity Inflation NOI Walk')
+    NOI_EXPENSE_RANGE = get_mapped_cell_location(model_variable_mapping, 'Other Reference', 'Expense Inflation NOI Walk')
     updates = []
 
     # Amenity Inflation → NOI Walk!L3
@@ -3120,7 +3176,7 @@ def get_inflation_reference_updates(assumption_row_mapping):
     if amenity:
         formula = f"='Assumptions'!{amenity['value_col']}{amenity['row']}"
         updates.append({
-            "range": "NOI Walk!L3",
+            "range": NOI_AMENITY_RANGE,
             "values": [[formula]]
         })
     else:
@@ -3131,7 +3187,7 @@ def get_inflation_reference_updates(assumption_row_mapping):
     if expense:
         formula = f"='Assumptions'!{expense['value_col']}{expense['row']}"
         updates.append({
-            "range": "NOI Walk!H6",
+            "range": NOI_EXPENSE_RANGE,
             "values": [[formula]]
         })
     else:
@@ -3355,11 +3411,11 @@ def get_noi_expense_rows_insert_and_update(
     spreadsheet,
     expenses_json,
     amenity_income_json,
-    walk_start_row=30,
-    noi_base_row=14,
+    walk_start_row=29,
+    noi_base_row=13,
     noi_sheet="NOI",
     walk_sheet="NOI Walk",
-    year_row=14
+    year_row=13
 ):
     num_rows = len(expenses_json)
     noi_start_row = noi_base_row + len(amenity_income_json)
@@ -3530,7 +3586,7 @@ def get_ntm_update_payload(
     target_num_cols=132,
     formula_start_col=6,  # Column F
     formula_range_width=11,  # F:Q = 11 columns
-    row_offset=31
+    row_offset=30
 ):
     row_1 = row_offset + len(amenity_income_json) + len(expenses_json) + 1
     target_row = row_offset + len(amenity_income_json) + len(expenses_json) + 2
@@ -3831,7 +3887,7 @@ def get_cover_residential_update_payloads(rental_assumptions_json, amenity_incom
 
     return payloads
 
-def get_retail_assumptions_inserts(spreadsheet, retail_income, sheet_name="Retail Assumptions", start_row=6):
+def get_retail_assumptions_inserts(spreadsheet, retail_income, sheet_name="Retail Assumptions", start_row=6, development_model=False):
     """
     Returns insert and update requests for retail income data in the Retail Assumptions sheet.
     
@@ -3899,16 +3955,26 @@ def get_retail_assumptions_inserts(spreadsheet, retail_income, sheet_name="Retai
         
         # Column J: Formula I<row> * F<row>
         row[9] = f"=I{current_row}*F{current_row}"
-        
+        print("HIHIHIHIHIHIHIHIHIH")
+        print("development_model", development_model)
         # Columns L through EQ (columns 11 through 144): Formula pattern
-        for col_idx in range(11, 145):  # L is column 11 (0-based), EQ is column 144
-            # Convert column index to column letter(s)
-            if col_idx < 26:
-                col_letter = chr(ord('A') + col_idx)
-            else:
-                col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
-            row[col_idx] = f"=($G{current_row}<={col_letter}$5)*($J{current_row}/12)*(1+$H{current_row})^(ROUNDUP(MAX({col_letter}$5-$G{current_row}+1,0)/12,0)-1)"
-        
+        if development_model:
+            for col_idx in range(11, 109):  # L is column 11 (0-based), EQ is column 144
+                # Convert column index to column letter(s)
+                if col_idx < 26:
+                    col_letter = chr(ord('A') + col_idx)
+                else:
+                    col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
+                row[col_idx] = f"=($G{current_row}<={col_letter}$5)*($J{current_row}/12)*(1+$H{current_row})^(ROUNDUP(MAX({col_letter}$5-$G{current_row}+1,0)/12,0)-1)"
+        else:
+            for col_idx in range(11, 145):  # L is column 11 (0-based), EQ is column 144
+                # Convert column index to column letter(s)
+                if col_idx < 26:
+                    col_letter = chr(ord('A') + col_idx)
+                else:
+                    col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
+                row[col_idx] = f"=($G{current_row}<={col_letter}$5)*($J{current_row}/12)*(1+$H{current_row})^(ROUNDUP(MAX({col_letter}$5-$G{current_row}+1,0)/12,0)-1)"
+            
         rows.append(row)
     
     # Update payload - extend range to cover all columns we're writing to (A to EQ)
@@ -3952,7 +4018,531 @@ def get_retail_assumptions_inserts(spreadsheet, retail_income, sheet_name="Retai
 
 
 
-def get_retail_assumptions_summary_row(retail_income, sheet_name='Retail Assumptions'):
+# def get_retail_assumptions_summary_row(retail_income, sheet_name='Retail Assumptions', development_model=False):
+#     """
+#     Creates a summary row with formulas for the retail assumptions data.
+#     This row goes after all the retail income entries.
+#     """
+#     start_row = 6 + len(retail_income)  # Row after all retail entries
+#     end_row = start_row
+    
+#     # Create the summary row with formulas
+#     summary_row = [""] * 145  # Initialize with empty strings for all columns
+    
+#     summary_row[1] = "Total Base Retail Income"
+    
+#     # Column E: =MIN(E6:E<6+len(retail_income))
+#     data_end_row = 6 + len(retail_income) - 1
+#     summary_row[4] = f"=MIN(E6:E{data_end_row})"
+    
+#     # Column F: =SUM(F6:F<6+len(retail_income))
+#     summary_row[5] = f"=SUM(F6:F{data_end_row})"
+    
+#     # Column G: =MIN(G6:G<6+len(retail_income))
+#     summary_row[6] = f"=MIN(G6:G{data_end_row})"
+    
+#     # Column H: =IFERROR(SUMPRODUCT(H6:H<data_end>,J6:J<data_end>)/J<summary_row>,0)
+#     summary_row[7] = f"=IFERROR(SUMPRODUCT(H6:H{data_end_row},J6:J{data_end_row})/J{start_row},0)"
+    
+#     # Column I: =IFERROR(SUMPRODUCT(I6:I<data_end>,F6:F<data_end>)/F<summary_row>,0)
+#     summary_row[8] = f"=IFERROR(SUMPRODUCT(I6:I{data_end_row},F6:F{data_end_row})/F{start_row},0)"
+    
+#     # Column J: =SUM(J6:J<data_end>)
+#     summary_row[9] = f"=SUM(J6:J{data_end_row})"
+    
+#     # Columns L through EQ (columns 11 through 144): Sum formulas
+#     for col_idx in range(11, 145):  # L is column 11 (0-based), EQ is column 144
+#         # Convert column index to column letter(s)
+#         if col_idx < 26:
+#             col_letter = chr(ord('A') + col_idx)
+#         else:
+#             col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
+#         summary_row[col_idx] = f"=SUM({col_letter}6:{col_letter}{data_end_row})"
+    
+#     # Update payload
+#     update_payload = {
+#         "range": f"'{sheet_name}'!A{start_row}:EQ{start_row}",
+#         "values": [summary_row]
+#     }
+    
+#     return update_payload
+
+
+
+# def get_retail_recovery_summary_row(retail_income, sheet_name='Retail Assumptions'):
+#     """
+#     Creates a summary row with formulas for the retail recovery data.
+#     This row goes after all the retail recovery entries.
+#     """
+#     start_row = 10 + len(retail_income)*2  # Row after all retail entries
+#     end_row = start_row
+#     data_start_row = 10 + len(retail_income)
+    
+#     # Create the summary row with formulas
+#     summary_row = [""] * 145  # Initialize with empty strings for all columns
+    
+#     summary_row[1] = "Total Recovery Income"
+    
+#     # Column E: =MIN(E6:E<6+len(retail_income))
+#     data_end_row = 10 + len(retail_income)*2 
+    
+#     # Column I: 
+#     summary_row[8] = f"=IFERROR(J{data_end_row}/F{6 + len(retail_income)},0)"
+    
+#     # Column J: =SUM(J6:J<data_end>)
+#     summary_row[9] = f"=SUM(J{10 + len(retail_income)}:J{data_end_row -1})"
+    
+#     # Columns L through EQ (columns 11 through 144): Sum formulas
+#     for col_idx in range(11, 145):  # L is column 11 (0-based), EQ is column 144
+#         # Convert column index to column letter(s)
+#         if col_idx < 26:
+#             col_letter = chr(ord('A') + col_idx)
+#         else:
+#             col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
+#         summary_row[col_idx] = f"=SUM({col_letter}{data_start_row}:{col_letter}{data_end_row -1})"
+    
+#     # Update payload
+#     update_payload = {
+#         "range": f"'{sheet_name}'!A{start_row}:EQ{start_row}",
+#         "values": [summary_row]
+#     }
+    
+#     return update_payload
+
+# def get_retail_assumptions_occ_row(retail_income, sheet_name='Retail Assumptions'):
+#     """
+#     Creates an occ row below the summary row with SUMIF formulas.
+#     """
+#     start_row = 6 + len(retail_income) + 1  # Row after summary row
+#     data_end_row = 6 + len(retail_income) - 1  # Last data row
+#     summary_row_num = 6 + len(retail_income)  # Summary row number
+    
+#     # Create the occ row with formulas
+#     occ_row = [""] * 145  # Initialize with empty strings for all columns
+    
+#     occ_row[10] = "Occ."
+    
+#     # Columns L through EO (columns 11 through 144): SUMIF formulas
+#     for col_idx in range(11, 145):  # L is column 11 (0-based), EO is column 144
+#         # Convert column index to column letter(s)
+#         if col_idx < 26:
+#             col_letter = chr(ord('A') + col_idx)
+#         else:
+#             col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
+#         occ_row[col_idx] = f"=IFERROR(SUMIF($E$6:$E${data_end_row},\"<=\"&{col_letter}5,$F$6:$F${data_end_row})/$F${summary_row_num},0)"
+    
+#     # Update payload
+#     update_payload = {
+#         "range": f"'{sheet_name}'!A{start_row}:EQ{start_row}",
+#         "values": [occ_row]
+#     }
+    
+#     return update_payload
+
+
+# def get_retail_recovery_inserts(spreadsheet, retail_income, retail_expenses, sheet_name='Retail Assumptions'):
+#     """
+#     Creates insert request and update payload for retail recovery rows.
+#     """
+#     retail_income_length = len(retail_income)
+#     start_row = 10 + retail_income_length  # Starting row for recovery section
+#     ws = spreadsheet.worksheet(sheet_name)
+#     sheet_id = ws._properties["sheetId"]
+#     # Insert request for new rows
+#     insert_request = {
+#         "insertDimension": {
+#             "range": {
+#                 "sheetId": sheet_id,
+#                 "dimension": "ROWS",
+#                 "startIndex": start_row - 1,  # 0-based index
+#                 "endIndex": start_row - 1 + retail_income_length
+#             }
+#         }
+#     }
+    
+#     # Create data rows
+#     data_rows = []
+#     for i, item in enumerate(retail_income):
+#         row = [""] * 145  # Initialize with empty strings for all columns
+        
+#         # Column B: reference to previous table (=+B6, =+B7, etc.)
+#         row[1] = f"=+B{6 + i}"
+        
+#         # Column C: reference to previous table (=+C6, =+C7, etc.)
+#         row[2] = f"=+C{6 + i}"
+        
+#         # Column F: recovery_start_month
+#         row[5] = item.get("recovery_start_month", "")
+        
+#         # Column H: =IFERROR(F{current_row}/$F${summary_row},0)
+#         current_row = 10 + i + retail_income_length
+#         summary_row = 6 + retail_income_length  # Summary row from previous table
+#         upper_row = 6 + i 
+#         row[7] = f"=IFERROR(F{upper_row}/$F${summary_row},0)"
+#         print(current_row)
+
+#         # Column I: =IFERROR(J{current_row}/F{prev_table_row},0)
+#         prev_table_row = 6 + i
+#         row[8] = f"=IFERROR(J{current_row}/F{prev_table_row},0)"
+        
+#         # Column J: =+H{current_row}*$J${reference_row}
+#         reference_row = 17 + retail_income_length * 2 + len(retail_expenses)
+#         row[9] = f"=+H{current_row}*$J${reference_row}"
+        
+#         # Columns L through EO (columns 11 through 144): =IFERROR((COL$5>=$F{current_row})*$H{current_row}*COL${reference_row},0)
+#         for col_idx in range(11, 145):  # L is column 11 (0-based), EO is column 144
+#             # Convert column index to column letter(s)
+#             if col_idx < 26:
+#                 col_letter = chr(ord('A') + col_idx)
+#             else:
+#                 col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
+#             row[col_idx] = f"=IFERROR(({col_letter}$5>=$F{current_row})*$H{current_row}*{col_letter}${reference_row},0)"
+        
+#         data_rows.append(row)
+    
+#     # Update payload
+#     update_payload = {
+#         "range": f"'{sheet_name}'!A{start_row}:EQ{start_row + retail_income_length - 1}",
+#         "values": data_rows
+#     }
+
+#     # Formatting: all inserted row values B–J non-bold; only B, C, F blue
+#     end_row = start_row + retail_income_length  # exclusive
+#     format_requests = [
+#         {
+#             "repeatCell": {
+#                 "range": {
+#                     "sheetId": sheet_id,
+#                     "startRowIndex": start_row - 1,
+#                     "endRowIndex": end_row,
+#                     "startColumnIndex": 1,  # B
+#                     "endColumnIndex": 10   # up to J (exclusive)
+#                 },
+#                 "cell": {"userEnteredFormat": {"textFormat": {"bold": False}}},
+#                 "fields": "userEnteredFormat.textFormat.bold"
+#             }
+#         },
+#         {
+#             "repeatCell": {
+#                 "range": {
+#                     "sheetId": sheet_id,
+#                     "startRowIndex": start_row - 1,
+#                     "endRowIndex": end_row,
+#                     "startColumnIndex": 1,  # B
+#                     "endColumnIndex": 3    # C (exclusive)
+#                 },
+#                 "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
+#                 "fields": "userEnteredFormat.textFormat.foregroundColor"
+#             }
+#         },
+#         {
+#             "repeatCell": {
+#                 "range": {
+#                     "sheetId": sheet_id,
+#                     "startRowIndex": start_row - 1,
+#                     "endRowIndex": end_row,
+#                     "startColumnIndex": 5,  # F
+#                     "endColumnIndex": 6
+#                 },
+#                 "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
+#                 "fields": "userEnteredFormat.textFormat.foregroundColor"
+#             }
+#         },
+#         {
+#             # Format Column I (Pro Rata Share) as percentage
+#             "repeatCell": {
+#                 "range": {
+#                     "sheetId": sheet_id,
+#                     "startRowIndex": start_row - 1,
+#                     "endRowIndex": end_row,
+#                     "startColumnIndex": 8,  # I
+#                     "endColumnIndex": 9
+#                 },
+#                 "cell": {
+#                     "userEnteredFormat": {
+#                         "numberFormat": {
+#                             "type": "PERCENT",
+#                             "pattern": "0.00%"
+#                         }
+#                     }
+#                 },
+#                 "fields": "userEnteredFormat.numberFormat"
+#             }
+#         }
+#     ]
+
+#     return insert_request, update_payload, format_requests
+
+
+# def get_retail_expenses_inserts(spreadsheet, retail_income, retail_expenses, retail_growth_rate, sheet_name, development_model=False):
+#     """
+#     Insert retail expenses rows and update with data
+#     """
+#     retail_income_length = len(retail_income)
+#     retail_expenses_length = len(retail_expenses)
+    
+#     end_column = 145
+#     if development_model:
+#         end_column = 109
+#     # Calculate starting row
+#     start_row = 17 + retail_income_length * 2
+
+#     ws = spreadsheet.worksheet(sheet_name)
+#     sheet_id = ws._properties["sheetId"]
+    
+#     # Create insert request
+#     insert_request = {
+#         "insertDimension": {
+#             "range": {
+#                 "sheetId": sheet_id,
+#                 "dimension": "ROWS",
+#                 "startIndex": start_row - 1,  # 0-based index
+#                 "endIndex": start_row - 1 + retail_expenses_length
+#             }
+#         }
+#     }
+    
+#     # Create data rows
+#     data_rows = []
+#     for i, expense in enumerate(retail_expenses):
+#         row = [""] * end_column  # Initialize with empty strings for all columns
+#         current_row = start_row + i
+        
+#         # Column B: expense name
+#         row[1] = expense.get("name", "")
+        
+#         # Column G: retail growth rate
+#         row[6] = f"{retail_growth_rate}%"
+        
+#         # Column I: cost_per
+#         row[8] = expense.get("cost_per", "")
+        
+#         # Column J: =F{6 + len(retail_expenses)} * I{current_row}
+#         reference_row = 6 + retail_income_length
+#         row[9] = f"=F{reference_row}*I{current_row}"
+        
+#         # Columns L through EO (columns 11 through 144): =IFERROR($J{current_row}/12*COL${reference_row_20}*(1+$G{current_row})^(ROUNDUP(COL$5/12,0)-1),0)
+#         reference_occ_row = 6 + retail_income_length + 1  
+#         for col_idx in range(11, end_column):  # L is column 11 (0-based), EO is column 144
+#             # Convert column index to column letter(s)
+#             if col_idx < 26:
+#                 col_letter = chr(ord('A') + col_idx)
+#             else:
+#                 col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
+#             row[col_idx] = f"=IFERROR($J{current_row}/12*{col_letter}${reference_occ_row}*(1+$G{current_row})^(ROUNDUP({col_letter}$5/12,0)-1),0)"
+        
+#         data_rows.append(row)
+    
+#     # Update payload
+#     update_payload = {
+#         "range": f"'{sheet_name}'!A{start_row}:EO{start_row + retail_expenses_length - 1}",
+#         "values": data_rows
+#     }
+
+#     # Formatting for inserted rows: B–J non-bold; only column I blue
+#     end_row = start_row + retail_expenses_length  # exclusive
+#     format_requests = [
+#         {
+#             "repeatCell": {
+#                 "range": {
+#                     "sheetId": sheet_id,
+#                     "startRowIndex": start_row - 1,
+#                     "endRowIndex": end_row,
+#                     "startColumnIndex": 1,  # B
+#                     "endColumnIndex": 10   # up to J (exclusive)
+#                 },
+#                 "cell": {"userEnteredFormat": {"textFormat": {"bold": False}}},
+#                 "fields": "userEnteredFormat.textFormat.bold"
+#             }
+#         },
+#         {
+#             "repeatCell": {
+#                 "range": {
+#                     "sheetId": sheet_id,
+#                     "startRowIndex": start_row - 1,
+#                     "endRowIndex": end_row,
+#                     "startColumnIndex": 8,  # I
+#                     "endColumnIndex": 9
+#                 },
+#                 "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
+#                 "fields": "userEnteredFormat.textFormat.foregroundColor"
+#             }
+#         }
+#     ]
+
+#     return insert_request, update_payload, format_requests
+
+# def get_retail_expenses_summary_row(retail_income, retail_expenses, sheet_name, development_model=False):
+#     """
+#     Creates the summary row for retail expenses.
+#     Row position: 17 + len(retail_income)*2 + len(retail_expenses)
+#     """
+#     retail_income_length = len(retail_income)
+#     retail_expenses_length = len(retail_expenses)
+    
+#     end_column = 145
+#     if development_model:
+#         end_column = 109
+#     # Calculate row position
+#     summary_row = 17 + retail_income_length * 2 + retail_expenses_length
+    
+#     # Initialize row with empty strings
+#     row = [""] * end_column
+    
+#     # Column B: text
+#     row[1] = "Total Retail Operating Expenses"
+    
+#     # Column I: =IFERROR(J{summary_row}/F{6 + retail_income_length},0)
+#     reference_row = 6 + retail_income_length
+#     row[8] = f"=IFERROR(J{summary_row}/F{reference_row},0)"
+    
+#     # Column J: SUM of retail expenses column J
+#     expenses_start_row = 17 + retail_income_length * 2
+#     expenses_end_row = expenses_start_row + retail_expenses_length - 1
+#     row[9] = f"=SUM(J{expenses_start_row}:J{expenses_end_row})"
+    
+#     # Columns L through EO (columns 11 through 144): SUM of expense rows for that column
+#     for col_idx in range(11, end_column):  # L is column 11 (0-based), EO is column 144
+#         # Convert column index to column letter(s)
+#         if col_idx < 26:
+#             col_letter = chr(ord('A') + col_idx)
+#         else:
+#             col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
+#         row[col_idx] = f"=SUM({col_letter}{expenses_start_row}:{col_letter}{expenses_end_row})"
+    
+#     # Update payload
+#     update_payload = {
+#         "range": f"'{sheet_name}'!A{summary_row}:EO{summary_row}",
+#         "values": [row]
+#     }
+    
+#     return update_payload
+
+
+
+
+# def get_retail_assumptions_inserts(spreadsheet, retail_income, sheet_name="Retail Assumptions", start_row=6, development_model=False):
+#     """
+#     Returns insert and update requests for retail income data in the Retail Assumptions sheet.
+    
+#     Args:
+#         spreadsheet: The gspread spreadsheet object
+#         retail_income: List of retail income dictionaries
+#         sheet_name: Name of the sheet to update (default: "Retail Assumptions")
+#         start_row: Starting row for insertions (default: 6)
+    
+#     Returns:
+#         tuple: (insert_request, update_payload, format_requests)
+#     """
+#     ws = spreadsheet.worksheet(sheet_name)
+#     sheet_id = ws._properties["sheetId"]
+    
+#     num_rows = len(retail_income)
+#     end_row = start_row + num_rows - 1
+    
+#     # Insert request - insert rows starting at start_row
+#     insert_request = {
+#         "insertDimension": {
+#             "range": {
+#                 "sheetId": sheet_id,
+#                 "dimension": "ROWS",
+#                 "startIndex": start_row - 1,  # 0-based index
+#                 "endIndex": start_row - 1 + num_rows
+#             },
+#             "inheritFromBefore": False
+#         }
+#     }
+    
+#     # Build rows for update - need to extend range to include all columns we're writing to
+#     rows = []
+#     for i, entry in enumerate(retail_income):
+#         current_row = start_row + i
+#         row = [""] * 145  # Columns A through EQ (145 columns total)
+        
+#         # Column B: suite
+#         row[1] = entry.get("suite", "")
+        
+#         # Column C: tenant_name  
+#         row[2] = entry.get("tenant_name", "")
+        
+#         # Column D: blank
+#         row[3] = ""
+        
+#         # Column E: lease_start_month
+#         row[4] = entry.get("lease_start_month", "")
+        
+#         # Column F: square_feet
+#         row[5] = entry.get("square_feet", "")
+        
+#         # Column G: lease_start_month (same as E)
+#         row[6] = entry.get("lease_start_month", "")
+        
+#         # Column H: annual_bumps (with percent sign)
+#         annual_bumps = entry.get("annual_bumps", "")
+#         if annual_bumps != "":
+#             row[7] = f"{annual_bumps}%"
+#         else:
+#             row[7] = ""
+        
+#         # Column I: rent_per_square_foot_per_year
+#         row[8] = entry.get("rent_per_square_foot_per_year", "")
+        
+#         # Column J: Formula I<row> * F<row>
+#         row[9] = f"=I{current_row}*F{current_row}"
+        
+#         # Columns L through EQ (columns 11 through 144): Formula pattern
+#         for col_idx in range(11, 145):  # L is column 11 (0-based), EQ is column 144
+#             # Convert column index to column letter(s)
+#             if col_idx < 26:
+#                 col_letter = chr(ord('A') + col_idx)
+#             else:
+#                 col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
+#             row[col_idx] = f"=($G{current_row}<={col_letter}$5)*($J{current_row}/12)*(1+$H{current_row})^(ROUNDUP(MAX({col_letter}$5-$G{current_row}+1,0)/12,0)-1)"
+        
+#         rows.append(row)
+    
+#     # Update payload - extend range to cover all columns we're writing to (A to EQ)
+#     update_payload = {
+#         "range": f"'{sheet_name}'!A{start_row}:EQ{end_row}",
+#         "values": rows
+#     }
+
+#     # Format requests: make B–J non-bold, and color B–I blue for inserted rows
+#     # Note: Google Sheets uses 0-based indices. B=1, I=8, J=9 (endColumnIndex is exclusive)
+#     format_requests = [
+#         {
+#             "repeatCell": {
+#                 "range": {
+#                     "sheetId": sheet_id,
+#                     "startRowIndex": start_row - 1,
+#                     "endRowIndex": end_row,
+#                     "startColumnIndex": 1,  # B
+#                     "endColumnIndex": 10   # up to J (exclusive)
+#                 },
+#                 "cell": {"userEnteredFormat": {"textFormat": {"bold": False}}},
+#                 "fields": "userEnteredFormat.textFormat.bold"
+#             }
+#         },
+#         {
+#             "repeatCell": {
+#                 "range": {
+#                     "sheetId": sheet_id,
+#                     "startRowIndex": start_row - 1,
+#                     "endRowIndex": end_row,
+#                     "startColumnIndex": 1,  # B
+#                     "endColumnIndex": 9    # up to I (exclusive)
+#                 },
+#                 "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
+#                 "fields": "userEnteredFormat.textFormat.foregroundColor"
+#             }
+#         }
+#     ]
+
+#     return insert_request, update_payload, format_requests
+
+
+
+def get_retail_assumptions_summary_row(retail_income, sheet_name='Retail Assumptions', development_model=False):
     """
     Creates a summary row with formulas for the retail assumptions data.
     This row goes after all the retail income entries.
@@ -3985,7 +4575,10 @@ def get_retail_assumptions_summary_row(retail_income, sheet_name='Retail Assumpt
     summary_row[9] = f"=SUM(J6:J{data_end_row})"
     
     # Columns L through EQ (columns 11 through 144): Sum formulas
-    for col_idx in range(11, 145):  # L is column 11 (0-based), EQ is column 144
+    end_column = 145
+    if development_model:
+        end_column = 109
+    for col_idx in range(11, end_column):  # L is column 11 (0-based), EQ is column 144
         # Convert column index to column letter(s)
         if col_idx < 26:
             col_letter = chr(ord('A') + col_idx)
@@ -4003,7 +4596,7 @@ def get_retail_assumptions_summary_row(retail_income, sheet_name='Retail Assumpt
 
 
 
-def get_retail_recovery_summary_row(retail_income, sheet_name='Retail Assumptions'):
+def get_retail_recovery_summary_row(retail_income, sheet_name='Retail Assumptions', development_model=False):
     """
     Creates a summary row with formulas for the retail recovery data.
     This row goes after all the retail recovery entries.
@@ -4011,9 +4604,12 @@ def get_retail_recovery_summary_row(retail_income, sheet_name='Retail Assumption
     start_row = 10 + len(retail_income)*2  # Row after all retail entries
     end_row = start_row
     data_start_row = 10 + len(retail_income)
-    
+
+    end_column = 145
+    if development_model:
+        end_column = 109
     # Create the summary row with formulas
-    summary_row = [""] * 145  # Initialize with empty strings for all columns
+    summary_row = [""] * end_column  # Initialize with empty strings for all columns
     
     summary_row[1] = "Total Recovery Income"
     
@@ -4026,8 +4622,9 @@ def get_retail_recovery_summary_row(retail_income, sheet_name='Retail Assumption
     # Column J: =SUM(J6:J<data_end>)
     summary_row[9] = f"=SUM(J{10 + len(retail_income)}:J{data_end_row -1})"
     
+
     # Columns L through EQ (columns 11 through 144): Sum formulas
-    for col_idx in range(11, 145):  # L is column 11 (0-based), EQ is column 144
+    for col_idx in range(11, end_column):  # L is column 11 (0-based), EQ is column 144
         # Convert column index to column letter(s)
         if col_idx < 26:
             col_letter = chr(ord('A') + col_idx)
@@ -4043,7 +4640,7 @@ def get_retail_recovery_summary_row(retail_income, sheet_name='Retail Assumption
     
     return update_payload
 
-def get_retail_assumptions_occ_row(retail_income, sheet_name='Retail Assumptions'):
+def get_retail_assumptions_occ_row(retail_income, sheet_name='Retail Assumptions', development_model=False):
     """
     Creates an occ row below the summary row with SUMIF formulas.
     """
@@ -4056,8 +4653,11 @@ def get_retail_assumptions_occ_row(retail_income, sheet_name='Retail Assumptions
     
     occ_row[10] = "Occ."
     
+    end_column = 145
+    if development_model:
+        end_column = 109
     # Columns L through EO (columns 11 through 144): SUMIF formulas
-    for col_idx in range(11, 145):  # L is column 11 (0-based), EO is column 144
+    for col_idx in range(11, end_column):  # L is column 11 (0-based), EO is column 144
         # Convert column index to column letter(s)
         if col_idx < 26:
             col_letter = chr(ord('A') + col_idx)
@@ -4074,7 +4674,7 @@ def get_retail_assumptions_occ_row(retail_income, sheet_name='Retail Assumptions
     return update_payload
 
 
-def get_retail_recovery_inserts(spreadsheet, retail_income, retail_expenses, sheet_name='Retail Assumptions'):
+def get_retail_recovery_inserts(spreadsheet, retail_income, retail_expenses, sheet_name='Retail Assumptions', development_model=False):
     """
     Creates insert request and update payload for retail recovery rows.
     """
@@ -4095,9 +4695,12 @@ def get_retail_recovery_inserts(spreadsheet, retail_income, retail_expenses, she
     }
     
     # Create data rows
+    end_column = 145
+    if development_model:
+        end_column = 109
     data_rows = []
     for i, item in enumerate(retail_income):
-        row = [""] * 145  # Initialize with empty strings for all columns
+        row = [""] * end_column  # Initialize with empty strings for all columns
         
         # Column B: reference to previous table (=+B6, =+B7, etc.)
         row[1] = f"=+B{6 + i}"
@@ -4124,7 +4727,7 @@ def get_retail_recovery_inserts(spreadsheet, retail_income, retail_expenses, she
         row[9] = f"=+H{current_row}*$J${reference_row}"
         
         # Columns L through EO (columns 11 through 144): =IFERROR((COL$5>=$F{current_row})*$H{current_row}*COL${reference_row},0)
-        for col_idx in range(11, 145):  # L is column 11 (0-based), EO is column 144
+        for col_idx in range(11, end_column):  # L is column 11 (0-based), EO is column 144
             # Convert column index to column letter(s)
             if col_idx < 26:
                 col_letter = chr(ord('A') + col_idx)
@@ -4181,39 +4784,22 @@ def get_retail_recovery_inserts(spreadsheet, retail_income, retail_expenses, she
                 "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
                 "fields": "userEnteredFormat.textFormat.foregroundColor"
             }
-        },
-        {
-            # Format Column I (Pro Rata Share) as percentage
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": start_row - 1,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": 8,  # I
-                    "endColumnIndex": 9
-                },
-                "cell": {
-                    "userEnteredFormat": {
-                        "numberFormat": {
-                            "type": "PERCENT",
-                            "pattern": "0.00%"
-                        }
-                    }
-                },
-                "fields": "userEnteredFormat.numberFormat"
-            }
         }
     ]
 
     return insert_request, update_payload, format_requests
 
 
-def get_retail_expenses_inserts(spreadsheet, retail_income, retail_expenses, retail_growth_rate, sheet_name):
+def get_retail_expenses_inserts(spreadsheet, retail_income, retail_expenses, retail_growth_rate, sheet_name, development_model=False):
     """
     Insert retail expenses rows and update with data
     """
     retail_income_length = len(retail_income)
     retail_expenses_length = len(retail_expenses)
+
+    end_column = 145
+    if development_model:
+        end_column = 109
     
     # Calculate starting row
     start_row = 17 + retail_income_length * 2
@@ -4236,7 +4822,7 @@ def get_retail_expenses_inserts(spreadsheet, retail_income, retail_expenses, ret
     # Create data rows
     data_rows = []
     for i, expense in enumerate(retail_expenses):
-        row = [""] * 145  # Initialize with empty strings for all columns
+        row = [""] * end_column  # Initialize with empty strings for all columns
         current_row = start_row + i
         
         # Column B: expense name
@@ -4254,7 +4840,7 @@ def get_retail_expenses_inserts(spreadsheet, retail_income, retail_expenses, ret
         
         # Columns L through EO (columns 11 through 144): =IFERROR($J{current_row}/12*COL${reference_row_20}*(1+$G{current_row})^(ROUNDUP(COL$5/12,0)-1),0)
         reference_occ_row = 6 + retail_income_length + 1  
-        for col_idx in range(11, 145):  # L is column 11 (0-based), EO is column 144
+        for col_idx in range(11, end_column):  # L is column 11 (0-based), EO is column 144
             # Convert column index to column letter(s)
             if col_idx < 26:
                 col_letter = chr(ord('A') + col_idx)
@@ -4303,19 +4889,23 @@ def get_retail_expenses_inserts(spreadsheet, retail_income, retail_expenses, ret
 
     return insert_request, update_payload, format_requests
 
-def get_retail_expenses_summary_row(retail_income, retail_expenses, sheet_name):
+def get_retail_expenses_summary_row(retail_income, retail_expenses, sheet_name, development_model=False):
     """
     Creates the summary row for retail expenses.
     Row position: 17 + len(retail_income)*2 + len(retail_expenses)
     """
     retail_income_length = len(retail_income)
     retail_expenses_length = len(retail_expenses)
+
+    end_column = 145
+    if development_model:
+        end_column = 109
     
     # Calculate row position
     summary_row = 17 + retail_income_length * 2 + retail_expenses_length
     
     # Initialize row with empty strings
-    row = [""] * 145
+    row = [""] * end_column
     
     # Column B: text
     row[1] = "Total Retail Operating Expenses"
@@ -4330,504 +4920,7 @@ def get_retail_expenses_summary_row(retail_income, retail_expenses, sheet_name):
     row[9] = f"=SUM(J{expenses_start_row}:J{expenses_end_row})"
     
     # Columns L through EO (columns 11 through 144): SUM of expense rows for that column
-    for col_idx in range(11, 145):  # L is column 11 (0-based), EO is column 144
-        # Convert column index to column letter(s)
-        if col_idx < 26:
-            col_letter = chr(ord('A') + col_idx)
-        else:
-            col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
-        row[col_idx] = f"=SUM({col_letter}{expenses_start_row}:{col_letter}{expenses_end_row})"
-    
-    # Update payload
-    update_payload = {
-        "range": f"'{sheet_name}'!A{summary_row}:EO{summary_row}",
-        "values": [row]
-    }
-    
-    return update_payload
-
-
-
-
-def get_retail_assumptions_inserts(spreadsheet, retail_income, sheet_name="Retail Assumptions", start_row=6):
-    """
-    Returns insert and update requests for retail income data in the Retail Assumptions sheet.
-    
-    Args:
-        spreadsheet: The gspread spreadsheet object
-        retail_income: List of retail income dictionaries
-        sheet_name: Name of the sheet to update (default: "Retail Assumptions")
-        start_row: Starting row for insertions (default: 6)
-    
-    Returns:
-        tuple: (insert_request, update_payload, format_requests)
-    """
-    ws = spreadsheet.worksheet(sheet_name)
-    sheet_id = ws._properties["sheetId"]
-    
-    num_rows = len(retail_income)
-    end_row = start_row + num_rows - 1
-    
-    # Insert request - insert rows starting at start_row
-    insert_request = {
-        "insertDimension": {
-            "range": {
-                "sheetId": sheet_id,
-                "dimension": "ROWS",
-                "startIndex": start_row - 1,  # 0-based index
-                "endIndex": start_row - 1 + num_rows
-            },
-            "inheritFromBefore": False
-        }
-    }
-    
-    # Build rows for update - need to extend range to include all columns we're writing to
-    rows = []
-    for i, entry in enumerate(retail_income):
-        current_row = start_row + i
-        row = [""] * 145  # Columns A through EQ (145 columns total)
-        
-        # Column B: suite
-        row[1] = entry.get("suite", "")
-        
-        # Column C: tenant_name  
-        row[2] = entry.get("tenant_name", "")
-        
-        # Column D: blank
-        row[3] = ""
-        
-        # Column E: lease_start_month
-        row[4] = entry.get("lease_start_month", "")
-        
-        # Column F: square_feet
-        row[5] = entry.get("square_feet", "")
-        
-        # Column G: lease_start_month (same as E)
-        row[6] = entry.get("lease_start_month", "")
-        
-        # Column H: annual_bumps (with percent sign)
-        annual_bumps = entry.get("annual_bumps", "")
-        if annual_bumps != "":
-            row[7] = f"{annual_bumps}%"
-        else:
-            row[7] = ""
-        
-        # Column I: rent_per_square_foot_per_year
-        row[8] = entry.get("rent_per_square_foot_per_year", "")
-        
-        # Column J: Formula I<row> * F<row>
-        row[9] = f"=I{current_row}*F{current_row}"
-        
-        # Columns L through EQ (columns 11 through 144): Formula pattern
-        for col_idx in range(11, 145):  # L is column 11 (0-based), EQ is column 144
-            # Convert column index to column letter(s)
-            if col_idx < 26:
-                col_letter = chr(ord('A') + col_idx)
-            else:
-                col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
-            row[col_idx] = f"=($G{current_row}<={col_letter}$5)*($J{current_row}/12)*(1+$H{current_row})^(ROUNDUP(MAX({col_letter}$5-$G{current_row}+1,0)/12,0)-1)"
-        
-        rows.append(row)
-    
-    # Update payload - extend range to cover all columns we're writing to (A to EQ)
-    update_payload = {
-        "range": f"'{sheet_name}'!A{start_row}:EQ{end_row}",
-        "values": rows
-    }
-
-    # Format requests: make B–J non-bold, and color B–I blue for inserted rows
-    # Note: Google Sheets uses 0-based indices. B=1, I=8, J=9 (endColumnIndex is exclusive)
-    format_requests = [
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": start_row - 1,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": 1,  # B
-                    "endColumnIndex": 10   # up to J (exclusive)
-                },
-                "cell": {"userEnteredFormat": {"textFormat": {"bold": False}}},
-                "fields": "userEnteredFormat.textFormat.bold"
-            }
-        },
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": start_row - 1,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": 1,  # B
-                    "endColumnIndex": 9    # up to I (exclusive)
-                },
-                "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
-                "fields": "userEnteredFormat.textFormat.foregroundColor"
-            }
-        }
-    ]
-
-    return insert_request, update_payload, format_requests
-
-
-
-def get_retail_assumptions_summary_row(retail_income, sheet_name='Retail Assumptions'):
-    """
-    Creates a summary row with formulas for the retail assumptions data.
-    This row goes after all the retail income entries.
-    """
-    start_row = 6 + len(retail_income)  # Row after all retail entries
-    end_row = start_row
-    
-    # Create the summary row with formulas
-    summary_row = [""] * 145  # Initialize with empty strings for all columns
-    
-    summary_row[1] = "Total Base Retail Income"
-    
-    # Column E: =MIN(E6:E<6+len(retail_income))
-    data_end_row = 6 + len(retail_income) - 1
-    summary_row[4] = f"=MIN(E6:E{data_end_row})"
-    
-    # Column F: =SUM(F6:F<6+len(retail_income))
-    summary_row[5] = f"=SUM(F6:F{data_end_row})"
-    
-    # Column G: =MIN(G6:G<6+len(retail_income))
-    summary_row[6] = f"=MIN(G6:G{data_end_row})"
-    
-    # Column H: =IFERROR(SUMPRODUCT(H6:H<data_end>,J6:J<data_end>)/J<summary_row>,0)
-    summary_row[7] = f"=IFERROR(SUMPRODUCT(H6:H{data_end_row},J6:J{data_end_row})/J{start_row},0)"
-    
-    # Column I: =IFERROR(SUMPRODUCT(I6:I<data_end>,F6:F<data_end>)/F<summary_row>,0)
-    summary_row[8] = f"=IFERROR(SUMPRODUCT(I6:I{data_end_row},F6:F{data_end_row})/F{start_row},0)"
-    
-    # Column J: =SUM(J6:J<data_end>)
-    summary_row[9] = f"=SUM(J6:J{data_end_row})"
-    
-    # Columns L through EQ (columns 11 through 144): Sum formulas
-    for col_idx in range(11, 145):  # L is column 11 (0-based), EQ is column 144
-        # Convert column index to column letter(s)
-        if col_idx < 26:
-            col_letter = chr(ord('A') + col_idx)
-        else:
-            col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
-        summary_row[col_idx] = f"=SUM({col_letter}6:{col_letter}{data_end_row})"
-    
-    # Update payload
-    update_payload = {
-        "range": f"'{sheet_name}'!A{start_row}:EQ{start_row}",
-        "values": [summary_row]
-    }
-    
-    return update_payload
-
-
-
-def get_retail_recovery_summary_row(retail_income, sheet_name='Retail Assumptions'):
-    """
-    Creates a summary row with formulas for the retail recovery data.
-    This row goes after all the retail recovery entries.
-    """
-    start_row = 10 + len(retail_income)*2  # Row after all retail entries
-    end_row = start_row
-    data_start_row = 10 + len(retail_income)
-    
-    # Create the summary row with formulas
-    summary_row = [""] * 145  # Initialize with empty strings for all columns
-    
-    summary_row[1] = "Total Recovery Income"
-    
-    # Column E: =MIN(E6:E<6+len(retail_income))
-    data_end_row = 10 + len(retail_income)*2 
-    
-    # Column I: 
-    summary_row[8] = f"=IFERROR(J{data_end_row}/F{6 + len(retail_income)},0)"
-    
-    # Column J: =SUM(J6:J<data_end>)
-    summary_row[9] = f"=SUM(J{10 + len(retail_income)}:J{data_end_row -1})"
-    
-    # Columns L through EQ (columns 11 through 144): Sum formulas
-    for col_idx in range(11, 145):  # L is column 11 (0-based), EQ is column 144
-        # Convert column index to column letter(s)
-        if col_idx < 26:
-            col_letter = chr(ord('A') + col_idx)
-        else:
-            col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
-        summary_row[col_idx] = f"=SUM({col_letter}{data_start_row}:{col_letter}{data_end_row -1})"
-    
-    # Update payload
-    update_payload = {
-        "range": f"'{sheet_name}'!A{start_row}:EQ{start_row}",
-        "values": [summary_row]
-    }
-    
-    return update_payload
-
-def get_retail_assumptions_occ_row(retail_income, sheet_name='Retail Assumptions'):
-    """
-    Creates an occ row below the summary row with SUMIF formulas.
-    """
-    start_row = 6 + len(retail_income) + 1  # Row after summary row
-    data_end_row = 6 + len(retail_income) - 1  # Last data row
-    summary_row_num = 6 + len(retail_income)  # Summary row number
-    
-    # Create the occ row with formulas
-    occ_row = [""] * 145  # Initialize with empty strings for all columns
-    
-    occ_row[10] = "Occ."
-    
-    # Columns L through EO (columns 11 through 144): SUMIF formulas
-    for col_idx in range(11, 145):  # L is column 11 (0-based), EO is column 144
-        # Convert column index to column letter(s)
-        if col_idx < 26:
-            col_letter = chr(ord('A') + col_idx)
-        else:
-            col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
-        occ_row[col_idx] = f"=IFERROR(SUMIF($E$6:$E${data_end_row},\"<=\"&{col_letter}5,$F$6:$F${data_end_row})/$F${summary_row_num},0)"
-    
-    # Update payload
-    update_payload = {
-        "range": f"'{sheet_name}'!A{start_row}:EQ{start_row}",
-        "values": [occ_row]
-    }
-    
-    return update_payload
-
-
-def get_retail_recovery_inserts(spreadsheet, retail_income, retail_expenses, sheet_name='Retail Assumptions'):
-    """
-    Creates insert request and update payload for retail recovery rows.
-    """
-    retail_income_length = len(retail_income)
-    start_row = 10 + retail_income_length  # Starting row for recovery section
-    ws = spreadsheet.worksheet(sheet_name)
-    sheet_id = ws._properties["sheetId"]
-    # Insert request for new rows
-    insert_request = {
-        "insertDimension": {
-            "range": {
-                "sheetId": sheet_id,
-                "dimension": "ROWS",
-                "startIndex": start_row - 1,  # 0-based index
-                "endIndex": start_row - 1 + retail_income_length
-            }
-        }
-    }
-    
-    # Create data rows
-    data_rows = []
-    for i, item in enumerate(retail_income):
-        row = [""] * 145  # Initialize with empty strings for all columns
-        
-        # Column B: reference to previous table (=+B6, =+B7, etc.)
-        row[1] = f"=+B{6 + i}"
-        
-        # Column C: reference to previous table (=+C6, =+C7, etc.)
-        row[2] = f"=+C{6 + i}"
-        
-        # Column F: recovery_start_month
-        row[5] = item.get("recovery_start_month", "")
-        
-        # Column H: =IFERROR(F{current_row}/$F${summary_row},0)
-        current_row = 10 + i + retail_income_length
-        summary_row = 6 + retail_income_length  # Summary row from previous table
-        upper_row = 6 + i 
-        row[7] = f"=IFERROR(F{upper_row}/$F${summary_row},0)"
-        print(current_row)
-
-        # Column I: =IFERROR(J{current_row}/F{prev_table_row},0)
-        prev_table_row = 6 + i
-        row[8] = f"=IFERROR(J{current_row}/F{prev_table_row},0)"
-        
-        # Column J: =+H{current_row}*$J${reference_row}
-        reference_row = 17 + retail_income_length * 2 + len(retail_expenses)
-        row[9] = f"=+H{current_row}*$J${reference_row}"
-        
-        # Columns L through EO (columns 11 through 144): =IFERROR((COL$5>=$F{current_row})*$H{current_row}*COL${reference_row},0)
-        for col_idx in range(11, 145):  # L is column 11 (0-based), EO is column 144
-            # Convert column index to column letter(s)
-            if col_idx < 26:
-                col_letter = chr(ord('A') + col_idx)
-            else:
-                col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
-            row[col_idx] = f"=IFERROR(({col_letter}$5>=$F{current_row})*$H{current_row}*{col_letter}${reference_row},0)"
-        
-        data_rows.append(row)
-    
-    # Update payload
-    update_payload = {
-        "range": f"'{sheet_name}'!A{start_row}:EQ{start_row + retail_income_length - 1}",
-        "values": data_rows
-    }
-
-    # Formatting: all inserted row values B–J non-bold; only B, C, F blue
-    end_row = start_row + retail_income_length  # exclusive
-    format_requests = [
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": start_row - 1,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": 1,  # B
-                    "endColumnIndex": 10   # up to J (exclusive)
-                },
-                "cell": {"userEnteredFormat": {"textFormat": {"bold": False}}},
-                "fields": "userEnteredFormat.textFormat.bold"
-            }
-        },
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": start_row - 1,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": 1,  # B
-                    "endColumnIndex": 3    # C (exclusive)
-                },
-                "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
-                "fields": "userEnteredFormat.textFormat.foregroundColor"
-            }
-        },
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": start_row - 1,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": 5,  # F
-                    "endColumnIndex": 6
-                },
-                "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
-                "fields": "userEnteredFormat.textFormat.foregroundColor"
-            }
-        }
-    ]
-
-    return insert_request, update_payload, format_requests
-
-
-def get_retail_expenses_inserts(spreadsheet, retail_income, retail_expenses, retail_growth_rate, sheet_name):
-    """
-    Insert retail expenses rows and update with data
-    """
-    retail_income_length = len(retail_income)
-    retail_expenses_length = len(retail_expenses)
-    
-    # Calculate starting row
-    start_row = 17 + retail_income_length * 2
-
-    ws = spreadsheet.worksheet(sheet_name)
-    sheet_id = ws._properties["sheetId"]
-    
-    # Create insert request
-    insert_request = {
-        "insertDimension": {
-            "range": {
-                "sheetId": sheet_id,
-                "dimension": "ROWS",
-                "startIndex": start_row - 1,  # 0-based index
-                "endIndex": start_row - 1 + retail_expenses_length
-            }
-        }
-    }
-    
-    # Create data rows
-    data_rows = []
-    for i, expense in enumerate(retail_expenses):
-        row = [""] * 145  # Initialize with empty strings for all columns
-        current_row = start_row + i
-        
-        # Column B: expense name
-        row[1] = expense.get("name", "")
-        
-        # Column G: retail growth rate
-        row[6] = f"{retail_growth_rate}%"
-        
-        # Column I: cost_per
-        row[8] = expense.get("cost_per", "")
-        
-        # Column J: =F{6 + len(retail_expenses)} * I{current_row}
-        reference_row = 6 + retail_income_length
-        row[9] = f"=F{reference_row}*I{current_row}"
-        
-        # Columns L through EO (columns 11 through 144): =IFERROR($J{current_row}/12*COL${reference_row_20}*(1+$G{current_row})^(ROUNDUP(COL$5/12,0)-1),0)
-        reference_occ_row = 6 + retail_income_length + 1  
-        for col_idx in range(11, 145):  # L is column 11 (0-based), EO is column 144
-            # Convert column index to column letter(s)
-            if col_idx < 26:
-                col_letter = chr(ord('A') + col_idx)
-            else:
-                col_letter = chr(ord('A') + col_idx // 26 - 1) + chr(ord('A') + col_idx % 26)
-            row[col_idx] = f"=IFERROR($J{current_row}/12*{col_letter}${reference_occ_row}*(1+$G{current_row})^(ROUNDUP({col_letter}$5/12,0)-1),0)"
-        
-        data_rows.append(row)
-    
-    # Update payload
-    update_payload = {
-        "range": f"'{sheet_name}'!A{start_row}:EO{start_row + retail_expenses_length - 1}",
-        "values": data_rows
-    }
-
-    # Formatting for inserted rows: B–J non-bold; only column I blue
-    end_row = start_row + retail_expenses_length  # exclusive
-    format_requests = [
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": start_row - 1,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": 1,  # B
-                    "endColumnIndex": 10   # up to J (exclusive)
-                },
-                "cell": {"userEnteredFormat": {"textFormat": {"bold": False}}},
-                "fields": "userEnteredFormat.textFormat.bold"
-            }
-        },
-        {
-            "repeatCell": {
-                "range": {
-                    "sheetId": sheet_id,
-                    "startRowIndex": start_row - 1,
-                    "endRowIndex": end_row,
-                    "startColumnIndex": 8,  # I
-                    "endColumnIndex": 9
-                },
-                "cell": {"userEnteredFormat": {"textFormat": {"foregroundColor": {"red": 0, "green": 0, "blue": 1}}}},
-                "fields": "userEnteredFormat.textFormat.foregroundColor"
-            }
-        }
-    ]
-
-    return insert_request, update_payload, format_requests
-
-def get_retail_expenses_summary_row(retail_income, retail_expenses, sheet_name):
-    """
-    Creates the summary row for retail expenses.
-    Row position: 17 + len(retail_income)*2 + len(retail_expenses)
-    """
-    retail_income_length = len(retail_income)
-    retail_expenses_length = len(retail_expenses)
-    
-    # Calculate row position
-    summary_row = 17 + retail_income_length * 2 + retail_expenses_length
-    
-    # Initialize row with empty strings
-    row = [""] * 145
-    
-    # Column B: text
-    row[1] = "Total Retail Operating Expenses"
-    
-    # Column I: =IFERROR(J{summary_row}/F{6 + retail_income_length},0)
-    reference_row = 6 + retail_income_length
-    row[8] = f"=IFERROR(J{summary_row}/F{reference_row},0)"
-    
-    # Column J: SUM of retail expenses column J
-    expenses_start_row = 17 + retail_income_length * 2
-    expenses_end_row = expenses_start_row + retail_expenses_length - 1
-    row[9] = f"=SUM(J{expenses_start_row}:J{expenses_end_row})"
-    
-    # Columns L through EO (columns 11 through 144): SUM of expense rows for that column
-    for col_idx in range(11, 145):  # L is column 11 (0-based), EO is column 144
+    for col_idx in range(11, end_column):  # L is column 11 (0-based), EO is column 144
         # Convert column index to column letter(s)
         if col_idx < 26:
             col_letter = chr(ord('A') + col_idx)
@@ -5616,11 +5709,33 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
         start_idx = col_index(start)
         end_idx = col_index(end)
         return [col_name(i) for i in range(start_idx, end_idx + 1)]
-
-    month_columns = generate_excel_columns('J', 'EL')
+    if development_model:
+        month_columns = generate_excel_columns('J', 'DZ')
+    else:
+        month_columns = generate_excel_columns('J', 'EL')
 
 
     format_requests = []
+    # Default text color black for all inserted rows (blue is applied to B, C, D non-formula, G, H separately)
+    format_requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": sheet_id,
+                "startRowIndex": 1,
+                "endRowIndex": 1 + len(expenses),
+                "startColumnIndex": 0,
+                "endColumnIndex": 200
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "textFormat": {
+                        "foregroundColor": {"red": 0, "green": 0, "blue": 0}
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.textFormat.foregroundColor"
+        }
+    })
     for idx, exp in enumerate(expenses):
         start_row = 1 + idx  # row 2 is index 1
         end_row = start_row + 1
@@ -5688,7 +5803,7 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
             }
         })
 
-        # Ensure input values in columns B, C, and D use primary blue text color
+        # Ensure input values in columns B and C use primary blue text color
         # Using a Google-like primary blue (#1E88E5)
         format_requests.append({
             "repeatCell": {
@@ -5697,7 +5812,7 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
                     "startRowIndex": start_row,
                     "endRowIndex": end_row,
                     "startColumnIndex": 1,  # B (inclusive)
-                    "endColumnIndex": 4     # D (exclusive)
+                    "endColumnIndex": 3     # C (exclusive)
                 },
                 "cell": {
                     "userEnteredFormat": {
@@ -5739,6 +5854,45 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
             }
         })
 
+        # Make non-formula statistic values (column D) blue using conditional formatting.
+        # This avoids coloring statistics that are formulas or references.
+        format_requests.append({
+            "addConditionalFormatRule": {
+                "rule": {
+                    "ranges": [
+                        {
+                            "sheetId": sheet_id,
+                            "startRowIndex": 1,              # Row 2 (first data row)
+                            "endRowIndex": 1 + len(expenses),
+                            "startColumnIndex": 3,           # D
+                            "endColumnIndex": 4
+                        }
+                    ],
+                    "booleanRule": {
+                        "condition": {
+                            "type": "CUSTOM_FORMULA",
+                            "values": [
+                                {
+                                    # Applied relative to the first row in the range (row 2)
+                                    "userEnteredValue": "=NOT(ISFORMULA($D2))"
+                                }
+                            ]
+                        },
+                        "format": {
+                            "textFormat": {
+                                "foregroundColor": {
+                                    "red": 0,
+                                    "green": 0,
+                                    "blue": 1
+                                }
+                            }
+                        }
+                    }
+                },
+                "index": 0
+            }
+        })
+
     format_requests.append({
         "repeatCell": {
             "range": {
@@ -5753,14 +5907,17 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
                     "numberFormat": {
                         "type": "NUMBER",
                         "pattern": '"Month " #,##0'
+                    },
+                    "textFormat": {
+                        "foregroundColor": {"red": 0, "green": 0, "blue": 1}
                     }
                 }
             },
-            "fields": "userEnteredFormat.numberFormat"
+            "fields": "userEnteredFormat.numberFormat,userEnteredFormat.textFormat.foregroundColor"
         }
     })
 
-    # Ensure all inserted rows are not bold (regular text) across the row
+    # Ensure all inserted rows are non-bold and white background
     format_requests.append({
         "repeatCell": {
             "range": {
@@ -5774,14 +5931,38 @@ def insert_expense_rows_to_sheet_payloads(spreadsheet, sheet_name, expenses, mod
                 "userEnteredFormat": {
                     "textFormat": {
                         "bold": False
+                    },
+                    "backgroundColor": {
+                        "red": 1,
+                        "green": 1,
+                        "blue": 1
                     }
                 }
             },
-            "fields": "userEnteredFormat.textFormat.bold"
+            "fields": "userEnteredFormat.textFormat.bold,userEnteredFormat.backgroundColor"
         }
     })
 
-    
+    # Default text to black for columns that are not blue (A, E, F, I+). B, C, D (when not formula), G, H stay blue.
+    black = {"red": 0, "green": 0, "blue": 0}
+    for start_col, end_col in [(0, 1), (4, 6), (8, 200)]:  # A; E-F; I through end
+        format_requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 1,
+                    "endRowIndex": 1 + len(expenses),
+                    "startColumnIndex": start_col,
+                    "endColumnIndex": end_col
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {"foregroundColor": black}
+                    }
+                },
+                "fields": "userEnteredFormat.textFormat.foregroundColor"
+            }
+        })
 
     # Step 1: Create insert request
     insert_request = {
@@ -6009,16 +6190,16 @@ def get_development_rental_requests(spreadsheet, development_units_json, sheet_n
                         "startIndex": 1,                 # insert starting at row 2 (0-based)
                         "endIndex": 1 + num_rows
                     },
-                    "inheritFromBefore": False
+                    "inheritFromBefore": True
                 }
             })
         except Exception as _e:
             print(f"[get_development_rental_requests] Could not build insertDimension: {_e}")
 
-        # Prepare per-row values for A (Unit Type) and D:J
+        # Prepare per-row values for A (Unit Type) and D:J. F=D*E, I=E*H, J=I*12 as formulas.
         unit_type_values = []
         metrics_values = []
-        for u in dev_units:
+        for i, u in enumerate(dev_units):
             try:
                 unit_type = u.get('unit_type') or ''
                 avg_sf = float(u.get('avg_sf') or 0)
@@ -6029,20 +6210,20 @@ def get_development_rental_requests(spreadsheet, development_units_json, sheet_n
                 avg_sf = 0
                 units = 0
                 avg_rent = 0
+            row_num = 2 + i  # 1-based sheet row
             row_total_sf = round(avg_sf * units)
             row_monthly = round(avg_rent * units)
             row_annual = row_monthly * 12
-            row_rent_psf = (row_annual / row_total_sf) if row_total_sf > 0 else 0
-            # Avg Rent for a row is simply avg_rent input (per unit), keep as-is
+            # D, E, H = values; F = D*E, G = H/D, I = E*H, J = I*12 (formulas)
             unit_type_values.append([unit_type])
             metrics_values.append([
-                round(avg_sf),
-                units,
-                row_total_sf,
-                row_rent_psf,
-                round(avg_rent),
-                row_monthly,
-                row_annual
+                round(avg_sf),                    # D
+                units,                            # E
+                f"=D{row_num}*E{row_num}",        # F
+                f"=IF(D{row_num}=0,0,H{row_num}/D{row_num})",  # G
+                round(avg_rent),                  # H
+                f"=E{row_num}*H{row_num}",        # I
+                f"=I{row_num}*12"                 # J
             ])
 
         value_payloads.append({
@@ -6053,6 +6234,47 @@ def get_development_rental_requests(spreadsheet, development_units_json, sheet_n
             "range": f"{sheet_name}!D2:J{1 + num_rows}",
             "values": metrics_values
         })
+
+        # Format: all inserted rows non-bold; columns A, D, E, H blue text (G is formula, not blue)
+        blue = {"red": 0, "green": 0, "blue": 1}
+        # 0-based row range for inserted data: 1 to 1+num_rows
+        data_start, data_end = 1, 1 + num_rows
+        # Non-bold for all inserted rows (A through J, columns 0-9)
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": data_start,
+                    "endRowIndex": data_end,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": 10
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "textFormat": {"bold": False}
+                    }
+                },
+                "fields": "userEnteredFormat.textFormat.bold"
+            }
+        })
+        for col_idx in (0, 3, 4, 7):  # A, D, E, H (not G)
+            requests.append({
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": data_start,
+                        "endRowIndex": data_end,
+                        "startColumnIndex": col_idx,
+                        "endColumnIndex": col_idx + 1
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "textFormat": {"foregroundColor": blue}
+                        }
+                    },
+                    "fields": "userEnteredFormat.textFormat.foregroundColor"
+                }
+            })
 
     # Totals row (after inserted rows -> row index 2 + num_rows)
     totals_row = 2 + num_rows
@@ -6275,12 +6497,15 @@ def run_full_sheet_update(
     )
     print(f"[run_full_sheet_update] amenity_income_insert_request_noi ops:{len(amenity_income_insert_request_noi)}")
 
+    num_months = 132
+    if development_model:
+        num_months = 97
     amenity_income_noi_walk_format_reset = get_noi_walk_amenity_income_format_reset_requests(
         spreadsheet,
         amenity_income_json,
         start_row=noi_walk_amenity_start_row,
         start_col=5,
-        num_months=132,
+        num_months=num_months,
         sheet_name="NOI Walk",
     )
     print(f"[run_full_sheet_update] amenity_income_noi_walk_format_reset ops:{len(amenity_income_noi_walk_format_reset)}")
@@ -6313,7 +6538,7 @@ def run_full_sheet_update(
         print(f"[run_full_sheet_update] operating_expenses_insert ops:{len(operating_expenses_insert)}")
 
         operating_expense_rows_insert = get_operating_expense_row_insert_request(
-            spreadsheet, operating_expenses_json, amenity_income_json, sheet_name="NOI Walk", start_base_row=30
+            spreadsheet, operating_expenses_json, amenity_income_json, sheet_name="NOI Walk", start_base_row=29
         )
         print(f"[run_full_sheet_update] operating_expense_rows_insert ops:{len(operating_expense_rows_insert)}")
     else: 
@@ -6329,7 +6554,7 @@ def run_full_sheet_update(
     
     print("assumption_row_mapping", assumption_row_mapping)
     if len(assumption_row_mapping) > 0:
-        inflation_updates = get_inflation_reference_updates(assumption_row_mapping)
+        inflation_updates = get_inflation_reference_updates(assumption_row_mapping, model_variable_mapping)
     else: 
         inflation_updates = []
 
@@ -6346,7 +6571,7 @@ def run_full_sheet_update(
             )
         else:
             noi_expense_insert, noi_expense_update, noi_expense_reset_format = get_noi_expense_rows_insert_and_update(
-                spreadsheet, operating_expenses_json, amenity_income_json, year_row=14
+                spreadsheet, operating_expenses_json, amenity_income_json, year_row=13
             )
 
 
@@ -6508,13 +6733,15 @@ def run_full_sheet_update(
             inflation_factor_row = 14
             egi_start_row = 26
         else:
-            noi_opp_start_base_row = 30
+            noi_opp_start_base_row = 29
             inflation_factor_row = 11
-            egi_start_row = 27
-
+            egi_start_row = 26
+        num_months = 132
+        if development_model:
+            num_months = 97
         operating_expense_formula_updates = get_operating_expense_formula_update_payloads(
             operating_expenses_json, amenity_income_json, noi_sheet="NOI Walk",
-            op_exp_sheet="Operating Expenses", start_base_row= noi_opp_start_base_row, start_col=5, num_months=132, inflation_factor_row=inflation_factor_row, egi_start_row=egi_start_row
+            op_exp_sheet="Operating Expenses", start_base_row= noi_opp_start_base_row, start_col=5, num_months=num_months, inflation_factor_row=inflation_factor_row, egi_start_row=egi_start_row
         )
         print(f"[run_full_sheet_update] operating_expenses_update ops:{len(operating_expenses_update)} "
               f"operating_expenses_format ops:{len(operating_expenses_format)} "
@@ -6582,10 +6809,15 @@ def run_full_sheet_update(
         number_of_spaces_update = []
         in_place_rent_update = []
 
+    target_num_cols = 132
+    if development_model:
+        target_num_cols = 97
    
-    ntm_formula_update = get_ntm_update_payload(amenity_income_json, operating_expenses_json)
-    print(f"[run_full_sheet_update] ntm_formula_update ops:{len(ntm_formula_update)}")
-
+    if not development_model and not industrial_model:
+        ntm_formula_update = get_ntm_update_payload(amenity_income_json, operating_expenses_json, target_num_cols=target_num_cols)
+        print(f"[run_full_sheet_update] ntm_formula_update ops:{len(ntm_formula_update)}")
+    else:
+        ntm_formula_update = []
 
     retail_rates = [rate for rate in rental_growth_json if rate.get('type') == 'retail']
     retail_growth_rate = retail_rates[0]['value'] if retail_rates else 0
@@ -6604,12 +6836,17 @@ def run_full_sheet_update(
         vacancy_sum_update = []
         print("[run_full_sheet_update] No rental_assumptions_json; vacancy_sum_update skipped")
 
+    noi_egi_update = []
 
-    if len(operating_expenses_json) > 0:
-        noi_egi_update = get_noi_walk_egi_row_update_payload(amenity_income_json, amenity_start_row=noi_walk_amenity_start_row, target_base_row=noi_walk_amenity_start_row + 2)
+  
+    if development_model:
+        noi_egi_update = get_noi_walk_egi_row_update_payload_development(amenity_income_json, amenity_start_row=noi_walk_amenity_start_row, target_base_row=noi_walk_amenity_start_row + 1, num_months=num_months)
+    elif len(operating_expenses_json) > 0:
+        noi_egi_update = get_noi_walk_egi_row_update_payload(amenity_income_json, amenity_start_row=noi_walk_amenity_start_row, target_base_row=noi_walk_amenity_start_row + 1, num_months=num_months)
     else:
         noi_egi_update = get_noi_walk_egi_row_update_payload_industrial(amenity_income_json, amenity_start_row=noi_walk_amenity_start_row, target_base_row=noi_walk_amenity_start_row)
 
+    
 
     if len(retail_income) > 0:
         if industrial_model:
@@ -6621,13 +6858,13 @@ def run_full_sheet_update(
             retail_expenses_insert_request, retail_expenses_update_payload, retail_expenses_format_requests = get_retail_expenses_inserts_industrial(spreadsheet, retail_income, retail_expenses, retail_growth_rate, 'Retail Assumptions', model_variable_mapping)
             retail_expenses_summary_update_payload = get_retail_expenses_summary_row_industrial(retail_income, retail_expenses, 'Retail Assumptions')
         else: 
-            retail_assumptions_insert_request, retail_assumptions_update_payload, retail_assumptions_format_requests = get_retail_assumptions_inserts(spreadsheet, retail_income, 'Retail Assumptions')
-            retail_assumptions_summary_update_payload = get_retail_assumptions_summary_row(retail_income, 'Retail Assumptions')
-            retail_assumptions_occ_update_payload = get_retail_assumptions_occ_row(retail_income, 'Retail Assumptions')
-            retail_recovery_insert_request, retail_recovery_update_payload, retail_recovery_format_requests = get_retail_recovery_inserts(spreadsheet, retail_income, retail_expenses, 'Retail Assumptions')
-            retail_recovery_summary_update_payload = get_retail_recovery_summary_row(retail_income, 'Retail Assumptions')
-            retail_expenses_insert_request, retail_expenses_update_payload, retail_expenses_format_requests = get_retail_expenses_inserts(spreadsheet, retail_income, retail_expenses, retail_growth_rate, 'Retail Assumptions')
-            retail_expenses_summary_update_payload = get_retail_expenses_summary_row(retail_income, retail_expenses, 'Retail Assumptions')
+            retail_assumptions_insert_request, retail_assumptions_update_payload, retail_assumptions_format_requests = get_retail_assumptions_inserts(spreadsheet, retail_income, 'Retail Assumptions', development_model=development_model)
+            retail_assumptions_summary_update_payload = get_retail_assumptions_summary_row(retail_income, 'Retail Assumptions', development_model=development_model)
+            retail_assumptions_occ_update_payload = get_retail_assumptions_occ_row(retail_income, 'Retail Assumptions', development_model=development_model)
+            retail_recovery_insert_request, retail_recovery_update_payload, retail_recovery_format_requests = get_retail_recovery_inserts(spreadsheet, retail_income, retail_expenses, 'Retail Assumptions', development_model=development_model)
+            retail_recovery_summary_update_payload = get_retail_recovery_summary_row(retail_income, 'Retail Assumptions', development_model=development_model)
+            retail_expenses_insert_request, retail_expenses_update_payload, retail_expenses_format_requests = get_retail_expenses_inserts(spreadsheet, retail_income, retail_expenses, retail_growth_rate, 'Retail Assumptions', development_model=development_model)
+            retail_expenses_summary_update_payload = get_retail_expenses_summary_row(retail_income, retail_expenses, 'Retail Assumptions', development_model=development_model)
     else:
         retail_assumptions_insert_request, retail_assumptions_update_payload, retail_assumptions_format_requests = [], [], []
         retail_assumptions_summary_update_payload = []
@@ -6639,15 +6876,15 @@ def run_full_sheet_update(
 
 
     closing_costs_filtered = [expense for expense in expenses_json if expense.get('type') == 'Closing Costs']
-    closing_cost_insert_request, closing_cost_update_payloads, closing_cost_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Closing Costs', closing_costs_filtered, model_variable_mapping)
+    closing_cost_insert_request, closing_cost_update_payloads, closing_cost_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Closing Costs', closing_costs_filtered, model_variable_mapping, development_model)
     hard_costs_filtered = [expense for expense in expenses_json if expense.get('type') == 'Hard Costs']
     hard_costs_insert_request, hard_costs_update_payloads, hard_costs_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Hard Costs', hard_costs_filtered, model_variable_mapping, development_model)
     legal_costs_filtered = [expense for expense in expenses_json if expense.get('type') == 'Legal and Pre-Development Costs']
-    legal_costs_insert_request, legal_costs_update_payloads, legal_costs_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Legal and Pre-Development Costs', legal_costs_filtered, model_variable_mapping)
+    legal_costs_insert_request, legal_costs_update_payloads, legal_costs_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Legal and Setup Costs', legal_costs_filtered, model_variable_mapping, development_model)
     if not development_model:
         soft_costs_insert_request, soft_costs_update_payloads, soft_costs_format_requests = [], [], []
         reserves_filtered = [expense for expense in expenses_json if expense.get('type') == 'Reserves']
-        reserves_insert_request, reserves_update_payloads, reserves_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Reserves', reserves_filtered, model_variable_mapping)
+        reserves_insert_request, reserves_update_payloads, reserves_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Reserves', reserves_filtered, model_variable_mapping, development_model)
     else:
         soft_costs_filtered = [expense for expense in expenses_json if expense.get('type') == 'Soft Costs']
         soft_costs_insert_request, soft_costs_update_payloads, soft_costs_format_requests = insert_expense_rows_to_sheet_payloads(spreadsheet, 'Soft Costs', soft_costs_filtered, model_variable_mapping, development_model)
@@ -7147,12 +7384,12 @@ def update_google_sheet_and_get_values_final(
     # Step 3: Insert blank rows/columns for expense table formatting
     if development_model:
         add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs",
-                                                        "Legal and Pre-Development Costs",
+                                                        "Legal and Setup Costs",
                                                         "Soft Costs",
                                                         "Hard Costs"])
     else:
         add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs",
-                                                        "Legal and Pre-Development Costs",
+                                                        "Legal and Setup Costs",
                                                         "Reserves",
                                                         "Hard Costs"
                                                         ])
@@ -7535,7 +7772,7 @@ def generate_sensitivity_analysis_tables(sheet_id, max_price, min_cap_rate):
         if not exit_cap_cell:
             exit_cap_cell = get_mapped_cell_location(df, 'Exit Assumptions', 'Retail Applied Exit Cap Rate')
         if not exit_cap_cell:
-            exit_cap_cell = get_mapped_cell_location(df, 'Exit Assumptions', 'Exit Month')
+            exit_cap_cell = get_mapped_cell_location(df, 'Exit Assumptions', 'Applied Exit Cap Rate')
 
         IRR_cell = get_mapped_cell_location(df, 'Other Reference', 'Levered IRR')
         MOIC_cell = get_mapped_cell_location(df, 'Other Reference', 'Levered MOIC')
@@ -8077,9 +8314,9 @@ def get_noi_walk_egi_row_update_payload(
         col_index = start_col + j
         col_letter = rowcol_to_a1(1, col_index).replace("1", "")
         formula = (
-            f"=SUM({col_letter}{amenity_start_row}:{col_letter}{amenity_end_row + 2},{col_letter}22)"
-            f"+IF({col_letter}15>=$H$5,{col_letter}23,0)"
+            f"=SUM({col_letter}{amenity_start_row}:{col_letter}{amenity_end_row + 1},{col_letter}22)"
         )
+                    # f"+IF({col_letter}15>=$H$5,{col_letter}23,0)"
         row_formulas.append(formula)
 
     start_col_letter = rowcol_to_a1(1, start_col).replace("1", "")
@@ -8090,6 +8327,43 @@ def get_noi_walk_egi_row_update_payload(
         "values": [row_formulas]
     }
 
+
+def get_noi_walk_egi_row_update_payload_development(
+    amenity_income_json,
+    sheet_name="NOI Walk",
+    start_col=5,        # Column E
+    num_months=97,
+    amenity_start_row=25,
+    target_base_row=27
+):
+    """
+    Build values batch update payload for the NOI Walk sheet.
+    Writes formulas on row (target_base_row + len(amenity_income_json)).
+    For each month column L, the formula is:
+      =SUM(L25:L<amenity_end>,L22) + IF(L15>=$H$5, L23, 0)
+    Where L is the dynamic month column letter.
+    """
+    amenity_len = len(amenity_income_json)
+    target_row = target_base_row + amenity_len
+    amenity_end_row = amenity_start_row + amenity_len - 1
+
+    row_formulas = []
+    for j in range(num_months):
+        col_index = start_col + j
+        col_letter = rowcol_to_a1(1, col_index).replace("1", "")
+        formula = (
+            f"=SUM({col_letter}{amenity_start_row}:{col_letter}{amenity_end_row + 2},{col_letter}22)"
+            f"+IF({col_letter}16>=$C$5,0)"
+        )
+        row_formulas.append(formula)
+
+    start_col_letter = rowcol_to_a1(1, start_col).replace("1", "")
+    end_col_letter = rowcol_to_a1(1, start_col + num_months - 1).replace("1", "")
+
+    return {
+        "range": f"'{sheet_name}'!{start_col_letter}{target_row}:{end_col_letter}{target_row}",
+        "values": [row_formulas]
+    }
 
 def get_noi_walk_egi_row_update_payload_industrial(
     amenity_income_json,

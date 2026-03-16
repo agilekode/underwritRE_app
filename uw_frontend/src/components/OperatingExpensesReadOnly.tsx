@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import { Typography } from '@mui/material';
 import { calculateEGI } from "../utils/egi";
+import { getCommonAreaSquareFeet, getTotalSquareFeetForExpense } from '../utils/operatingExpenseCalc';
 import { colors } from '../theme';
 
 interface OperatingExpense {
@@ -24,7 +25,20 @@ const OperatingExpensesReadOnly: React.FC<{
   modelDetails: any;
   retailIncome?: any[];
   retailExpenses?: any[];
-}> = ({ operatingExpenses, units, amenityIncome, modelDetails, retailIncome = [], retailExpenses = [] }) => {
+  isDevelopmentModel?: boolean;
+  developmentUnits?: any[];
+}> = ({ operatingExpenses, units, amenityIncome, modelDetails, retailIncome = [], retailExpenses = [], isDevelopmentModel, developmentUnits = [] }) => {
+
+  const perUnitCount = useMemo(() => {
+    if (isDevelopmentModel === true && Array.isArray(developmentUnits) && developmentUnits.length > 0) {
+      const total = developmentUnits.reduce((sum: number, du: any) => {
+        const n = Number(du?.units ?? 0);
+        return sum + (Number.isFinite(n) ? n : 0);
+      }, 0);
+      return Number.isFinite(total) ? total : 0;
+    }
+    return Number.isFinite(units?.length) ? (units?.length ?? 0) : 0;
+  }, [isDevelopmentModel, developmentUnits, units]);
 
   const flexByField: Record<string, number> = {
     name: 1.4,
@@ -103,31 +117,46 @@ const OperatingExpensesReadOnly: React.FC<{
 
         const byUnit = String(row.cost_per || '').toLowerCase();
         if (byUnit === 'per unit') {
-          value = units.length;
+          value = perUnitCount;
           adornment = ' units';
         } else if (byUnit === 'total') {
           value = null;
           adornment = '';
         } else if (byUnit === 'per ca square foot') {
-          let totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
-          value = (totalSf - units.reduce((sum: number, u: any) => sum + (u.square_feet || 0), 0));
-          value = totalSf.toLocaleString();
+          value = getCommonAreaSquareFeet(modelDetails, units, developmentUnits, retailIncome, isDevelopmentModel);
+          value = typeof value === 'number' ? value.toLocaleString() : value;
           adornment = ' sf';
         } else if (byUnit === 'per total square feet') {
-          let totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
+          const totalSf = getTotalSquareFeetForExpense(modelDetails, isDevelopmentModel, developmentUnits);
           value = totalSf.toLocaleString();
           adornment = ' sf';
         } else if (byUnit === 'percent of egi') {
           const totalRetailIncome = getRetailIncome(retailIncome);
-          
-          const rawValue = calculateEGI({
-            modelDetails,
-            units,
-            amenityIncome,
-            retailIncome,
-            retailExpenses,
-            totalRetailIncome,
-          });
+          const getTotalAnnualAmenityIncome = (amenityIncomeArr: any[]) => {
+            return amenityIncomeArr.reduce((sum, r) => {
+              const usage = Math.round((r.utilization || 0) / 100 * (r.unit_count || 0));
+              const monthly = usage * (r.monthly_fee || 0);
+              return sum + monthly * 12;
+            }, 0);
+          };
+          let rawValue = 0;
+          if (isDevelopmentModel && Array.isArray(developmentUnits) && developmentUnits.length > 0) {
+            const devAnnualRental = developmentUnits.reduce((sum: number, du: any) => {
+              const unitsCount = Number(du?.units || 0);
+              const avgRentMonthly = Number(du?.avg_rent || 0);
+              return sum + (Number.isFinite(unitsCount) && Number.isFinite(avgRentMonthly) ? unitsCount * avgRentMonthly * 12 : 0);
+            }, 0);
+            rawValue = devAnnualRental + getTotalAnnualAmenityIncome(amenityIncome) + totalRetailIncome;
+          } else {
+            rawValue = calculateEGI({
+              modelDetails,
+              units,
+              amenityIncome,
+              retailIncome,
+              retailExpenses,
+              totalRetailIncome,
+            });
+          }
           value = rawValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
           adornment = '$ ';
         }
@@ -155,26 +184,25 @@ const OperatingExpensesReadOnly: React.FC<{
         let value: number | string = 0;
         const byUnit = String(row.cost_per || '').toLowerCase();
         if (byUnit === 'per unit') {
-          value = Math.round((row.factor * (units ? units.length : 0) / 12) * 100) / 100;
+          value = Math.round((row.factor * perUnitCount / 12) * 100) / 100;
         } else if (byUnit === 'total') {
           value = Math.round((row.factor / 12) * 100) / 100;
         } else if (byUnit === 'per ca square foot') {
-          const totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
-          const commonAreaSf = (totalSf - units.reduce((sum: number, u: any) => sum + (u.square_feet || 0), 0));
+          const commonAreaSf = getCommonAreaSquareFeet(modelDetails, units, developmentUnits, retailIncome, isDevelopmentModel);
           value = Math.round((row.factor * commonAreaSf / 12) * 100) / 100;
         } else if (byUnit === 'per total square feet') {
-          const totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
+          const totalSf = getTotalSquareFeetForExpense(modelDetails, isDevelopmentModel, developmentUnits);
           value = Math.round((row.factor * totalSf / 12) * 100) / 100;
         } else if (byUnit === 'percent of egi') {
           const totalRetailIncome = getRetailIncome(retailIncome);
-          const egi = calculateEGI({
-            modelDetails,
-            units,
-            amenityIncome,
-            retailIncome,
-            retailExpenses,
-            totalRetailIncome,
-          });
+          const getTotalAnnualAmenityIncome = (arr: any[]) => arr.reduce((sum, r) => sum + Math.round((r.utilization || 0) / 100 * (r.unit_count || 0)) * (r.monthly_fee || 0) * 12, 0);
+          let egi = 0;
+          if (isDevelopmentModel && Array.isArray(developmentUnits) && developmentUnits.length > 0) {
+            const devAnnualRental = developmentUnits.reduce((sum: number, du: any) => sum + (Number(du?.units || 0) * Number(du?.avg_rent || 0) * 12), 0);
+            egi = devAnnualRental + getTotalAnnualAmenityIncome(amenityIncome) + totalRetailIncome;
+          } else {
+            egi = calculateEGI({ modelDetails, units, amenityIncome, retailIncome, retailExpenses, totalRetailIncome });
+          }
           value = ((row.factor * egi / 100) / 12 || 0);
         }
         value = (value as number).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -198,26 +226,25 @@ const OperatingExpensesReadOnly: React.FC<{
         let value: number | string = 0;
         const byUnit = String(row.cost_per || '').toLowerCase();
         if (byUnit === 'per unit') {
-          value = row.factor * (units ? units.length : 0);
+          value = row.factor * perUnitCount;
         } else if (byUnit === 'total') {
           value = row.factor;
         } else if (byUnit === 'per ca square foot') {
-          const totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
-          const commonAreaSf = (totalSf - units.reduce((sum: number, u: any) => sum + (u.square_feet || 0), 0));
+          const commonAreaSf = getCommonAreaSquareFeet(modelDetails, units, developmentUnits, retailIncome, isDevelopmentModel);
           value = Math.round((row.factor * commonAreaSf));
         } else if (byUnit === 'per total square feet') {
-          const totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
+          const totalSf = getTotalSquareFeetForExpense(modelDetails, isDevelopmentModel, developmentUnits);
           value = Math.round((row.factor * totalSf));
         } else if (byUnit === 'percent of egi') {
           const totalRetailIncome = getRetailIncome(retailIncome);
-          const egi = calculateEGI({
-            modelDetails,
-            units,
-            amenityIncome,
-            retailIncome,
-            retailExpenses,
-            totalRetailIncome,
-          });
+          const getTotalAnnualAmenityIncome = (arr: any[]) => arr.reduce((sum, r) => sum + Math.round((r.utilization || 0) / 100 * (r.unit_count || 0)) * (r.monthly_fee || 0) * 12, 0);
+          let egi = 0;
+          if (isDevelopmentModel && Array.isArray(developmentUnits) && developmentUnits.length > 0) {
+            const devAnnualRental = developmentUnits.reduce((sum: number, du: any) => sum + (Number(du?.units || 0) * Number(du?.avg_rent || 0) * 12), 0);
+            egi = devAnnualRental + getTotalAnnualAmenityIncome(amenityIncome) + totalRetailIncome;
+          } else {
+            egi = calculateEGI({ modelDetails, units, amenityIncome, retailIncome, retailExpenses, totalRetailIncome });
+          }
           value = ((row.factor * egi / 100) || 0);
         }
         value = (value as number).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -230,35 +257,35 @@ const OperatingExpensesReadOnly: React.FC<{
   ];
 
   const CustomFooter = () => {
+    const getTotalAnnualAmenityIncome = (arr: any[]) => arr.reduce((sum, r) => sum + Math.round((r.utilization || 0) / 100 * (r.unit_count || 0)) * (r.monthly_fee || 0) * 12, 0);
+    const totalRetailIncome = getRetailIncome(retailIncome);
+
     const computedRows = operatingExpenses.map((row) => {
       let monthly = 0;
       let annual = 0;
       const byUnit = String(row.cost_per || '').toLowerCase();
       if (byUnit === 'per unit') {
-        monthly = Math.round((row.factor * (units ? units.length : 0) / 12) * 100) / 100;
-        annual = row.factor * (units ? units.length : 0);
+        monthly = Math.round((row.factor * perUnitCount / 12) * 100) / 100;
+        annual = row.factor * perUnitCount;
       } else if (byUnit === 'total') {
         monthly = Math.round((row.factor / 12) * 100) / 100;
         annual = row.factor;
       } else if (byUnit === 'per ca square foot') {
-        let totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
-        let commonAreaSf = (totalSf - units.reduce((sum: number, u: any) => sum + (u.square_feet || 0), 0));
+        const commonAreaSf = getCommonAreaSquareFeet(modelDetails, units, developmentUnits, retailIncome, isDevelopmentModel);
         monthly = Math.round((row.factor * commonAreaSf / 12) * 100) / 100;
         annual = Math.round((row.factor * commonAreaSf));
       } else if (byUnit === 'percent of egi') {
-        const totalRetailIncome = getRetailIncome(retailIncome);
-        const egi = calculateEGI({
-          modelDetails,
-          units,
-          amenityIncome,
-          retailIncome,
-          retailExpenses,
-          totalRetailIncome,
-        });
+        let egi = 0;
+        if (isDevelopmentModel && Array.isArray(developmentUnits) && developmentUnits.length > 0) {
+          const devAnnualRental = developmentUnits.reduce((sum: number, du: any) => sum + (Number(du?.units || 0) * Number(du?.avg_rent || 0) * 12), 0);
+          egi = devAnnualRental + getTotalAnnualAmenityIncome(amenityIncome) + totalRetailIncome;
+        } else {
+          egi = calculateEGI({ modelDetails, units, amenityIncome, retailIncome, retailExpenses, totalRetailIncome });
+        }
         annual = row.factor * egi / 100;
         monthly = annual / 12;
       } else if (byUnit === 'per total square feet') {
-        let totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
+        const totalSf = getTotalSquareFeetForExpense(modelDetails, isDevelopmentModel, developmentUnits);
         monthly = Math.round((row.factor * totalSf / 12) * 100) / 100;
         annual = Math.round((row.factor * totalSf));
       }

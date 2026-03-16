@@ -421,10 +421,10 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       renderHeader: () => (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Typography variant="caption" sx={{ fontWeight: 600, fontSize: 14.5, color: '#1f2937' }}>Pro Forma Rent</Typography>
-          <Tooltip title="Edit Pro Forma Rents" arrow>
-            <IconButton size="small" onClick={handleOpenPfModal} sx={{ p: 0.25 }}>
-              <EditIcon fontSize="small" />
-            </IconButton>
+          <Tooltip title="From market rent assumptions by layout (read-only)" arrow>
+            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <InfoOutlinedIcon fontSize="small" sx={{ color: 'text.secondary', fontSize: 16 }} />
+            </span>
           </Tooltip>
         </Box>
       ),
@@ -587,7 +587,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
     return {
       ...unit,
       unitNumber: index + 1,
-      pf_rent: unit.vacate_flag === 0 ? (unit.current_rent || 0) : (matchingAssumption?.pf_rent || 0),
+      pf_rent: matchingAssumption?.pf_rent ?? 0,
       growth_rate: gr?.value ?? 0
     };
   });
@@ -598,9 +598,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
   // Calculate totals
   const totalSquareFeet = units.reduce((sum, unit) => sum + (unit.square_feet || 0), 0);
   const totalCurrentRent = units.reduce((sum, unit) => sum + (unit.current_rent || 0), 0);
-  const totalPfRent = rows.reduce((sum, row) => 
-    sum + (row.vacate_flag === 0 ? (row.current_rent || 0) : (row.pf_rent || 0)), 0
-  );
+  const totalPfRent = rows.reduce((sum, row) => sum + (row.pf_rent || 0), 0);
 
   // Deprecated event wiring removed in favor of props-based totals
 
@@ -623,7 +621,7 @@ const UnitTable: React.FC<UnitTableProps> = ({ units, setUnits,  marketRentAssum
       ) : (
         <div />
       )}
-      <div style={{ display: 'flex', gap: '18px', marginLeft: 'auto', justifyContent: 'flex-end', textAlign: 'right', color: '#1f2937' }}>
+      <div style={{ display: 'flex', flex: 1, justifyContent: 'space-between', marginLeft: allowAddUnit ? 24 : 0, textAlign: 'right', color: '#1f2937' }}>
         <div style={{ textAlign: 'right' }}>
           <span style={{ fontWeight: 600 }}>Total Units:</span> {units.length}
         </div>

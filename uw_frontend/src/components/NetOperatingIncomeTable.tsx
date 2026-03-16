@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Tooltip } from "@mui/material";
+import { Box, CircularProgress, Tooltip, Typography } from "@mui/material";
 import { colors, typography } from "../theme";
 
 export const NetOperatingIncomeTable = ({
@@ -69,13 +69,18 @@ export const NetOperatingIncomeTable = ({
         <Box
           sx={{
             display: "flex",
+            flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
+            gap: 2,
             minHeight: 240,
             py: 6,
           }}
           aria-busy
         >
+          <Typography variant="body1" color="text.secondary">
+            Generating...
+          </Typography>
           <CircularProgress />
         </Box>
       ) : (

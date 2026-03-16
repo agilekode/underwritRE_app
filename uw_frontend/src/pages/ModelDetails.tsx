@@ -39,7 +39,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import GridOnIcon from "@mui/icons-material/GridOn";
+import DownloadIcon from "@mui/icons-material/Download";
 import RetailSummary from "../components/RetailSummary";
 import DevelopmentRentalAssumptionsReadOnly from "../components/DevelopmentRentalAssumptionsReadOnly";
 
@@ -1404,41 +1404,45 @@ const ModelDetails = () => {
             )}
 
             <Tooltip title="Edit Model">
-              <IconButton
+              <Button
                 size="small"
+                variant="contained"
                 disabled={downloadingPDF || downloading || isCalculating}
+                startIcon={<EditIcon fontSize="small" />}
+                onClick={() => navigate(`/edit-model/${modelDetails.version_id}`)}
                 sx={{
                   backgroundColor: colors.blue,
                   color: "#fff",
-                  width: 36,
-                  height: 36,
+                  textTransform: "none",
+                  fontSize: "0.8125rem",
+                  fontWeight: 500,
                   "&:hover": { backgroundColor: colors.blueDark },
                   "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
                 }}
-                onClick={() => {
-                  navigate(`/edit-model/${modelDetails.version_id}`);
-                }}
               >
-                <EditIcon fontSize="small" />
-              </IconButton>
+                Edit
+              </Button>
             </Tooltip>
 
             <Tooltip title="Download PDF Summary">
-              <IconButton
+              <Button
                 size="small"
+                variant="contained"
+                startIcon={<PictureAsPdfIcon fontSize="small" />}
+                onClick={() => setDownloadOptionsOpen(true)}
+                disabled={downloadingPDF || downloading || isCalculating}
                 sx={{
                   backgroundColor: colors.blue,
                   color: "#fff",
-                  width: 36,
-                  height: 36,
+                  textTransform: "none",
+                  fontSize: "0.8125rem",
+                  fontWeight: 500,
                   "&:hover": { backgroundColor: colors.blueDark },
                   "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
                 }}
-                onClick={() => setDownloadOptionsOpen(true)}
-                disabled={downloadingPDF || downloading || isCalculating}
               >
-                <PictureAsPdfIcon fontSize="small" />
-              </IconButton>
+                PDF Summary
+              </Button>
             </Tooltip>
 
             <Tooltip title={
@@ -1449,38 +1453,41 @@ const ModelDetails = () => {
                 : "Download Worksheet"
             }>
               <span>
-                <IconButton
+                <Button
                   size="small"
+                  variant="contained"
+                  startIcon={
+                    downloading ? (
+                      <span
+                        style={{
+                          width: 18,
+                          height: 18,
+                          border: "2px solid #fff",
+                          borderTop: `2px solid ${colors.blue}`,
+                          borderRadius: "50%",
+                          display: "inline-block",
+                          animation: "spin 1s linear infinite",
+                        }}
+                      />
+                    ) : (
+                      <DownloadIcon fontSize="small" />
+                    )
+                  }
+                  onClick={() => downloadWorksheet(getAccessTokenSilently, modelDetails)}
+                  disabled={downloadingPDF || downloading || isCalculating}
                   sx={{
                     backgroundColor: colors.blue,
                     color: "#fff",
-                    width: 36,
-                    height: 36,
+                    textTransform: "none",
+                    fontSize: "0.8125rem",
+                    fontWeight: 500,
+                    opacity: downloading ? 0.7 : 1,
                     "&:hover": { backgroundColor: colors.blueDark },
                     "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
-                    opacity: downloading ? 0.7 : 1,
                   }}
-                  onClick={() =>
-                    downloadWorksheet(getAccessTokenSilently, modelDetails)
-                  }
-                  disabled={downloadingPDF || downloading || isCalculating}
                 >
-                  {downloading ? (
-                    <span
-                      style={{
-                        width: 18,
-                        height: 18,
-                        border: "2px solid #fff",
-                        borderTop: `2px solid ${colors.blue}`,
-                        borderRadius: "50%",
-                        display: "inline-block",
-                        animation: "spin 1s linear infinite",
-                      }}
-                    />
-                  ) : (
-                    <GridOnIcon fontSize="small" />
-                  )}
-                </IconButton>
+                  Worksheet
+                </Button>
               </span>
             </Tooltip>
           </Box>
@@ -2360,6 +2367,12 @@ const ModelDetails = () => {
                       ? modelDetails.expenses.filter(
                           (expense: any) => expense.type === "Retail"
                         )
+                      : []
+                  }
+                  isDevelopmentModel={modelDetails?.model_type?.development_model === true || (Array.isArray(modelDetails?.development_units) && modelDetails.development_units.length > 0)}
+                  developmentUnits={
+                    Array.isArray(modelDetails.development_units)
+                      ? modelDetails.development_units
                       : []
                   }
                 />

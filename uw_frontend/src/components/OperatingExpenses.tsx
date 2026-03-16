@@ -8,6 +8,7 @@ import { TextInputCell } from './TextInputCell';
 import { NumberInputCell } from './NumberInputCell';
 import { HEADER_FOOTER_HEIGHT, ROW_HEIGHT } from '../utils/constants';
 import { calculateEGI } from "../utils/egi";
+import { getCommonAreaSquareFeet, getTotalSquareFeetForExpense } from '../utils/operatingExpenseCalc';
 import { NumberDecimalInputCell } from './NumberDecimalInputCell';
 import { OperatingExpensesSuggested, OperatingExpensesBasic, OperatingExpensesSuggestedDevelopment, OperatingExpensesBasicDevelopment } from '../utils/newModelConstants';
 import { colors } from '../theme';
@@ -573,10 +574,13 @@ const OperatingExpensesTable: React.FC<{
         monthly = Math.round((row.factor / 12) * 100) / 100;
         annual = row.factor;
       } else if (row.cost_per.toLowerCase() === 'per ca square foot') {
-        let totalSf = Number(modelDetails?.user_model_field_values?.find((field: any) => field.field_key === "Gross Square Feet")?.value ?? 0);
-        let commonAreaSf = (totalSf - units.reduce((sum: number, u: any) => sum + (u.square_feet || 0), 0));
+        const commonAreaSf = getCommonAreaSquareFeet(modelDetails, units, developmentUnits, retailIncome, isDevelopmentModel);
         monthly = Math.round((row.factor * commonAreaSf / 12) * 100) / 100;
         annual = Math.round((row.factor * commonAreaSf));
+      } else if (row.cost_per.toLowerCase() === 'per total square feet') {
+        const totalSf = getTotalSquareFeetForExpense(modelDetails, isDevelopmentModel, developmentUnits);
+        monthly = Math.round((row.factor * totalSf / 12) * 100) / 100;
+        annual = Math.round((row.factor * totalSf));
       } else if (row.cost_per.toLowerCase() === 'percent of egi') {
         // Refactored EGI calculation for clarity and reuse
         const getTotalAnnualAmenityIncome = (amenityIncomeArr: any[]) => {

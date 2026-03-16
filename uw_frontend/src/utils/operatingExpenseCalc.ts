@@ -19,7 +19,7 @@ interface GetAnnualParams {
   retailExpenses: any[];
 }
 
-function getGrossSquareFeet(modelDetails: any): number {
+export function getGrossSquareFeet(modelDetails: any): number {
   const fv = modelDetails?.user_model_field_values?.find(
     (f: any) => f.field_key && String(f.field_key).trim() === "Gross Square Feet"
   );
@@ -27,7 +27,7 @@ function getGrossSquareFeet(modelDetails: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function getGrossBuildableSquareFeet(modelDetails: any): number {
+export function getGrossBuildableSquareFeet(modelDetails: any): number {
   const fv = modelDetails?.user_model_field_values?.find(
     (f: any) => f.field_key && String(f.field_key).trim() === "Gross Buildable Square Feet"
   );
@@ -35,7 +35,7 @@ function getGrossBuildableSquareFeet(modelDetails: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function getCommonAreaSquareFeet(modelDetails: any, units: any[], developmentUnits?: any[], retailIncome?: any[], isDevelopmentModel?: boolean): number {
+export function getCommonAreaSquareFeet(modelDetails: any, units: any[], developmentUnits?: any[], retailIncome?: any[], isDevelopmentModel?: boolean): number {
   if (isDevelopmentModel && Array.isArray(developmentUnits) && developmentUnits.length > 0) {
     const grossBuildable = getGrossBuildableSquareFeet(modelDetails);
     const devUnitsSf = developmentUnits.reduce((sum: number, du: any) => {
@@ -51,6 +51,14 @@ function getCommonAreaSquareFeet(modelDetails: any, units: any[], developmentUni
   const gross = getGrossSquareFeet(modelDetails);
   const unitSf = units.reduce((sum: number, u: any) => sum + (u?.square_feet || 0), 0);
   return Math.max(0, gross - unitSf);
+}
+
+/** Total SF denominator for "per total square feet": Gross Buildable for development, Gross Square Feet otherwise. */
+export function getTotalSquareFeetForExpense(modelDetails: any, isDevelopmentModel?: boolean, developmentUnits?: any[]): number {
+  if (isDevelopmentModel && Array.isArray(developmentUnits) && developmentUnits.length > 0) {
+    return getGrossBuildableSquareFeet(modelDetails);
+  }
+  return getGrossSquareFeet(modelDetails);
 }
 
 function computeAnnualForRow(row: OperatingExpenseRow, ctx: Omit<GetAnnualParams, 'expenseName' | 'operatingExpenses'>): number {

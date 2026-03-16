@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Image,
 } from "@react-pdf/renderer";
+import { getCommonAreaSquareFeet, getTotalSquareFeetForExpense } from "../utils/operatingExpenseCalc";
 
 type PdfSummaryProps = {
   modelDetails: any;
@@ -566,7 +567,8 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
       const totalSf = Math.max(0, Math.round(avgSf * units));
       const monthlyRent = Math.max(0, Math.round(avgRent * units));
       const annualRent = monthlyRent * 12;
-      const rentPsf = totalSf > 0 ? annualRent / totalSf : 0;
+      // Rent PSF = Avg. Rent / Avg. SF
+      const rentPsf = avgSf > 0 ? avgRent / avgSf : 0;
       totals.units += units;
       totals.totalSf += totalSf;
       totals.monthlyRent += monthlyRent;
@@ -578,11 +580,12 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
         Number(totalSf).toLocaleString(),
         `$${Number(rentPsf).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         `$${Number(avgRent).toLocaleString()}`,
-        Number(monthlyRent).toLocaleString(),
-        Number(annualRent).toLocaleString(),
+        `$${Number(monthlyRent).toLocaleString()}`,
+        `$${Number(annualRent).toLocaleString()}`,
       ];
     });
-    const weightedRentPsf = totals.totalSf > 0 ? totals.annualRent / totals.totalSf : 0;
+    // Rent PSF total = total monthly rent / total SF
+    const weightedRentPsf = totals.totalSf > 0 ? totals.monthlyRent / totals.totalSf : 0;
     const avgRent = totals.units > 0 ? Math.round(totals.annualRent / totals.units) : 0;
     const totalsRow = [
       'Totals',
@@ -591,8 +594,8 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
       totals.totalSf.toLocaleString(),
       `$${weightedRentPsf.toFixed(2)}`,
       `$${avgRent.toLocaleString()}`,
-      totals.monthlyRent.toLocaleString(),
-      totals.annualRent.toLocaleString(),
+      `$${totals.monthlyRent.toLocaleString()}`,
+      `$${totals.annualRent.toLocaleString()}`,
     ];
     const allRows = [header, ...dataRows, totalsRow];
     const colCount = header.length;
@@ -716,10 +719,27 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
     const retailIncome: any[] = Array.isArray(modelDetails?.retail_income) ? modelDetails.retail_income : [];
     const retailExpenses: any[] = Array.isArray(modelDetails?.expenses) ? modelDetails.expenses.filter((e:any)=>e.type==='Retail') : [];
     const amenityIncome: any[] = Array.isArray(modelDetails?.amenity_income) ? modelDetails.amenity_income : [];
-    const getRetailIncomeTotal = (arr: any[]) => arr.reduce((sum: number, u: any) => sum + (u.square_feet * (u.rent_per_square_foot_per_year || 0)), 0);
+    const developmentUnits: any[] = Array.isArray(modelDetails?.development_units) ? modelDetails.development_units : [];
+    const isDevelopmentModel = modelDetails?.model_type?.development_model === true || developmentUnits.length > 0;
+    const perUnitCount = isDevelopmentModel && developmentUnits.length > 0
+      ? developmentUnits.reduce((s: number, du: any) => s + Number(du?.units || 0), 0)
+      : units.length;
+    const commonAreaSf = getCommonAreaSquareFeet(modelDetails, units, developmentUnits, retailIncome, isDevelopmentModel);
+    const totalSfForExpense = getTotalSquareFeetForExpense(modelDetails, isDevelopmentModel, developmentUnits);
+    const getRetailIncomeTotal = (arr: any[]) => arr.reduce((sum: number, u: any) => sum + (Number(u.square_feet || 0) * Number(u.rent_per_square_foot_per_year || 0)), 0);
     const totalRetailIncome = getRetailIncomeTotal(retailIncome);
     const egi = (() => {
-      // conservative EGI: current rents + amenity monthly * 12 + retail income annual-like
+      if (isDevelopmentModel && developmentUnits.length > 0) {
+        const devAnnualRental = developmentUnits.reduce((s: number, du: any) => {
+          const n = Number(du?.units || 0);
+          const rent = Number(du?.avg_rent || 0);
+          return s + (Number.isFinite(n) && Number.isFinite(rent) ? n * rent * 12 : 0);
+        }, 0);
+        const amenMonthly = amenityIncome.reduce((sum, a:any)=>{
+          const util = Number(a.utilization || 0); const cnt = Number(a.unit_count || 0); const usage = Math.round((util/100)*cnt); return sum + usage*Number(a.monthly_fee||0);
+        },0);
+        return devAnnualRental + amenMonthly*12 + totalRetailIncome;
+      }
       const current = units.reduce((sum, u:any)=> sum + Number(u.current_rent || 0), 0) * 12;
       const amenMonthly = amenityIncome.reduce((sum, a:any)=>{
         const util = Number(a.utilization || 0); const cnt = Number(a.unit_count || 0); const usage = Math.round((util/100)*cnt); return sum + usage*Number(a.monthly_fee||0);
@@ -730,16 +750,15 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
     const rows = [header, ...list.map((row:any)=>{
       const byUnit = String(row.cost_per || '').toLowerCase();
       let statistic: string | number | null = null;
-      if (byUnit === 'per unit') statistic = `${units.length} units`;
-      else if (byUnit === 'per ca square foot' || byUnit === 'per total square feet') {
-        const totalSf = Number(getUserField('Gross Square Feet') || 0);
-        statistic = `${totalSf.toLocaleString()} sf`;
-      }
-      const expenseVal = row.factor;
+      if (byUnit === 'per unit') statistic = `${perUnitCount} units`;
+      else if (byUnit === 'per ca square foot') statistic = `${commonAreaSf.toLocaleString()} sf`;
+      else if (byUnit === 'per total square feet') statistic = `${totalSfForExpense.toLocaleString()} sf`;
+      const expenseVal = Number(row.factor || 0);
       let monthly = 0, annual = 0;
-      if (byUnit === 'per unit') { annual = expenseVal * units.length; monthly = annual/12; }
+      if (byUnit === 'per unit') { annual = expenseVal * perUnitCount; monthly = annual/12; }
       else if (byUnit === 'total') { annual = expenseVal; monthly = annual/12; }
-      else if (byUnit === 'per ca square foot' || byUnit === 'per total square feet') { const totalSf = Number(getUserField('Gross Square Feet') || 0); annual = Math.round(expenseVal * totalSf); monthly = annual/12; }
+      else if (byUnit === 'per ca square foot') { annual = Math.round(expenseVal * commonAreaSf); monthly = annual/12; }
+      else if (byUnit === 'per total square feet') { annual = Math.round(expenseVal * totalSfForExpense); monthly = annual/12; }
       else if (byUnit === 'percent of egi') { annual = (expenseVal * egi)/100; monthly = annual/12; }
       totalMonthly += monthly; totalAnnual += annual;
       return [
