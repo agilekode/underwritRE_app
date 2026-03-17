@@ -18,7 +18,7 @@ import RetailIncomeTable from '../components/RetailIncomeTable';
 import RefinancingSection from '../components/RefinancingSection';
 import SeniorConstructionLoanSection from '../components/SeniorConstructionLoanSection';
 import SecondLienSection from '../components/SecondLienSection';
-import { AmenityIncomeBasic, ExpensesBasic, ExpensesBasicDevelopment, ExpensesIndustrial, GrowthRatesBasic, GrowthRatesDevelopment, MarketRentAssumptionsBasic, OperatingExpensesBasic, OperatingExpensesBasicDevelopment } from '../utils/newModelConstants';
+import { AmenityIncomeBasic, ExpensesBasic, ExpensesBasicDevelopment, ExpensesIndustrial, GrowthRatesBasic, GrowthRatesDevelopment, MarketRentAssumptionsBasic, OperatingExpensesBasic, OperatingExpensesBasicDevelopment, FIELD_TITLE_CONSTANTS } from '../utils/newModelConstants';
 import { Expenses } from '../components/Expenses';
 import { Expense } from '../utils/interface';
 import AcquisitionFinancingSection from '../components/AcquisitionFinancingSection';
@@ -493,6 +493,17 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
         }
         data.google_sheet_url = '';
         console.log("EXISTING MODEL GEN")
+
+        if (data.model_type?.development_model) {
+          data.user_model_field_values.forEach((fieldValue: any) => {
+            if (fieldValue.field_key === "Asking Price") {
+              fieldValue.field_title = FIELD_TITLE_CONSTANTS.ASKING_PRICE_LAND;
+            } else if (fieldValue.field_key === "Acquisition Price") {
+              fieldValue.field_title = FIELD_TITLE_CONSTANTS.ACQUISITION_VALUE_LAND;
+            }
+          });
+        }
+
         generateGoogleSheet(data.model_type.id);
         setModelDetails(data);
         setMarketRentAssumptions(data.market_rent_assumptions);
@@ -844,6 +855,20 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
             credentials: 'include',
           });
           const data = await res.json();
+
+          if (data.development_model) {
+            data.sections.forEach((section: any) => {
+              if (section.name === "General Property Assumptions") {
+                section.fields.forEach((field: any) => {
+                  if (field.field_key === "Asking Price") {
+                    field.field_title = FIELD_TITLE_CONSTANTS.ASKING_PRICE_LAND;
+                  } else if (field.field_key === "Acquisition Price") {
+                    field.field_title = FIELD_TITLE_CONSTANTS.ACQUISITION_VALUE_LAND;
+                  }
+                });
+              }
+            });
+          }
 
           setSelectedModelTypeInfo(data);
           interface FieldValue {
