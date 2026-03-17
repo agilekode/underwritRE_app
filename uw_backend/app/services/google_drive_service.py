@@ -865,45 +865,45 @@ def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service, 
 
     # Retry loop: wait for Google Sheets to finish recalculating
     # Delays: 5s initial, then 8s, 12s between retry attempts
-    # RETRY_DELAYS = [5, 8, 12]
-    # for attempt in range(max_retries + 1):
-    #     delay = RETRY_DELAYS[attempt] if attempt < len(RETRY_DELAYS) else RETRY_DELAYS[-1]
-    #     time.sleep(delay)
-    #     print(f"[extract_variables] Attempt {attempt + 1}/{max_retries + 1} (waited {delay}s)")
+    RETRY_DELAYS = [5, 8, 12]
+    for attempt in range(max_retries + 1):
+        delay = RETRY_DELAYS[attempt] if attempt < len(RETRY_DELAYS) else RETRY_DELAYS[-1]
+        time.sleep(delay)
+        print(f"[extract_variables] Attempt {attempt + 1}/{max_retries + 1} (waited {delay}s)")
 
-    #     # Clear formula-based variables for this attempt
-    #     for loc in location_map:
-    #         for name in location_map[loc]:
-    #             variables.pop(name, None)
+        # Clear formula-based variables for this attempt
+        for loc in location_map:
+            for name in location_map[loc]:
+                variables.pop(name, None)
 
-    #     # Batch get all ranges
-    #     CHUNK_SIZE = 100
-    #     for i in range(0, len(ranges), CHUNK_SIZE):
-    #         chunk = ranges[i:i+CHUNK_SIZE]
-    #         result = sheets_service.spreadsheets().values().batchGet(
-    #             spreadsheetId=sheet_id,
-    #             ranges=chunk,
-    #             valueRenderOption='FORMATTED_VALUE'
-    #         ).execute()
-    #         for j, value_range in enumerate(result.get("valueRanges", [])):
-    #             cell_location = chunk[j]
-    #             names = location_map.get(cell_location, [])
-    #             values = value_range.get("values", [[]])
-    #             value = values[0][0] if values and values[0] else ""
-    #             for name in names:
-    #                 variables[name] = value
+        # Batch get all ranges
+        CHUNK_SIZE = 100
+        for i in range(0, len(ranges), CHUNK_SIZE):
+            chunk = ranges[i:i+CHUNK_SIZE]
+            result = sheets_service.spreadsheets().values().batchGet(
+                spreadsheetId=sheet_id,
+                ranges=chunk,
+                valueRenderOption='FORMATTED_VALUE'
+            ).execute()
+            for j, value_range in enumerate(result.get("valueRanges", [])):
+                cell_location = chunk[j]
+                names = location_map.get(cell_location, [])
+                values = value_range.get("values", [[]])
+                value = values[0][0] if values and values[0] else ""
+                for name in names:
+                    variables[name] = value
 
-    #     # Check if values look valid
-    #     if not _has_stale_values(variables):
-    #         print(f"[extract_variables] All values look valid on attempt {attempt + 1}")
-    #         break
-    #     elif attempt < max_retries:
-    #         stale = {k: v for k, v in variables.items() if isinstance(v, str) and (
-    #             v in ['#REF!', '#N/A', '#VALUE!', '#ERROR!', '#NAME?', '#DIV/0!', 'Loading...'] or v == ''
-    #         )}
-    #         print(f"[extract_variables] Stale values detected: {stale}. Retrying...")
-    #     else:
-    #         print(f"[extract_variables] WARNING: Still have stale values after {max_retries + 1} attempts. Proceeding with current values.")
+        # Check if values look valid
+        if not _has_stale_values(variables):
+            print(f"[extract_variables] All values look valid on attempt {attempt + 1}")
+            break
+        elif attempt < max_retries:
+            stale = {k: v for k, v in variables.items() if isinstance(v, str) and (
+                v in ['#REF!', '#N/A', '#VALUE!', '#ERROR!', '#NAME?', '#DIV/0!', 'Loading...'] or v == ''
+            )}
+            print(f"[extract_variables] Stale values detected: {stale}. Retrying...")
+        else:
+            print(f"[extract_variables] WARNING: Still have stale values after {max_retries + 1} attempts. Proceeding with current values.")
 
     return variables
 
