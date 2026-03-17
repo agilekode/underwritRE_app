@@ -356,7 +356,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
             "Base Income",
             "Recoverable Operating Expenses",
             "Recovery and Gross Potential Income",
-            "Leasing Cost Reserves",
+            "TILC Reserves",
             "Income Summary",
             "Amenity Income",
             "Net Operating Income",
@@ -447,7 +447,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     "Base Income",
     "Recoverable Operating Expenses",
     "Recovery and Gross Potential Income",
-    "Leasing Cost Reserves",
+    "TILC Reserves",
     "Income Summary",
   ]
 
@@ -992,7 +992,7 @@ const isStepComplete = (step: number) => {
     else if (activeStep === steps.indexOf("Recovery and Gross Potential Income")) {
       return true;
     }
-    else if (activeStep === steps.indexOf("Leasing Cost Reserves")) {
+    else if (activeStep === steps.indexOf("TILC Reserves")) {
       return true;
     }
     else if (activeStep === steps.indexOf("Income Summary")) {
@@ -1873,7 +1873,7 @@ const isStepComplete = (step: number) => {
 
                 <Box>
                   <RetailSectionHeader
-                    title="Leasing Cost Reserves"
+                    title="TILC Reserves"
                     description="Assumptions and calculated reserves for new and renewal leases."
                   />
                   <LeasingCostReserves modelDetails={modelDetails} handleFieldChange={handleFieldChange} retailIncome={retailIncome as any[]} />
@@ -1966,10 +1966,10 @@ const isStepComplete = (step: number) => {
               </Box>
             </Box>
           )}
-          {steps[activeStep] === "Leasing Cost Reserves" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === false && (
+          {steps[activeStep] === "TILC Reserves" && selectedModelTypeInfo?.show_retail === true && selectedModelTypeInfo?.show_rental_units === false && (
             <Box sx={{ maxWidth: "1200px", mx: "auto", px: { xs: 2, md: 0 }, pb: 4 }}>
               <RetailSectionHeader
-                title="Leasing Cost Reserves"
+                title="TILC Reserves"
                 description="Assumptions and calculated reserves for new and renewal leases."
               />
               <LeasingCostReserves modelDetails={modelDetails} handleFieldChange={handleFieldChange} retailIncome={retailIncome as any[]} />

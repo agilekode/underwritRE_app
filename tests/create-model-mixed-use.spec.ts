@@ -297,7 +297,7 @@ test('Create Mixed Use model end-to-end', async ({ page }) => {
   // ──────────────────────────────────────────────
   // Step 12: Leasing Assumptions (Mixed Use specific)
   // ──────────────────────────────────────────────
-  // This step has residential leasing params + retail leasing cost reserves
+  // This step has residential leasing params + retail TILC reserves
   // Fill fields if visible — field names come from LeasingAssumptions + LeasingCostReserves components
 
   // Residential leasing assumptions
