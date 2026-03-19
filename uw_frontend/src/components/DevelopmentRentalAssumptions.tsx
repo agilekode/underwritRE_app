@@ -49,6 +49,7 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
     const trimmed = (newUnitType || '').trim().toLowerCase();
     return trimmed.length > 0 && existingUnitTypesSet.has(trimmed);
   }, [newUnitType, existingUnitTypesSet]);
+  const shouldPulseAddButton = rows.length === 0;
 
   const addUnitType = (name: string) => {
     // Allow blank unit types; user can edit in-row later
@@ -74,7 +75,7 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
     const withDerived = rows.map(r => {
       const avgSf = Number(r.avg_sf || 0);
       const units = Number(r.units || 0);
-      const avgRent = Number(r.avg_rent || 0);
+      const avgRent = Number(r.avg_rent || 0) / 12;
       const totalSf = Math.max(0, Math.round(avgSf * units));
       const monthlyRent = Math.max(0, Math.round(avgRent * units));
       const annualRent = monthlyRent * 12;
@@ -377,7 +378,28 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
               startIcon={<AddIcon />}
               onClick={() => addUnitType(newUnitType)}
               disabled={duplicateExists}
-              sx={{ whiteSpace: 'nowrap', minWidth: 160, fontSize: 14, fontWeight: 600 }}
+              sx={{
+                whiteSpace: 'nowrap',
+                minWidth: 160,
+                fontSize: 14,
+                fontWeight: 600,
+                boxShadow: shouldPulseAddButton ? '0 0 0 0 rgba(25, 118, 210, 0.45)' : undefined,
+                animation: shouldPulseAddButton ? 'add-unit-pulse 1.8s ease-in-out infinite' : 'none',
+                '@keyframes add-unit-pulse': {
+                  '0%': {
+                    transform: 'scale(1)',
+                    boxShadow: '0 0 0 0 rgba(25, 118, 210, 0.45)',
+                  },
+                  '50%': {
+                    transform: 'scale(1.03)',
+                    boxShadow: '0 0 0 10px rgba(25, 118, 210, 0)',
+                  },
+                  '100%': {
+                    transform: 'scale(1)',
+                    boxShadow: '0 0 0 0 rgba(25, 118, 210, 0)',
+                  },
+                },
+              }}
             >
               Add Unit Type
             </Button>
