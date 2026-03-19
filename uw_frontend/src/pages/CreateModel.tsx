@@ -18,7 +18,7 @@ import RetailIncomeTable from '../components/RetailIncomeTable';
 import RefinancingSection from '../components/RefinancingSection';
 import SeniorConstructionLoanSection from '../components/SeniorConstructionLoanSection';
 import SecondLienSection from '../components/SecondLienSection';
-import { AmenityIncomeBasic, ExpensesBasic, ExpensesBasicDevelopment, ExpensesIndustrial, GrowthRatesBasic, GrowthRatesDevelopment, MarketRentAssumptionsBasic, OperatingExpensesBasic, OperatingExpensesBasicDevelopment } from '../utils/newModelConstants';
+import { AmenityIncomeBasic, ExpensesBasic, ExpensesBasicDevelopment, ExpensesIndustrial, GrowthRatesBasic, GrowthRatesDevelopment, MarketRentAssumptionsBasic, OperatingExpensesBasic, OperatingExpensesBasicDevelopment, FIELD_TITLE_CONSTANTS } from '../utils/newModelConstants';
 import { Expenses } from '../components/Expenses';
 import { Expense } from '../utils/interface';
 import AcquisitionFinancingSection from '../components/AcquisitionFinancingSection';
@@ -189,6 +189,9 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
   const setSelectedModelType = setSelectedModelTypeId;
 
   const introStepComplete = modelCreationStarted || !!existingModel;
+  const exitAssumptionsNumUnits = selectedModelTypeInfo?.development_model
+    ? developmentUnits.reduce((sum, row) => sum + Number(row.units || 0), 0)
+    : units.length;
 
   useEffect(() => {
     setHideMainSidebar(introStepComplete);
@@ -314,6 +317,33 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
       // Default growth rates for development models (do not override existing model pulls)
       if (!existingModel) {
         setGrowthRates(GrowthRatesDevelopment);
+      }
+    }
+    else if(selectedModelTypeInfo?.show_rental_units && !selectedModelTypeInfo?.show_retail) {
+
+      if(!existingModel){
+        setExpenses(ExpensesBasic);
+        setOperatingExpenses(prev => prev.length > 0 ? prev : OperatingExpensesBasic);
+      }
+      setSteps(
+        [
+          "Property Address",
+          "General Property Assumptions",
+          "Residential Rental Units",
+          "Market Rent Assumptions",
+          // "Retail Income",
+          "Amenity Income",
+          "Operating Expenses",
+          "Net Operating Income",
+          "Acquisition Financing",
+          "Leasing Assumptions",
+          "Refinancing",
+          ...EXPENSE_STEPS,
+          "Exit Assumptions"
+        ]
+      )
+      if (!existingModel) {
+        setGrowthRates(GrowthRatesBasic);
       }
     }
     else if (selectedModelTypeInfo?.show_retail && !selectedModelTypeInfo?.development_model) {
@@ -493,6 +523,17 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
         }
         data.google_sheet_url = '';
         console.log("EXISTING MODEL GEN")
+
+        if (data.model_type?.development_model) {
+          data.user_model_field_values.forEach((fieldValue: any) => {
+            if (fieldValue.field_key === "Asking Price") {
+              fieldValue.field_title = FIELD_TITLE_CONSTANTS.ASKING_PRICE_LAND;
+            } else if (fieldValue.field_key === "Acquisition Price") {
+              fieldValue.field_title = FIELD_TITLE_CONSTANTS.ACQUISITION_VALUE_LAND;
+            }
+          });
+        }
+
         generateGoogleSheet(data.model_type.id);
         setModelDetails(data);
         setMarketRentAssumptions(data.market_rent_assumptions);
@@ -678,33 +719,41 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
           return;
         }
 
-    
-
         setFinalMetricsCalculating(true);
         const token = await getAccessTokenSilently();
-        const response = await fetch(BACKEND_URL + '/api/user_models_single_field_updates', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ updates: toSend, variable_mapping: variableMappingRef.current, model_mapping: modelMappingRef.current, google_sheet_url: googleUrlRef.current })
-        });
-        const result = await response.json();
- 
-         if (result.result) {
-           setLeveredIrr(result.result.levered_irr);
-           setLeveredMoic(result.result.levered_moic);
-           setVariables(result.result.variables);
-           setNoiTableValues(result.result.NOI || []);
-           setFinalMetricsCalculating(false);
-         }
-         // Clear the queue we just sent (avoid clearing if new items arrived during send)
-         setUpdatesPending((prev) => {
-           // Drop the items that were in toSend; keep any that arrived after we started sending
-           const sentKeys = new Set(toSend.map((u: any) => u.field_id || u.field_key));
-           return prev.filter((u: any) => !sentKeys.has(u.field_id || u.field_key));
-         });
+        const payload = { updates: toSend, variable_mapping: variableMappingRef.current, model_mapping: modelMappingRef.current, google_sheet_url: googleUrlRef.current, development_model: selectedModelTypeInfo?.development_model === true };
+
+        const doRequest = async (retry = false): Promise<{ ok: boolean; result?: any }> => {
+          const res = await fetch(BACKEND_URL + '/api/user_models_single_field_updates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (res.ok && data.result) return { ok: true, result: data.result };
+          if (!res.ok && retry) return { ok: false };
+          if (!res.ok && !retry) {
+            await new Promise((r) => setTimeout(r, 2000));
+            return doRequest(true);
+          }
+          return { ok: false };
+        };
+
+        try {
+          const { ok, result: resResult } = await doRequest();
+          if (ok && resResult) {
+            setLeveredIrr(resResult.levered_irr);
+            setLeveredMoic(resResult.levered_moic);
+            setVariables(resResult.variables);
+            setNoiTableValues(resResult.NOI || []);
+            setUpdatesPending((prev) => {
+              const sentKeys = new Set(toSend.map((u: any) => u.field_id || u.field_key));
+              return prev.filter((u: any) => !sentKeys.has(u.field_id || u.field_key));
+            });
+          }
+        } finally {
+          setFinalMetricsCalculating(false);
+        }
        }
        else {
          // Not ready; the update is already queued by enqueueUpdate
@@ -721,6 +770,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     fieldType?: string // <-- optionally pass fieldType if available
   ) => {
 
+    console.log("handleFieldChange", fieldId, field_key, value, isTimePhased, timeField, fieldType);
   // Preserve leading zero for decimals like 0.25; only strip for integers like 01
   if (typeof value === 'string' && value.length > 1 && value.startsWith('0') && value[1] !== '.') {
     value = value.slice(1);
@@ -750,7 +800,9 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
       }
 
       const existingFieldIndex = prevDetails.user_model_field_values.findIndex(
-        (fieldValue: any) => fieldValue.field_id === fieldId
+        (fieldValue: any) =>
+          (fieldId && fieldValue.field_id === fieldId) ||
+          (!fieldId && fieldValue.field_key === field_key)
       );
       let updatedFieldValues;
       if (existingFieldIndex !== -1) {
@@ -777,23 +829,34 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
       if (selectedModelTypeInfo && selectedModelTypeInfo.sections) {
 
         const section = selectedModelTypeInfo.sections.find((section: any) =>
-          section.fields.some((f: any) => f.id === fieldId)
+          section.fields.some((f: any) => f.id === fieldId || f.field_key === field_key)
         );
-
+        console.log("selectedModelTypeInfo", selectedModelTypeInfo);
+        console.log("fieldId", fieldId);
+        console.log("field_key", field_key);
+        console.log("selectedModelTypeInfo.sections", selectedModelTypeInfo.sections);
+        console.log("section", section);
         if (section) {
 
-          let sectionFieldType = section.fields.find((f: any) => f.id === fieldId)?.field_type;
+          let sectionFieldType = section.fields.find(
+            (f: any) => f.id === fieldId || f.field_key === field_key
+          )?.field_type;
           let updateObject = { ...updatedFieldValues.find((field: any) => field.field_key === field_key) };
           updateObject["field_type"] = sectionFieldType;
           updateObject["section"] = section.name;
 
           // Only call handleSingleFieldUpdate if this is a real field change (not during re-render)
           // Check if the value actually changed from the previous value
-          const existingField = prevDetails.user_model_field_values.find((fv: any) => fv.field_id === fieldId);
+          const existingField = prevDetails.user_model_field_values.find(
+            (fv: any) =>
+              (fieldId && fv.field_id === fieldId) ||
+              (!fieldId && fv.field_key === field_key)
+          );
           const valueChanged = !existingField || existingField.value !== processedValue;
+          console.log("valueChanged", valueChanged);
 
           if (section.name !== "General Property Assumptions" && section.name !== "Retail Leasing Assumptions" && valueChanged) {
-          
+            console.log("updateObject", updateObject);
             handleSingleFieldUpdate(updateObject);
           }
 
@@ -844,6 +907,20 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
             credentials: 'include',
           });
           const data = await res.json();
+
+          if (data.development_model) {
+            data.sections.forEach((section: any) => {
+              if (section.name === "General Property Assumptions") {
+                section.fields.forEach((field: any) => {
+                  if (field.field_key === "Asking Price") {
+                    field.field_title = FIELD_TITLE_CONSTANTS.ASKING_PRICE_LAND;
+                  } else if (field.field_key === "Acquisition Price") {
+                    field.field_title = FIELD_TITLE_CONSTANTS.ACQUISITION_VALUE_LAND;
+                  }
+                });
+              }
+            });
+          }
 
           setSelectedModelTypeInfo(data);
           interface FieldValue {
@@ -953,7 +1030,13 @@ const isStepComplete = (step: number) => {
       );
     }
     else if (steps[activeStep] === "Rent Assumptions") {
-      return developmentUnits.every((unit) => unit.unit_type && unit.avg_sf && unit.units && unit.avg_rent);
+      if (selectedModelTypeInfo?.development_model) {
+        if (developmentUnits.length === 0) {
+          return false;
+        }
+        return developmentUnits.every((unit) => unit.unit_type && unit.avg_sf && unit.units && unit.avg_rent);
+
+      }
     }
     else if (activeStep === steps.indexOf("Market Rent Assumptions")) {
       return (
@@ -1398,7 +1481,7 @@ const isStepComplete = (step: number) => {
       const resp = await fetch(BACKEND_URL + '/api/user_models_single_field_updates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ updates: toSend, variable_mapping: variableMappingRef.current, model_mapping: modelMappingRef.current, google_sheet_url: googleUrlRef.current })
+        body: JSON.stringify({ updates: toSend, variable_mapping: variableMappingRef.current, model_mapping: modelMappingRef.current, google_sheet_url: googleUrlRef.current, development_model: selectedModelTypeInfo?.development_model === true })
       });
       const result = await resp.json();
       if (result.result) setFinalMetricsCalculating(false);
@@ -2268,7 +2351,8 @@ retailExpenses={expenses.filter((expense: any) => expense.type === "Retail")} />
       showRetail={selectedModelTypeInfo?.show_retail}
       showRentalUnits={selectedModelTypeInfo?.show_rental_units}
       variables={variables}
-      numUnits={units?.length || 0}
+      numUnits={exitAssumptionsNumUnits}
+      developmentModel={selectedModelTypeInfo?.development_model}
     />
   </Box>
 )}

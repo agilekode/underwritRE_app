@@ -563,7 +563,7 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
     const dataRows = rowsIn.map((r: any) => {
       const avgSf = Number(r?.avg_sf || 0);
       const units = Number(r?.units || 0);
-      const avgRent = Number(r?.avg_rent || 0);
+      const avgRent = Number(r?.avg_rent || 0) / 12;
       const totalSf = Math.max(0, Math.round(avgSf * units));
       const monthlyRent = Math.max(0, Math.round(avgRent * units));
       const annualRent = monthlyRent * 12;

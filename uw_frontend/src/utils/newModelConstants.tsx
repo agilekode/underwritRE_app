@@ -1,3 +1,8 @@
+export const FIELD_TITLE_CONSTANTS = {
+  ASKING_PRICE_LAND: "Asking Price of Land",
+  ACQUISITION_VALUE_LAND: "Acquisition / Value of Land"
+};
+
 export const OperatingExpensesBasic = [
     { id: '1', name: 'Property Taxes', factor: 0, broker: 0, cost_per: 'Per unit' },
     { id: '2', name: 'Insurance', factor: 0, broker: 0, cost_per: 'Per unit' },
