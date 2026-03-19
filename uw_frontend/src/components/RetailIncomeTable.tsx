@@ -461,7 +461,7 @@ const RetailIncomeTable: React.FC<{
             ${totalMonthlyRent.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </Box>
           <Box sx={{ textAlign: 'right' }}>
-            <Box component="span" sx={{ fontWeight: 600 }}>Total Annual Rent:</Box> ${totalAnnualRent.toLocaleString()}
+            <Box component="span" sx={{ fontWeight: 600 }}>Total Annual Rent:</Box> ${totalAnnualRent.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </Box>
         </Box>
       </Box>

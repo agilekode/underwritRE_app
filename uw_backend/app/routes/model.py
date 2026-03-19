@@ -1066,12 +1066,13 @@ def user_models_single_field_update():
             copied_sheet_id=sheet_id,
             mapped_values=data.get('updates'),
             model_mapping=data.get('model_mapping'),
-            variable_mapping=data.get('variable_mapping')
+            variable_mapping=data.get('variable_mapping'),
+            development_model=data.get('development_model', False)
         )
 
 
 
-        print("result", result)
+        # print("result", result)
         print(f"🔄 Linked user and model_type to user_model.")
 
         return jsonify({"result": result}), 201

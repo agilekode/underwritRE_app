@@ -21,6 +21,7 @@ from openpyxl import load_workbook
 import google.auth.transport.requests
 import requests
 from gspread.utils import a1_to_rowcol, rowcol_to_a1
+from gspread_formatting import CellFormat, NumberFormat, format_cell_range
 
 load_dotenv()
 
@@ -41,6 +42,14 @@ SCOPES = [
 PARENT_FOLDER_ID = os.getenv("GOOGLE_PARENT_FOLDER_ID")
 PARENT_FOLDER_ID = '14dBWRN-2ItiRLRy9HWfy1U3oF_p7MzPt'
 # PARENT_FOLDER_ID = '1xoc6MuOW8ULr3PIucwoEhG0hwpWeIxdk'
+
+# Long-timeout transport for Sheets API (avoids "read operation timed out" on batchGet)
+SHEETS_LONG_TIMEOUT_TRANSPORT = None
+
+def _set_sheets_long_timeout_transport(transport):
+    global SHEETS_LONG_TIMEOUT_TRANSPORT
+    SHEETS_LONG_TIMEOUT_TRANSPORT = transport
+
 # Determine environment: Use local creds if file is specified, otherwise use default (Cloud Run, GCP, etc.)
 try:
     if SERVICE_ACCOUNT_FILE and os.path.exists("./" + SERVICE_ACCOUNT_FILE):
@@ -119,10 +128,50 @@ try:
                 
         def close(self):
             self.session.close()
-    
+
+    # Transport with configurable timeout for long-running Sheets batchGet (many ranges)
+    class RequestsTransportWithTimeout:
+        def __init__(self, credentials, timeout_seconds=180):
+            self._session = AuthorizedSession(credentials)
+            self._session.verify = True
+            self._timeout = timeout_seconds
+            adapter = requests.adapters.HTTPAdapter(
+                pool_connections=10,
+                pool_maxsize=10,
+                max_retries=urllib3.Retry(
+                    total=3,
+                    backoff_factor=0.5,
+                    status_forcelist=[500, 502, 503, 504]
+                )
+            )
+            self._session.mount('https://', adapter)
+            self._session.mount('http://', adapter)
+
+        def request(self, uri, method="GET", **kwargs):
+            try:
+                requests_kwargs = {}
+                if 'body' in kwargs:
+                    requests_kwargs['data'] = kwargs.pop('body')
+                if 'headers' in kwargs:
+                    requests_kwargs['headers'] = kwargs.pop('headers')
+                requests_kwargs.setdefault('timeout', self._timeout)
+                requests_kwargs.update(kwargs)
+                response = self._session.request(method, uri, **requests_kwargs)
+                class ResponseObject:
+                    def __init__(self, status_code):
+                        self.status = status_code
+                        self.reason = "OK" if status_code == 200 else "Error"
+                return ResponseObject(response.status_code), response.content
+            except Exception as e:
+                raise Exception(f"Request failed: {str(e)}")
+
+        def close(self):
+            self._session.close()
+
     # Create our custom transport
     custom_transport = RequestsTransport(creds)
-    
+    _set_sheets_long_timeout_transport(RequestsTransportWithTimeout(creds, timeout_seconds=180))
+
     # Test the credentials by building the services with custom transport
     gs_client = gspread.authorize(creds)
     
@@ -291,6 +340,15 @@ def update_copied_sheet_values(sheet_id, mapped_values, df):
                 }
             )
             print(f"✅ Batch updated {len(updates)} cells in '{sheet_name}'")
+            
+            if sheet_name == "Retail Assumptions":
+                fmt = CellFormat(
+                    numberFormat=NumberFormat(type="NUMBER", pattern='0.0 "year"')
+                )
+                wks = copied_sheet.worksheet(sheet_name)
+                format_cell_range(wks, 'D26', fmt)
+                format_cell_range(wks, 'E26', fmt)
+                print(f"📝 Applied 'year' suffix formatting to {sheet_name}!D26")
         except Exception as e:
             print(f"❌ Failed batch update for sheet '{sheet_name}': {e}")
 
@@ -803,18 +861,21 @@ def extract_tables_for_storage_batch(sheet_id, table_mapping_data, sheets_servic
     output.sort(key=lambda x: x.get("table_order") if isinstance(x.get("table_order"), int) else float("inf"))
     return output
 
+# Transient/incomplete recalculation only; #NUM! is a valid formula result (e.g. IRR no solution) and does not trigger retry
+STALE_INDICATORS = ['#REF!', '#N/A', '#VALUE!', '#ERROR!', '#NAME?']
+
+
 def _has_stale_values(variables):
     """Check if any extracted variables contain signs of incomplete Google Sheets recalculation."""
-    STALE_INDICATORS = ['#REF!', '#N/A', '#VALUE!', '#ERROR!', '#NAME?', '#DIV/0!', '#NUM!', 'Loading...']
     KEY_VARIABLES = ['Levered IRR', 'Levered MOIC']
     for key in KEY_VARIABLES:
         val = variables.get(key, '')
-        if not val or val in STALE_INDICATORS:
+        if not val or (isinstance(val, str) and val in STALE_INDICATORS):
             return True
         # MOIC of exactly "0.00x" with a stale IRR is a sign of incomplete recalculation
         if key == 'Levered MOIC' and val in ['0.00x', '0.00', '0']:
             irr_val = variables.get('Levered IRR', '')
-            if not irr_val or irr_val in STALE_INDICATORS:
+            if not irr_val or (isinstance(irr_val, str) and irr_val in STALE_INDICATORS):
                 return True
     for val in variables.values():
         if isinstance(val, str) and val in STALE_INDICATORS:
@@ -822,7 +883,21 @@ def _has_stale_values(variables):
     return False
 
 
-def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service, max_retries=3):
+def _get_stale_variables(variables):
+    """Return dict of variable names -> values that are considered stale (for logging)."""
+    stale = {
+        k: v for k, v in variables.items()
+        if isinstance(v, str) and (v in STALE_INDICATORS or v == '')
+    }
+    # Include key variables if missing/empty so log is never misleadingly empty
+    for key in ['Levered IRR', 'Levered MOIC']:
+        val = variables.get(key, '')
+        if not val or (isinstance(val, str) and val in STALE_INDICATORS):
+            stale[key] = variables.get(key, '(missing)')
+    return stale
+
+
+def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service, max_retries=3, development_model=False):
     """
     Extracts variables from a Google Sheet in batch, minimizing API calls for speed.
     - If a variable location is a literal, it's used directly.
@@ -832,6 +907,10 @@ def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service, 
     variables = {}
     ranges = []
     location_map = {}
+
+    # if development_model:
+    #     print("ENABLING ITERATIVE CALCULATION - lowering max")
+    #     enable_iterative_calculation(sheet_id, max_iterations=10, threshold=1)
 
     # Preprocess: collect all ranges and literals in one pass
     for entry in variable_data:
@@ -866,15 +945,17 @@ def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service, 
             for name in location_map[loc]:
                 variables.pop(name, None)
 
-        # Batch get all ranges
-        CHUNK_SIZE = 100
+        # Batch get all ranges (smaller chunks reduce per-request time and avoid read timeouts)
+        CHUNK_SIZE = 30
         for i in range(0, len(ranges), CHUNK_SIZE):
             chunk = ranges[i:i+CHUNK_SIZE]
+            print("ABOUT TO GET CHUNK")
             result = sheets_service.spreadsheets().values().batchGet(
                 spreadsheetId=sheet_id,
                 ranges=chunk,
                 valueRenderOption='FORMATTED_VALUE'
             ).execute()
+            print("GOT CHUNK")
             for j, value_range in enumerate(result.get("valueRanges", [])):
                 cell_location = chunk[j]
                 names = location_map.get(cell_location, [])
@@ -887,15 +968,55 @@ def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service, 
         if not _has_stale_values(variables):
             print(f"[extract_variables] All values look valid on attempt {attempt + 1}")
             break
-        elif attempt < max_retries:
-            stale = {k: v for k, v in variables.items() if isinstance(v, str) and (
-                v in ['#REF!', '#N/A', '#VALUE!', '#ERROR!', '#NAME?', '#DIV/0!', 'Loading...'] or v == ''
-            )}
+        stale = _get_stale_variables(variables)
+        if attempt < max_retries:
             print(f"[extract_variables] Stale values detected: {stale}. Retrying...")
         else:
-            print(f"[extract_variables] WARNING: Still have stale values after {max_retries + 1} attempts. Proceeding with current values.")
+            print(f"[extract_variables] WARNING: Still have stale values after {max_retries + 1} attempts: {stale}. Proceeding with current values.")
+
+
 
     return variables
+
+# def extract_variables_from_sheet_batch(sheet_id, variable_data, sheets_service, max_retries=3):
+#     """
+#     Reads variable names and values directly from the 'Variable Mapping' sheet.
+#     One API call: column A = variable name, column B = value (formatted). No location lookups, no stale detection.
+
+#     WHY THIS IS SLOW (even when "variables aren't changing"):
+#     Variable Mapping column B contains FORMULAS (=Assumptions!G24, =Cover!K29, etc.) that reference other sheets.
+#     With valueRenderOption='FORMATTED_VALUE', the API returns the *calculated* value of each cell. To do that,
+#     Google Sheets must RECALCULATE the entire workbook (or all formula dependencies) before responding.
+#     So the delay is Google recalculating the workbook after our writes, not "reading a static table".
+#     """
+#     variables = {}
+#     try:
+#         t0 = time.time()
+#         result = sheets_service.spreadsheets().values().get(
+#             spreadsheetId=sheet_id,
+#             range="'Variable Mapping'",
+#             valueRenderOption='FORMATTED_VALUE'
+#         ).execute()
+#         rows = result.get('values', [])
+#         elapsed = time.time() - t0
+#         print(f"[extract_variables] Variable Mapping get: {elapsed:.2f}s")
+#     except Exception as e:
+#         print(f"[extract_variables] Failed to read Variable Mapping sheet: {e}")
+#         return variables
+#     if not rows:
+#         return variables
+#     # Row 0 = header; data rows: col 0 = variable name, col 1 = value
+#     for row in rows[1:]:
+#         if not row:
+#             continue
+#         name = row[0].strip() if len(row) > 0 and row[0] else None
+#         if not name:
+#             continue
+#         value = row[1] if len(row) > 1 else ""
+#         if value is None:
+#             value = ""
+#         variables[name] = value
+#     return variables
 
 def get_market_rent_insert_ops(market_ws, market_json, rental_assumptions_json, sheet_name="Market Rent Assumptions", rental_sheet_name="Rental Assumptions"):
     market_start_row = 5
@@ -2668,7 +2789,8 @@ def get_noi_summary_row_update_payload(
     noi_start_row=10,
     noi_sheet="NOI",
     walk_sheet="NOI Walk",
-    year_row=14
+    year_row=14,
+    noi_year_row=4
 ):
     all_rows = []
 
@@ -2682,7 +2804,7 @@ def get_noi_summary_row_update_payload(
             formula = (
                 f"=SUMIFS('{walk_sheet}'!$E{walk_row}:$CW{walk_row},"
                 f"'{walk_sheet}'!$E${year_row}:$CW${year_row},"
-                f"{noi_sheet}!{col_letter}$4)"
+                f"{noi_sheet}!{col_letter}${noi_year_row})"
             )
             row.append(formula)
 
@@ -3415,7 +3537,8 @@ def get_noi_expense_rows_insert_and_update(
     noi_base_row=13,
     noi_sheet="NOI",
     walk_sheet="NOI Walk",
-    year_row=13
+    year_row=13, 
+    noi_year_row=4
 ):
     num_rows = len(expenses_json)
     noi_start_row = noi_base_row + len(amenity_income_json)
@@ -3474,7 +3597,7 @@ def get_noi_expense_rows_insert_and_update(
             formula = (
                 f"=SUMIFS('{walk_sheet}'!$E{walk_row}:$CW{walk_row},"
                 f"'{walk_sheet}'!$E${year_row}:$CW${year_row},"
-                f"{noi_sheet}!{col_letter}$4)"
+                f"{noi_sheet}!{col_letter}${noi_year_row})"
             )
             row.append(formula)
 
@@ -6287,11 +6410,12 @@ def get_development_rental_requests(spreadsheet, development_units_json, sheet_n
         i_sum = f"=SUM(I2:I{end_row})"
         j_sum = f"=SUM(J2:J{end_row})"
         f_cell = f"F{totals_row}"
+        i_cell = f"I{totals_row}"
         e_cell = f"E{totals_row}"
         j_cell = f"J{totals_row}"
         d_sum = f"=IF({e_cell}>0,{f_cell}/{e_cell},0)"
         g_psf = f"=IF({f_cell}>0,{j_cell}/{f_cell},0)"
-        h_avg = f"=IF({e_cell}>0,{j_cell}/{e_cell},0)"
+        h_avg = f"=IF({e_cell}>0,{i_cell}/{e_cell},0)"
     else:
         d_sum = "0"; e_sum = "0"; f_sum = "0"; i_sum = "0"; j_sum = "0"; g_psf = "0"; h_avg = "0"
 
@@ -6567,11 +6691,11 @@ def run_full_sheet_update(
 
         if development_model:
             noi_expense_insert, noi_expense_update, noi_expense_reset_format = get_noi_expense_rows_insert_and_update(
-                spreadsheet, operating_expenses_json, amenity_income_json, walk_start_row=29, year_row=11
+                spreadsheet, operating_expenses_json, amenity_income_json, walk_start_row=29, year_row=11, noi_base_row=14, noi_year_row=5
             )
         else:
             noi_expense_insert, noi_expense_update, noi_expense_reset_format = get_noi_expense_rows_insert_and_update(
-                spreadsheet, operating_expenses_json, amenity_income_json, year_row=13
+                spreadsheet, operating_expenses_json, amenity_income_json, year_row=14
             )
 
 
@@ -6663,6 +6787,7 @@ def run_full_sheet_update(
             if development_model:
                 inflation_factor_row = 13
                 month_row = 16
+                
             else:
                 inflation_factor_row = 10
                 month_row = 15
@@ -6671,10 +6796,12 @@ def run_full_sheet_update(
             )
         if development_model:
             year_row = 11
+            noi_year_row = 5
         else:
             year_row = 14
+            noi_year_row = 4
         noi_summary_update = get_noi_summary_row_update_payload(
-            num_rows=len(amenity_income_json), walk_start_row=noi_walk_amenity_start_row, noi_start_row=noi_amenity_start_row, year_row=year_row
+            num_rows=len(amenity_income_json), walk_start_row=noi_walk_amenity_start_row, noi_start_row=noi_amenity_start_row, year_row=year_row, noi_year_row=noi_year_row
     )
         print(f"[run_full_sheet_update] amenity_income_update ops:{len(amenity_income_update)} amenity_income_totals_update ops:{len(amenity_income_totals_update)} "
               f"amenity_income_format ops:{len(amenity_income_format)} amenity_income_formula_update ops:{len(amenity_income_formula_update)} "
@@ -6979,10 +7106,14 @@ def run_full_sheet_update(
     # === Run all operations ===
     spreadsheet.batch_update({"requests": insert_requests + format_requests})
     # spreadsheet.batch_update({"requests": insert_requests})
+
+
     if development_model:
-        enable_iterative_calculation(spreadsheet.id, max_iterations=200)
+        enable_iterative_calculation(spreadsheet.id, max_iterations=10)
 
     spreadsheet.values_batch_update({"valueInputOption": "USER_ENTERED", "data": update_payloads})
+
+
     print("✅ All inserts and updates applied.")
 
 
@@ -7071,7 +7202,7 @@ def update_google_sheet_and_get_values(
 
     # Step 4: Extract variables (retry logic handles recalculation timing)
     t6 = time.time()
-    variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service)
+    variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service, development_model=development_model)
     t7 = time.time()
     timings['extract_variables'] = t7 - t6
     print(f"📈 Extracted variables: {variables} in {timings['extract_variables']:.3f}s")
@@ -7175,7 +7306,7 @@ def update_google_sheet_and_get_values_intermediate(
     print(f"✅ Full sheet update complete in {timings['run_full_sheet_update']:.3f}s")
     # Step 4: Extract variables
     t6 = time.time()
-    variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service)
+    variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service, development_model=development_model)
     t7 = time.time()
     timings['extract_variables'] = t7 - t6
     print(f"📈 Extracted variables: {variables} in {timings['extract_variables']:.3f}s")
@@ -7230,14 +7361,20 @@ def update_google_sheet_field_values_and_get_values(
     copied_sheet_id,
     mapped_values,
     model_mapping,
-    variable_mapping
+    variable_mapping,
+    development_model=False
 ):
     print("📤 Starting update_google_sheet_field_values_and_get_value workflow...")
     timings = {}
 
     # Convert model_mapping (list of dicts) back to DataFrame
     model_mapping_df = pd.DataFrame(model_mapping)
-    sheets_service = build("sheets", "v4", credentials=creds)
+    # Use long-timeout transport to avoid "read operation timed out" on batchGet with many ranges
+    sheets_service = (
+        build("sheets", "v4", http=SHEETS_LONG_TIMEOUT_TRANSPORT)
+        if SHEETS_LONG_TIMEOUT_TRANSPORT
+        else build("sheets", "v4", credentials=creds)
+    )
 
     df = model_mapping_df
     variable_data = variable_mapping
@@ -7252,7 +7389,7 @@ def update_google_sheet_field_values_and_get_values(
     print("🚀 Running full sheet data inserts/formulas --- update_google_sheet_field_values_and_get_value...")
     # Step 4: Extract variables
     t6 = time.time()
-    variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service)
+    variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service, development_model=development_model)
     t7 = time.time()
     timings['extract_variables'] = t7 - t6
     # Fetch NOI sheet values and record timing
@@ -7333,6 +7470,42 @@ def add_blank_row_and_column_to_sheets(spreadsheet, sheet_names):
                 "fields": "pixelSize"
             }
         })
+        # White background for the new row (row 0)
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": 1000
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "backgroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0}
+                    }
+                },
+                "fields": "userEnteredFormat.backgroundColor"
+            }
+        })
+        # White background for the new column (column A)
+        requests.append({
+            "repeatCell": {
+                "range": {
+                    "sheetId": sheet_id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1000,
+                    "startColumnIndex": 0,
+                    "endColumnIndex": 1
+                },
+                "cell": {
+                    "userEnteredFormat": {
+                        "backgroundColor": {"red": 1.0, "green": 1.0, "blue": 1.0}
+                    }
+                },
+                "fields": "userEnteredFormat.backgroundColor"
+            }
+        })
     if requests:
         spreadsheet.batch_update({"requests": requests})
 
@@ -7356,6 +7529,10 @@ def update_google_sheet_and_get_values_final(
 
     spreadsheet = gs_client.open_by_key(copied_sheet_id)
 
+    if development_model:
+        print("ENABLING ITERATIVE CALCULATION - raising max")
+        enable_iterative_calculation(copied_sheet_id, max_iterations=100, threshold=0.05)
+
     # Step 1: Fetch mapping sheets BEFORE any structural changes
     print("📊 Fetching mapping sheets...")
     result = sheets_service.spreadsheets().values().batchGet(
@@ -7366,7 +7543,7 @@ def update_google_sheet_and_get_values_final(
         ],
         valueRenderOption='FORMULA'
     ).execute()
-    print("RESULT", result)
+    # print("RESULT", result)
     table_mapping_values = result['valueRanges'][0].get('values', [])
     variable_mapping_values = result['valueRanges'][1].get('values', [])
 
@@ -7376,7 +7553,7 @@ def update_google_sheet_and_get_values_final(
     # Step 2: Extract variables BEFORE inserting blank rows/columns
     # (the blank row/column insertion shifts cell references and temporarily breaks formulas)
     t6 = time.time()
-    variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service)
+    variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service, development_model=development_model)
     t7 = time.time()
     timings['extract_variables'] = t7 - t6
     print(f"📈 Extracted variables: {variables} in {timings['extract_variables']:.3f}s")
@@ -7564,6 +7741,8 @@ def insert_expense_rows_to_sheet(spreadsheet, sheet_name, expenses):
     print(f"✅ Inserted {len(rows_to_insert)} expense rows into '{sheet_name}' and updated total row.")
 
 def update_user_model_expense_table(copied_sheet_id, sheet_name, expenses, development_model=False):
+    if sheet_name == "Legal and Pre-Development Costs":
+        sheet_name = "Legal and Setup Costs"
     spreadsheet = gs_client.open_by_key(copied_sheet_id)
     
     # Clear existing rows between header and total row
@@ -7609,6 +7788,8 @@ def clear_expense_table_rows(spreadsheet, sheet_name):
     Clears all rows in each given sheet from the header row through the row containing
     'Total <Sheet Name>' in column A. Leaves only the header row and the total row.
     """
+    if sheet_name == "Legal and Pre-Development Costs":
+        sheet_name = "Legal and Setup Costs"
 
     try:
         ws = spreadsheet.worksheet(sheet_name)
@@ -8352,11 +8533,10 @@ def get_noi_walk_egi_row_update_payload_development(
         col_index = start_col + j
         col_letter = rowcol_to_a1(1, col_index).replace("1", "")
         formula = (
-            f"=SUM({col_letter}{amenity_start_row}:{col_letter}{amenity_end_row + 2},{col_letter}22)"
-            f"+IF({col_letter}16>=$C$5,0)"
+            f"=SUM({col_letter}{amenity_start_row}:{col_letter}{amenity_end_row + 1},{col_letter}22)"
         )
         row_formulas.append(formula)
-
+        #  f"+IF({col_letter}16>=$C$5,0)"
     start_col_letter = rowcol_to_a1(1, start_col).replace("1", "")
     end_col_letter = rowcol_to_a1(1, start_col + num_months - 1).replace("1", "")
 
