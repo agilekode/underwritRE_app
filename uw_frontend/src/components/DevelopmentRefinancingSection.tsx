@@ -10,6 +10,9 @@ import {
   CardContent,
   CardHeader,
   InputAdornment,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from "@mui/material";
 import { NumberInput, PercentageInput, YearsInput } from './NumberInput';
 import { InfoBox } from './StandardLayout';
@@ -36,7 +39,7 @@ const SectionHeader = ({ title, description }: { title: string; description: str
       mb: 2,
     }}
   >
-    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: colors.grey[900] }}>
+    <Typography variant="h6" sx={{ fontWeight: 700, color: colors.grey[900] }}>
       {title}
     </Typography>
     <Typography
@@ -505,91 +508,97 @@ export function LtvCalculationColumn({ modelDetails, handleFieldChange, variable
   }, [ltvMax]);
 
   return (
-    <Card sx={{ borderRadius: 2, border: `1px solid ${colors.grey[300]}`, boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', width: '100%', backgroundColor: colors.white }}>
-      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
-        <InlineHeader
-          title="LTV Calculation"
-          description="Calculate loan based on property value"
-        />
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
-            gap: 2,
-            alignItems: 'stretch',
-          }}
-        >
-          <TextField
-            label="Applied Cap Rate for Valuation at Refi"
-            type="text"
-            inputMode="decimal"
-            className="no-spinner"
-            value={appliedCapRate}
-            onChange={e => setAppliedCapRate(e.target.value)}
-            size="small"
-            fullWidth
-            InputProps={{
-              endAdornment: <InputAdornment position="end">%</InputAdornment>
-            }}
-          />
-          <Box
-            sx={{
-              border: `1px solid ${colors.grey[300]}`,
-              borderRadius: 1,
-              px: 1.5,
-              py: 0.25,
-              backgroundColor: colors.grey[50],
-              minHeight: 34,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-              Implied Valuation
+    <Accordion defaultExpanded sx={{ borderRadius: 2, border: `1px solid ${colors.grey[300]}`, boxShadow: 'none', '&:before': { display: 'none' } }}>
+      <AccordionSummary expandIcon={<Typography>▼</Typography>}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>LTV Calculation</Typography>
+      </AccordionSummary>
+      <AccordionDetails sx={{ p: 0 }}>
+        <Card sx={{ border: 'none', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', width: '100%', backgroundColor: colors.white }}>
+          <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
+            <Typography variant="body2" sx={{ color: colors.grey[600], lineHeight: 1.4 }}>
+              Calculate loan based on property value
             </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-              {(() => {
-                const rawNoi = variables?.["Refi: Annualized NOI in Month"];
-                const noi =
-                  typeof rawNoi === "number"
-                    ? rawNoi
-                    : Number(String(rawNoi ?? "").replace(/[^0-9.-]/g, "")) || 0;
-                let rate =
-                  typeof appliedCapRate === "number"
-                    ? appliedCapRate
-                    : Number(String(appliedCapRate ?? "").replace(/[^0-9.-]/g, "")) || 0;
-                if (rate > 0) rate = rate / 100;
-                if (!isFinite(noi) || !isFinite(rate) || rate <= 0) return "-";
-                const implied = noi / rate;
-                return formatCurrency(implied);
-              })()}
-            </Typography>
-          </Box>
-          <TextField
-            label="LTV Max"
-            type="text"
-            inputMode="decimal"
-            className="no-spinner"
-            value={ltvMax}
-            onChange={e => setLtvMax(e.target.value)}
-            size="small"
-            fullWidth
-            InputProps={{
-              endAdornment: <InputAdornment position="end">%</InputAdornment>
-            }}
-          />
-        </Box>
-        <Box sx={{ mt: 1, pt: 2, borderTop: `1px solid ${colors.grey[300]}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography fontWeight={700}>Max LTV Loan:</Typography>
-          <Typography fontWeight={900} fontSize="1.2rem">
-            {variables && "Refi: LTV calculation" in variables
-              ? formatCurrencySafe(variables["Refi: LTV calculation"])
-              : "�"}
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+                gap: 2,
+                alignItems: 'stretch',
+              }}
+            >
+              <TextField
+                label="Applied Cap Rate for Valuation at Refi"
+                type="text"
+                inputMode="decimal"
+                className="no-spinner"
+                value={appliedCapRate}
+                onChange={e => setAppliedCapRate(e.target.value)}
+                size="small"
+                fullWidth
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">%</InputAdornment>
+                }}
+              />
+              <Box
+                sx={{
+                  border: `1px solid ${colors.grey[300]}`,
+                  borderRadius: 1,
+                  px: 1.5,
+                  py: 0.25,
+                  backgroundColor: colors.grey[50],
+                  minHeight: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Implied Valuation
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  {(() => {
+                    const rawNoi = variables?.["Refi: Annualized NOI in Month"];
+                    const noi =
+                      typeof rawNoi === "number"
+                        ? rawNoi
+                        : Number(String(rawNoi ?? "").replace(/[^0-9.-]/g, "")) || 0;
+                    let rate =
+                      typeof appliedCapRate === "number"
+                        ? appliedCapRate
+                        : Number(String(appliedCapRate ?? "").replace(/[^0-9.-]/g, "")) || 0;
+                    if (rate > 0) rate = rate / 100;
+                    if (!isFinite(noi) || !isFinite(rate) || rate <= 0) return "-";
+                    const implied = noi / rate;
+                    return formatCurrency(implied);
+                  })()}
+                </Typography>
+              </Box>
+              <TextField
+                label="LTV Max"
+                type="text"
+                inputMode="decimal"
+                className="no-spinner"
+                value={ltvMax}
+                onChange={e => setLtvMax(e.target.value)}
+                size="small"
+                fullWidth
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">%</InputAdornment>
+                }}
+              />
+            </Box>
+            <Box sx={{ mt: 1, pt: 2, borderTop: `1px solid ${colors.grey[300]}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Typography fontWeight={700}>Max LTV Loan:</Typography>
+              <Typography fontWeight={900} fontSize="1.2rem">
+                {variables && "Refi: LTV calculation" in variables
+                  ? formatCurrencySafe(variables["Refi: LTV calculation"])
+                  : "�"}
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      </AccordionDetails>
+    </Accordion>
   );
 }
 
@@ -620,61 +629,67 @@ function DscrCalculationColumn({ modelDetails, handleFieldChange, variables, ref
   }, [minDscr]);
 
   return (
-    <Card sx={{ borderRadius: 2, border: `1px solid ${colors.grey[300]}`, boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: colors.white }}>
-      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
-        <InlineHeader
-          title="Debt-Service Coverage Ratio"
-          description="Calculate loan based on DSCR requirements"
-        />
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
-            gap: 2,
-          }}
-        >
-          <TextField
-            label="Minimum Debt-Service-Coverage Ratio"
-            type="text"
-            inputMode="decimal"
-            className="no-spinner"
-            value={minDscr}
-            onChange={e => setMinDscr(e.target.value)}
-            size="small"
-            fullWidth
-            InputProps={{
-              endAdornment: <InputAdornment position="end">x</InputAdornment>
-            }}
-          />
-          <Box
-            sx={{
-              border: `1px solid ${colors.grey[300]}`,
-              borderRadius: 1,
-              px: 1.5,
-              py: 0.25,
-              backgroundColor: colors.grey[50],
-              minHeight: 34,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-              Annualized NOI in Month {refinancingMonth}
+    <Accordion defaultExpanded sx={{ borderRadius: 2, border: `1px solid ${colors.grey[300]}`, boxShadow: 'none', '&:before': { display: 'none' } }}>
+      <AccordionSummary expandIcon={<Typography>▼</Typography>}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Debt-Service Coverage Ratio</Typography>
+      </AccordionSummary>
+      <AccordionDetails sx={{ p: 0 }}>
+        <Card sx={{ border: 'none', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: colors.white }}>
+          <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
+            <Typography variant="body2" sx={{ color: colors.grey[600], lineHeight: 1.4 }}>
+              Calculate loan based on DSCR requirements
             </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-              {formatCurrencySafe(variables?.["Refi: Annualized NOI in Month"]) }
-            </Typography>
-          </Box>
-        </Box>
-        <Box sx={{ mt: 1, pt: 2, borderTop: `1px solid ${colors.grey[300]}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography fontWeight={700}>Max DSCR Loan:</Typography>
-          <Typography fontWeight={900} fontSize="1.2rem">
-            {formatCurrencySafe(variables?.["Refi: DSCR calculation"]) }
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+                gap: 2,
+              }}
+            >
+              <TextField
+                label="Minimum Debt-Service-Coverage Ratio"
+                type="text"
+                inputMode="decimal"
+                className="no-spinner"
+                value={minDscr}
+                onChange={e => setMinDscr(e.target.value)}
+                size="small"
+                fullWidth
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">x</InputAdornment>
+                }}
+              />
+              <Box
+                sx={{
+                  border: `1px solid ${colors.grey[300]}`,
+                  borderRadius: 1,
+                  px: 1.5,
+                  py: 0.25,
+                  backgroundColor: colors.grey[50],
+                  minHeight: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Annualized NOI in Month {refinancingMonth}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  {formatCurrencySafe(variables?.["Refi: Annualized NOI in Month"]) }
+                </Typography>
+              </Box>
+            </Box>
+            <Box sx={{ mt: 1, pt: 2, borderTop: `1px solid ${colors.grey[300]}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Typography fontWeight={700}>Max DSCR Loan:</Typography>
+              <Typography fontWeight={900} fontSize="1.2rem">
+                {formatCurrencySafe(variables?.["Refi: DSCR calculation"]) }
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      </AccordionDetails>
+    </Accordion>
   );
 }
 
@@ -705,60 +720,66 @@ function DebtYieldMinColumn({ modelDetails, handleFieldChange, variables, refina
   }, [debtYieldMin]);
 
   return (
-    <Card sx={{ borderRadius: 2, border: `1px solid ${colors.grey[300]}`, boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: colors.white }}>
-      <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
-        <InlineHeader
-          title="Debt Yield Min"
-          description="Calculate loan based on debt yield requirements"
-        />
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
-            gap: 2,
-          }}
-        >
-          <TextField
-            label="Debt Yield Min"
-            type="text"
-            inputMode="decimal"
-            className="no-spinner"
-            value={debtYieldMin}
-            onChange={e => setDebtYieldMin(e.target.value)}
-            size="small"
-            fullWidth
-            InputProps={{
-              endAdornment: <InputAdornment position="end">%</InputAdornment>
-            }}
-          />
-          <Box
-            sx={{
-              border: `1px solid ${colors.grey[300]}`,
-              borderRadius: 1,
-              px: 1.5,
-              py: 0.25,
-              backgroundColor: colors.grey[50],
-              minHeight: 34,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
-              Annualized NOI in Month {refinancingMonth}
+    <Accordion defaultExpanded sx={{ borderRadius: 2, border: `1px solid ${colors.grey[300]}`, boxShadow: 'none', '&:before': { display: 'none' } }}>
+      <AccordionSummary expandIcon={<Typography>▼</Typography>}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Debt Yield Min</Typography>
+      </AccordionSummary>
+      <AccordionDetails sx={{ p: 0 }}>
+        <Card sx={{ border: 'none', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: colors.white }}>
+          <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, flexGrow: 1 }}>
+            <Typography variant="body2" sx={{ color: colors.grey[600], lineHeight: 1.4 }}>
+              Calculate loan based on debt yield requirements
             </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-              {formatCurrencySafe(variables?.["Refi: Annualized NOI in Month"]) }
-            </Typography>
-          </Box>
-        </Box>
-        <Box sx={{ mt: 1, pt: 2, borderTop: `1px solid ${colors.grey[300]}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography fontWeight={700}>Max Loan:</Typography>
-          <Typography fontWeight={900} fontSize="1.2rem">
-            {formatCurrencySafe(variables?.["Refi: Debt Yield calculation"]) }
-          </Typography>
-        </Box>
-      </CardContent>
-    </Card>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
+                gap: 2,
+              }}
+            >
+              <TextField
+                label="Debt Yield Min"
+                type="text"
+                inputMode="decimal"
+                className="no-spinner"
+                value={debtYieldMin}
+                onChange={e => setDebtYieldMin(e.target.value)}
+                size="small"
+                fullWidth
+                InputProps={{
+                  endAdornment: <InputAdornment position="end">%</InputAdornment>
+                }}
+              />
+              <Box
+                sx={{
+                  border: `1px solid ${colors.grey[300]}`,
+                  borderRadius: 1,
+                  px: 1.5,
+                  py: 0.25,
+                  backgroundColor: colors.grey[50],
+                  minHeight: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Annualized NOI in Month {refinancingMonth}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  {formatCurrencySafe(variables?.["Refi: Annualized NOI in Month"]) }
+                </Typography>
+              </Box>
+            </Box>
+            <Box sx={{ mt: 1, pt: 2, borderTop: `1px solid ${colors.grey[300]}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Typography fontWeight={700}>Max Loan:</Typography>
+              <Typography fontWeight={900} fontSize="1.2rem">
+                {formatCurrencySafe(variables?.["Refi: Debt Yield calculation"]) }
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      </AccordionDetails>
+    </Accordion>
   );
 }

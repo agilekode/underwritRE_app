@@ -8,6 +8,7 @@ import {
   InputLabel,
   Card,
   CardContent,
+  CircularProgress,
 } from "@mui/material";
 import { CurrencyInput, PercentInput, NumberInput } from './StandardInput';
 import { InfoBox, FormRow } from './StandardLayout';
@@ -64,19 +65,20 @@ export default function SeniorConstructionLoanSection({
   const [spreadOverBaseRate, setSpreadOverBaseRate] = useState(getFieldValue("Floating: Spread Over Base Rate", 400));
 
   // Rehydrate when modelDetails updates (e.g. on load of existing model)
-  useEffect(() => {
-    setInterestRateType(getFieldValue("Sr. Cons: Interest Rate Type", "Floating"));
-    setExactLoanAmount(getFieldValue("Sr. Cons: Exact Loan Amount", 0));
-    setFixedRate(getFieldValue("Fixed Rate for Sr. Cons. Loan", 7.5));
-    setBaseRate(getFieldValue("Floating: Base Rate", "1-Month SOFR"));
-    setSpreadOverBaseRate(getFieldValue("Floating: Spread Over Base Rate", 400));
-  }, [modelDetails]);
+  // useEffect(() => {
+  //   setInterestRateType(getFieldValue("Sr. Cons: Interest Rate Type", "Floating"));
+  //   setExactLoanAmount(getFieldValue("Sr. Cons: Exact Loan Amount", 0));
+  //   setFixedRate(getFieldValue("Fixed Rate for Sr. Cons. Loan", 7.5));
+  //   setBaseRate(getFieldValue("Floating: Base Rate", "1-Month SOFR"));
+  //   setSpreadOverBaseRate(getFieldValue("Floating: Spread Over Base Rate", 400));
+  // }, [modelDetails]);
 
   useEffect(() => {
     handleFieldChange(getFieldId("Sr. Cons: Interest Rate Type"), "Sr. Cons: Interest Rate Type", interestRateType);
   }, [interestRateType]);
 
   useEffect(() => {
+    console.log("exactLoanAmount", exactLoanAmount);
     handleFieldChange(getFieldId("Sr. Cons: Exact Loan Amount"), "Sr. Cons: Exact Loan Amount", exactLoanAmount);
   }, [exactLoanAmount]);
 
@@ -187,8 +189,35 @@ export default function SeniorConstructionLoanSection({
         >
           <Card
             elevation={0}
-            sx={{ backgroundColor: colors.white, border: `1px solid ${colors.grey[300]}`, borderRadius: 2 }}
+            sx={{
+              backgroundColor: colors.white,
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 2,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
           >
+            {finalMetricsCalculating && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1.5,
+                  backgroundColor: 'rgba(255, 255, 255, 0.68)',
+                  backdropFilter: 'blur(2px)',
+                }}
+              >
+                <CircularProgress size={28} thickness={4} />
+                <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
+                  Updating summary...
+                </Typography>
+              </Box>
+            )}
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
                 Construction Loan Summary

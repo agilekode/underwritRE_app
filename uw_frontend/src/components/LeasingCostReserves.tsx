@@ -194,17 +194,21 @@ function LeasingCostReserves({
         <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', alignItems: 'center', borderBottom: `1px solid ${colors.grey[300]}` }}>
           <Label>Leasing Commissions</Label>
           <Cell right>
-            <PercentInput
+            <NumberInput
               value={String(getFieldValue('Leasing Commissions: New Lease', 0) ?? '')}
               onChange={handleNumericChange('Leasing Commissions: New Lease')}
+              suffix="%"
+              allowDecimals={true}
               size="small"
               sx={{ width: { xs: '100%', sm: 160 } }}
             />
           </Cell>
           <Cell right>
-            <PercentInput
+            <NumberInput
               value={String(getFieldValue('Leasing Commissions: Renewal Lease', 0) ?? '')}
               onChange={handleNumericChange('Leasing Commissions: Renewal Lease')}
+              suffix="%"
+              allowDecimals={true}
               size="small"
               sx={{ width: { xs: '100%', sm: 160 } }}
             />
@@ -218,6 +222,7 @@ function LeasingCostReserves({
               value={String(getFieldValue('Lease Term: New Lease', 1) ?? '')}
               onChange={handleNumericChange('Lease Term: New Lease')}
               suffix="years"
+              allowDecimals={true}
               size="small"
               sx={{ width: { xs: '100%', sm: 160 } }}
             />
@@ -227,6 +232,7 @@ function LeasingCostReserves({
               value={String(getFieldValue('Lease Term: Renewal Lease', 1) ?? '')}
               onChange={handleNumericChange('Lease Term: Renewal Lease')}
               suffix="years"
+              allowDecimals={true}
               size="small"
               sx={{ width: { xs: '100%', sm: 160 } }}
             />
