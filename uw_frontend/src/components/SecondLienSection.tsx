@@ -60,11 +60,18 @@ export default function SecondLienSection({
 
   // Rehydrate when modelDetails updates (e.g. on load of existing model)
   useEffect(() => {
-    setLoanName(getFieldValue("Loan Name", "Pref / Mezz Loan"));
-    setLoanAmount(getFieldValue("Pref. Equity / Mezz. Loan Amount", ""));
-    setInterestRate(getFieldValue("Interest Rate (Accrual)", 5));
+    if (!modelDetails) return;
 
-    setParticipation(getFieldValue("Participation", 10));
+    const newLoanName = getFieldValue("Loan Name", "Pref / Mezz Loan");
+    const newLoanAmount = getFieldValue("Pref. Equity / Mezz. Loan Amount", "");
+    const newInterestRate = getFieldValue("Interest Rate (Accrual)", 5);
+    const newParticipation = getFieldValue("Participation", 10);
+
+    if (loanName !== newLoanName) setLoanName(newLoanName);
+    if (loanAmount !== newLoanAmount) setLoanAmount(newLoanAmount);
+    if (interestRate !== newInterestRate) setInterestRate(newInterestRate);
+    if (participation !== newParticipation) setParticipation(newParticipation);
+
   }, [modelDetails]);
 
   useEffect(() => {
@@ -160,7 +167,7 @@ export default function SecondLienSection({
               {/* Primary metric */}
               <Box sx={{ mb: 3 }}>
                 <InfoBox
-                  label="Pref / Mezz Loan Size"
+                  label={`${loanName || "Pref / Mezz Loan"} Size`}
                   value={formatCurrencySafe(loanAmount)}
                   variant="primary"
                 />
