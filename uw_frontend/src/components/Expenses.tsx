@@ -201,7 +201,11 @@ const CustomFooter = ({
       monthly = Math.round(((Number(row.cost_per)/100 * cl) / monthsInPeriod) * 100) / 100;
       annual = (Number(row.cost_per)/100) * cl;
     } else if (row.factor && row.factor.toLowerCase() === "Percent of Pref / Mezz Loan".toLowerCase()) {
+      const prefMezzLoanField = modelDetails?.user_model_field_values?.find(
+        (field: any) => field.field_key && field.field_key.trim() === "Pref. Equity / Mezz. Loan Amount"
+      );
       const candidates = [
+        prefMezzLoanField?.value,
         variables?.["Pref. / Mezz: Loan Amount"],
       ];
       let pm = 0;
@@ -1018,7 +1022,11 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           );
         }
         else if (params.row.factor.toLowerCase() === "Percent of Pref / Mezz Loan".toLowerCase()) {
+          const prefMezzLoanField = modelDetails?.user_model_field_values?.find(
+            (field: any) => field.field_key && field.field_key.trim() === "Pref. Equity / Mezz. Loan Amount"
+          );
           const candidates = [
+            prefMezzLoanField?.value,
             variables?.["Pref. / Mezz: Loan Amount"],
 
           ];
@@ -1152,7 +1160,11 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           }
           value = (Number(cost_per) / 100) * cl;
         } else if (factor && factor.toLowerCase() === "Percent of Pref / Mezz Loan".toLowerCase()) {
+          const prefMezzLoanField = modelDetails?.user_model_field_values?.find(
+            (field: any) => field.field_key && field.field_key.trim() === "Pref. Equity / Mezz. Loan Amount"
+          );
           const cand = [
+            prefMezzLoanField?.value,
             variables?.["Pref. / Mezz: Loan Amount"],
             variables?.["Max Pref / Mezz Loan"],
             variables?.["Pref / Mezz Loan Amount"],

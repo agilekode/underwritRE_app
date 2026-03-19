@@ -951,7 +951,7 @@ export const ExpensesBasicDevelopment = [
     id: "206",
     name: "GC Fee",
     statistic: null,
-    factor: "Total percent of hard costs",
+    factor: "Percent of Hard Costs",
     cost_per: 0,
     type: "Soft Costs",
     start_month: 0,
