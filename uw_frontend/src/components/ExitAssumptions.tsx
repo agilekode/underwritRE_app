@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, CircularProgress } from "@mui/material";
 import { NumberInput, PercentInput } from "./StandardInput";
 import { ContentCard } from "./StandardLayout";
 import { colors } from "../theme";
@@ -92,6 +92,28 @@ const MetricTile = ({ label, value, highlight = false }: { label: string; value:
   </Box>
 );
 
+const LoadingOverlay = () => (
+  <Box
+    sx={{
+      position: "absolute",
+      inset: 0,
+      zIndex: 2,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 1.5,
+      backgroundColor: "rgba(255, 255, 255, 0.68)",
+      backdropFilter: "blur(2px)",
+    }}
+  >
+    <CircularProgress size={28} thickness={4} />
+    <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
+      Updating summary...
+    </Typography>
+  </Box>
+);
+
 export default function ExitAssumptions({
   modelDetails,
   handleFieldChange,
@@ -100,6 +122,7 @@ export default function ExitAssumptions({
   variables,
   numUnits = 0,
   developmentModel = false,
+  finalMetricsCalculating
 }: {
   modelDetails: any;
   handleFieldChange: (
@@ -112,7 +135,10 @@ export default function ExitAssumptions({
   variables?: any;
   numUnits?: number;
   developmentModel?: boolean;
+  finalMetricsCalculating?: boolean;
 }) {
+
+  
   // Exact field_key strings (must match backend)
   const K = {
     mfExitMonth: "Multifamily Exit Month",
@@ -122,6 +148,8 @@ export default function ExitAssumptions({
     rtCapRate: "Retail Applied Exit Cap Rate",
     rtSellingCosts: "Retail Less: Selling Costs",
   };
+
+
 
   const getFieldValue = (field_key: string, def: any) => {
     const f = modelDetails?.user_model_field_values?.find(
@@ -267,7 +295,8 @@ export default function ExitAssumptions({
                 />
               </Box>
             </Box>
-            <Box>
+            <Box sx={{ position: "relative", overflow: "hidden", borderRadius: 1 }}>
+              {finalMetricsCalculating && <LoadingOverlay />}
               <SectionHeader title="Results" description="Implied valuation and proceeds." />
               <Box sx={listSx}>
                 <ValueRow
@@ -350,7 +379,8 @@ export default function ExitAssumptions({
                 />
               </Box>
             </Box>
-            <Box>
+            <Box sx={{ position: "relative", overflow: "hidden", borderRadius: 1 }}>
+              {finalMetricsCalculating && <LoadingOverlay />}
               <SectionHeader title="Results" description="Implied valuation and proceeds." />
               <Box sx={listSx}>
                 <ValueRow
@@ -423,7 +453,9 @@ export default function ExitAssumptions({
 
       {showRetail && showRentalUnits && (
         <ContentCard title={developmentModel ? "Development Exit Summary" : "Combined Exit Summary"}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+          <Box sx={{ position: "relative", overflow: "hidden", borderRadius: 1 }}>
+            {finalMetricsCalculating && <LoadingOverlay />}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
             <MetricTile
               label="Total Implied Property Valuation at Exit"
               value={(() => {
@@ -450,6 +482,7 @@ export default function ExitAssumptions({
                 return `${blended.toFixed(2)}%`;
               })()}
             />
+          </Box>
           </Box>
         </ContentCard>
       )}

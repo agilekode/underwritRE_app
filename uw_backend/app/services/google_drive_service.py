@@ -6695,7 +6695,7 @@ def run_full_sheet_update(
             )
         else:
             noi_expense_insert, noi_expense_update, noi_expense_reset_format = get_noi_expense_rows_insert_and_update(
-                spreadsheet, operating_expenses_json, amenity_income_json, year_row=13
+                spreadsheet, operating_expenses_json, amenity_income_json, year_row=14
             )
 
 

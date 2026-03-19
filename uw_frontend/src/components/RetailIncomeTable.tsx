@@ -335,7 +335,7 @@ const RetailIncomeTable: React.FC<{
       renderCell: (params) => {
         const row = params.row;
         const annualRent = row.rent_per_square_foot_per_year * row.square_feet;
-        const formattedAnnualRent = annualRent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formattedAnnualRent = annualRent.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
         return (
           <span style={{ color: colors.grey[600] }}>${formattedAnnualRent}</span>
         );
@@ -458,10 +458,10 @@ const RetailIncomeTable: React.FC<{
           )}
           <Box sx={{ textAlign: 'right' }}>
             <Box component="span" sx={{ fontWeight: 600 }}>Total Monthly Rent:</Box>{' '}
-            ${totalMonthlyRent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${totalMonthlyRent.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </Box>
           <Box sx={{ textAlign: 'right' }}>
-            <Box component="span" sx={{ fontWeight: 600 }}>Total Annual Rent:</Box> ${totalAnnualRent.toLocaleString()}
+            <Box component="span" sx={{ fontWeight: 600 }}>Total Annual Rent:</Box> ${totalAnnualRent.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </Box>
         </Box>
       </Box>
