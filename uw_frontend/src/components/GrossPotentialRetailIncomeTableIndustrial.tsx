@@ -163,8 +163,13 @@ export default function GrossPotentialRetailIncomeTableIndustrial({
             value={vacancyPct}
             onChange={(e) => {
               const raw = e.target.value;
+              const digitsAndDotOnly = raw.replace(/[^\d.]/g, '');
+              const parts = digitsAndDotOnly.split('.');
+              const sanitized = parts.length > 1
+                ? `${parts[0]}.${parts.slice(1).join('')}`
+                : digitsAndDotOnly;
               const id = getFieldId('Vacancy ');
-              handleFieldChange(id, 'Vacancy ', raw === '' ? '' : Number(raw));
+              handleFieldChange(id, 'Vacancy ', sanitized);
             }}
             size="small"
             sx={{ maxWidth: 140 }}

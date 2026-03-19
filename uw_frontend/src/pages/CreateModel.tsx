@@ -282,7 +282,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
       return;
     }
 
-    console.log("selectedModelTypeInfo", selectedModelTypeInfo);
+    // console.log("selectedModelTypeInfo", selectedModelTypeInfo);
 
 
     if(selectedModelTypeInfo?.development_model) {
@@ -769,9 +769,9 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     timeField?: 'start_month' | 'end_month',
     fieldType?: string // <-- optionally pass fieldType if available
   ) => {
-
     console.log("handleFieldChange", fieldId, field_key, value, isTimePhased, timeField, fieldType);
-  // Preserve leading zero for decimals like 0.25; only strip for integers like 01
+  // Preserve leading zero for decimals lik
+  // e 0.25; only strip for integers like 01
   if (typeof value === 'string' && value.length > 1 && value.startsWith('0') && value[1] !== '.') {
     value = value.slice(1);
   }
@@ -831,17 +831,14 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
         const section = selectedModelTypeInfo.sections.find((section: any) =>
           section.fields.some((f: any) => f.id === fieldId || f.field_key === field_key)
         );
-        console.log("selectedModelTypeInfo", selectedModelTypeInfo);
-        console.log("fieldId", fieldId);
-        console.log("field_key", field_key);
-        console.log("selectedModelTypeInfo.sections", selectedModelTypeInfo.sections);
-        console.log("section", section);
+
         if (section) {
 
           let sectionFieldType = section.fields.find(
             (f: any) => f.id === fieldId || f.field_key === field_key
           )?.field_type;
           let updateObject = { ...updatedFieldValues.find((field: any) => field.field_key === field_key) };
+          console.log("updateObject", updateObject);
           updateObject["field_type"] = sectionFieldType;
           updateObject["section"] = section.name;
 
@@ -853,10 +850,9 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
               (!fieldId && fv.field_key === field_key)
           );
           const valueChanged = !existingField || existingField.value !== processedValue;
-          console.log("valueChanged", valueChanged);
+
 
           if (section.name !== "General Property Assumptions" && section.name !== "Retail Leasing Assumptions" && valueChanged) {
-            console.log("updateObject", updateObject);
             handleSingleFieldUpdate(updateObject);
           }
 
@@ -2353,6 +2349,7 @@ retailExpenses={expenses.filter((expense: any) => expense.type === "Retail")} />
       variables={variables}
       numUnits={exitAssumptionsNumUnits}
       developmentModel={selectedModelTypeInfo?.development_model}
+      finalMetricsCalculating={finalMetricsCalculating}
     />
   </Box>
 )}
