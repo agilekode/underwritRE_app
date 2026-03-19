@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test';
  *   3. Base Income          (RetailIncomeTable + Lease End & Rent Type columns)
  *   4. Recoverable Operating Expenses (RetailExpensesIndustrial)
  *   5. Recovery and Gross Potential Income
- *   6. Leasing Cost Reserves
+ *   6. TILC Reserves
  *   7. Income Summary       (read-only)
  *   8. Amenity Income
  *   9. Net Operating Income  (read-only)
@@ -252,7 +252,7 @@ test('Create Industrial model end-to-end', async ({ page }) => {
   await page.getByRole('button', { name: /continue/i }).click();
 
   // ──────────────────────────────────────────────
-  // Step 8: Leasing Cost Reserves
+  // Step 8: TILC Reserves
   // ──────────────────────────────────────────────
   // Two-column layout with New Lease / Renewal Lease inputs
   // Fields: Renewal Probability, Avg Rent, TI's, Commissions, Term
@@ -465,7 +465,7 @@ test('Create Industrial model end-to-end', async ({ page }) => {
   // Industrial Reserves rows:
   //   Loan Draws (Total), Cash Reserve: Debt Service (per Month),
   //   Cash Reserve: Mechanicals (per SF), Cash Reserve: Roof (Total),
-  //   Leasing Cost Reserves (per Unit), Contingency (% of other expenses)
+  //   TILC Reserves (per Unit), Contingency (% of other expenses)
 
   // Loan Draws
   const loanDrawsRow = page.getByRole('row', { name: /loan draws/i });
@@ -498,7 +498,7 @@ test('Create Industrial model end-to-end', async ({ page }) => {
   await roofRow.getByRole('textbox').dblclick();
   await roofRow.getByRole('textbox').fill('15000');
 
-  // Leasing Cost Reserves (per Unit)
+  // TILC Reserves (per Unit)
   const leasingRow = page.getByRole('row', { name: /leasing cost/i });
   const leasingInputs = leasingRow.locator('input[type="text"]');
   await leasingInputs.first().click();

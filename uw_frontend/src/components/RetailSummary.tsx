@@ -572,9 +572,9 @@ const RetailSummary: React.FC<{
         })()}
       </Box>
 
-      {/* Read-only Leasing Cost Reserves */}
+      {/* Read-only TILC Reserves */}
       <Box sx={{ mt: 3 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>Leasing Cost Reserves</Typography>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>TILC Reserves</Typography>
         {(() => {
           const getFieldValue = (field_key: string, def: number) => {
             try {
@@ -617,7 +617,7 @@ const RetailSummary: React.FC<{
               {/* Inputs (read-only display) */}
               <Box sx={{ border: `2px solid ${colors.navy}`, borderRadius: 1, overflow: 'hidden', fontSize: '0.875rem' }}>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', bgcolor: colors.navy, color: '#fff', fontWeight: 700 }}>
-                  <Box sx={{ p: 1 }}>Calculate the Leasing Cost Reserves</Box>
+                  <Box sx={{ p: 1 }}>Calculate the TILC Reserves</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>New Lease</Box>
                   <Box sx={{ p: 1, textAlign: 'right' }}>Renewal Lease</Box>
                 </Box>
@@ -672,7 +672,7 @@ const RetailSummary: React.FC<{
                   <Box sx={{ p: 1, textAlign: 'right' }}>{money0(amortRen)}</Box>
                 </Box>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', alignItems: 'center', bgcolor: colors.grey[100], py: 1, borderTop: `1px solid ${colors.grey[300]}` }}>
-                  <Box sx={{ p: 1, fontWeight: 600, color: 'text.primary' }}>Annual Leasing Cost Reserves</Box>
+                  <Box sx={{ p: 1, fontWeight: 600, color: 'text.primary' }}>Annual TILC Reserves</Box>
                   <Box sx={{ p: 1, textAlign: 'right', fontWeight: 700 }}>{`${money2(weightedPerSF)} / SF`}</Box>
                   <Box sx={{ p: 1, textAlign: 'right', fontWeight: 700 }}>{money0(weightedAnnual)}</Box>
                 </Box>
