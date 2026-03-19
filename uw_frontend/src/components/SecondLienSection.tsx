@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Typography,
   Box,
   Card,
   CardContent,
   TextField,
+  CircularProgress,
 } from "@mui/material";
 import { CurrencyInput, PercentInput } from './StandardInput';
 import { InfoBox, FormRow } from './StandardLayout';
@@ -48,25 +49,16 @@ export default function SecondLienSection({
     return field ? field.value : defaultValue;
   };
 
-  const getFieldId = (field_key: string) => {
+  const getFieldId = useCallback((field_key: string) => {
     const field = modelDetails?.user_model_field_values?.find((f: any) => f.field_key === field_key);
     return field ? field.field_id : "";
-  };
+  }, [modelDetails]);
 
   const [loanAmount, setLoanAmount] = useState(getFieldValue("Pref. Equity / Mezz. Loan Amount", ""));
   const [interestRate, setInterestRate] = useState(getFieldValue("Interest Rate (Accrual)", 5));
   const [participation, setParticipation] = useState(getFieldValue("Participation", 10));
   const [loanName, setLoanName] = useState(getFieldValue("Loan Name", "Pref / Mezz Loan"));
-
-  // Rehydrate when modelDetails updates (e.g. on load of existing model)
-  useEffect(() => {
-    setLoanName(getFieldValue("Loan Name", "Pref / Mezz Loan"));
-    setLoanAmount(getFieldValue("Pref. Equity / Mezz. Loan Amount", ""));
-    setInterestRate(getFieldValue("Interest Rate (Accrual)", 5));
-
-    setParticipation(getFieldValue("Participation", 10));
-  }, [modelDetails]);
-
+  
   useEffect(() => {
     handleFieldChange(getFieldId("Pref. Equity / Mezz. Loan Amount"), "Pref. Equity / Mezz. Loan Amount", loanAmount);
   }, [loanAmount]);
@@ -75,13 +67,14 @@ export default function SecondLienSection({
     handleFieldChange(getFieldId("Interest Rate (Accrual)"), "Interest Rate (Accrual)", interestRate);
   }, [interestRate]);
 
-
-
   useEffect(() => {
+    
     handleFieldChange(getFieldId("Participation"), "Participation", participation);
   }, [participation]);
 
   useEffect(() => {
+    console.log("loanName", loanName);
+    console.log("getFieldId('Loan Name')", getFieldId("Loan Name"));
     handleFieldChange(getFieldId("Loan Name"), "Loan Name", loanName);
   }, [loanName]);
 
@@ -150,8 +143,35 @@ export default function SecondLienSection({
         >
           <Card
             elevation={0}
-            sx={{ backgroundColor: colors.white, border: `1px solid ${colors.grey[300]}`, borderRadius: 2 }}
+            sx={{
+              backgroundColor: colors.white,
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 2,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
           >
+            {finalMetricsCalculating && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1.5,
+                  backgroundColor: 'rgba(255, 255, 255, 0.68)',
+                  backdropFilter: 'blur(2px)',
+                }}
+              >
+                <CircularProgress size={28} thickness={4} />
+                <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
+                  Updating summary...
+                </Typography>
+              </Box>
+            )}
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
                 Second Lien Summary
@@ -160,7 +180,7 @@ export default function SecondLienSection({
               {/* Primary metric */}
               <Box sx={{ mb: 3 }}>
                 <InfoBox
-                  label="Pref / Mezz Loan Size"
+                  label={`${loanName} Loan Size`} 
                   value={formatCurrencySafe(loanAmount)}
                   variant="primary"
                 />

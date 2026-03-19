@@ -99,6 +99,7 @@ export default function ExitAssumptions({
   showRentalUnits = true,
   variables,
   numUnits = 0,
+  developmentModel = false,
 }: {
   modelDetails: any;
   handleFieldChange: (
@@ -110,6 +111,7 @@ export default function ExitAssumptions({
   showRentalUnits?: boolean;
   variables?: any;
   numUnits?: number;
+  developmentModel?: boolean;
 }) {
   // Exact field_key strings (must match backend)
   const K = {
@@ -298,7 +300,7 @@ export default function ExitAssumptions({
         </ContentCard>
       )}
 
-      {showRetail && (
+      {showRetail && !developmentModel && (
         <ContentCard title={`${space_type} Exit Assumptions`}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
             <Box>
@@ -355,28 +357,53 @@ export default function ExitAssumptions({
                   label={`Forward NOI in ${variables?.["Deal Time Horizon"] ?? ""}`}
                   value={formatCurrency(parseNumber(variables?.["Retail: Forward NOI in Month"], 0))}
                 />
-                <ValueRow
+                {!developmentModel && (
+                  <ValueRow
+                    label="Implied Valuation at Exit"
+                    value={formatCurrency(parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0))}
+                  />
+                )}
+                {developmentModel && (
+                  <ValueRow
                   label="Implied Valuation at Exit"
-                  value={formatCurrency(parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0))}
+                  value={formatCurrency(parseNumber(variables?.["Implied Valuation at Exit"], 0))}
                 />
-                {numUnits > 0 && (
+                )}
+                {/* {numUnits > 0 && !developmentModel && (
                   <ValueRow
                     label="Implied Valuation per Unit"
                     value={(() => {
+
                       const totalVal = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
                       const perUnit = numUnits > 0 ? Math.round(totalVal / numUnits) : 0;
                       return formatCurrency(perUnit);
                     })()}
                   />
-                )}
+                )} */}
+                {/* {numUnits > 0 && developmentModel && (
+                  <ValueRow
+                    label="Implied Valuation per Unit"
+                    value={(() => {
+
+                      const totalVal = parseNumber(variables?.["Implied Valuation at Exit"], 0);
+                      const perUnit = numUnits > 0 ? Math.round(totalVal / numUnits) : 0;
+                      return formatCurrency(perUnit);
+                    })()}
+                  />
+                )} */}
+                
                 {numUnits === 0 && (
                   <ValueRow
                     label="Implied Valuation per SF"
                     value={(() => {
-                      const totalVal = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
-                      const SF = getFieldValue("Gross Square Feet", 0);
-                      const perSF = totalVal / SF;
-                      return formatCurrency(perSF) + " / SF";
+                      if (developmentModel) {
+                        return formatCurrency(parseNumber(variables?.["Implied Valuation at Exit"], 0)) + " / SF" + " (" + getFieldValue("Gross Buildable Square Feet", 0) + " SF)";
+                      } else {
+                        const totalVal = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
+                        const SF = getFieldValue("Gross Square Feet", 0);
+                        const perSF = totalVal / SF;
+                        return formatCurrency(perSF) + " / SF";
+                      }
                     })()}
                   />
                 )}
@@ -395,7 +422,7 @@ export default function ExitAssumptions({
       )}
 
       {showRetail && showRentalUnits && (
-        <ContentCard title="Combined Exit Summary">
+        <ContentCard title={developmentModel ? "Development Exit Summary" : "Combined Exit Summary"}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
             <MetricTile
               label="Total Implied Property Valuation at Exit"
