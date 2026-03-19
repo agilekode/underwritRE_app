@@ -2307,7 +2307,7 @@ def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=5, num
     units_format = {
         "numberFormat": {
             "type": "NUMBER",
-            "pattern": '[=0]"-";[=1]#,##0" unit";#,##0" units"'
+            "pattern": '[=0]"-";[=1]#,##0.0" unit";#,##0.0" units"'
         }
     }
 
@@ -2535,6 +2535,48 @@ def get_amenity_income_format_requests(spreadsheet, sheet_name, start_row=5, num
                 }
             },
             "fields": "userEnteredFormat(verticalAlignment,textFormat.fontFamily)"
+        }
+    })
+    
+    format_requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": ws._properties["sheetId"],
+                "startRowIndex": start_row - 1,
+                "endRowIndex": end_row,
+                "startColumnIndex": 4,
+                "endColumnIndex": 5
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "numberFormat": {
+                        "type": "NUMBER",
+                        "pattern": "0.0"
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.numberFormat"
+        }
+    })
+
+    format_requests.append({
+        "repeatCell": {
+            "range": {
+                "sheetId": ws._properties["sheetId"],
+                "startRowIndex": start_row - 1,
+                "endRowIndex": end_row,
+                "startColumnIndex": 7,
+                "endColumnIndex": 8
+            },
+            "cell": {
+                "userEnteredFormat": {
+                    "numberFormat": {
+                        "type": "NUMBER",
+                        "pattern": "0.0"
+                    }
+                }
+            },
+            "fields": "userEnteredFormat.numberFormat"
         }
     })
 
