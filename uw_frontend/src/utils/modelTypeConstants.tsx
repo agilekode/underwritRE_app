@@ -16,1085 +16,558 @@ export const FIELD_TYPE_OPTIONS = [
   ];
 
 
-  export const modelTypePresetsIndustrial = 
+  export const modelTypePresets = 
     {
-        "sections":  [{
-        "active": true,
-        "fields": [
+        "sections":  [
             {
                 "active": true,
-                "default_value": "0",
-                "description": "Price to Compare the Purchase Price to",
-                "field_key": "Asking Price",
-                "field_title": "Asking Price",
-                "field_type": "dollars",
-                "id": "35c0233b-9fe8-4d37-a81c-72bae936bcd4",
-                "order": 0,
-                "required": true,
-                "time_phased": false
+                "fields": [
+                    {
+                        "active": true,
+                        "default_value": "0",
+                        "description": "Price to Compare the Purchase Price to",
+                        "field_key": "Asking Price",
+                        "field_title": "Asking Price",
+                        "field_type": "dollars",
+                        "id": "b39a7d81-591e-4cc5-bc4b-6088ea01f45b",
+                        "order": 0,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "0",
+                        "description": "Price at which property acquired",
+                        "field_key": "Acquisition Price",
+                        "field_title": "Acquisition Price",
+                        "field_type": "dollars",
+                        "id": "d21d762a-2ac8-4e4a-b053-c9a9bc56f32b",
+                        "order": 1,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "",
+                        "description": "Date the model will start",
+                        "field_key": "Model Start Date",
+                        "field_title": "Model Start Date",
+                        "field_type": "date",
+                        "id": "7b415152-db9c-4c45-8158-44ac21ed3617",
+                        "order": 2,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "",
+                        "description": "Gross Square Feet of Property",
+                        "field_key": "Gross Buildable Square Feet",
+                        "field_title": "Gross Buildable Square Feet",
+                        "field_type": "number",
+                        "id": "1756c93d-8d4e-49ca-ac0e-a97559f2d2d2",
+                        "order": 3,
+                        "required": false,
+                        "time_phased": false
+                    },
+                    {
+                        "active": false,
+                        "default_value": "0",
+                        "description": "Share of Equity from Sponsor",
+                        "field_key": "Share of Equity from Sponsor",
+                        "field_title": "Share of Equity from Sponsor",
+                        "field_type": "percent",
+                        "id": "9c1d4f60-7286-4dd9-bb43-74d5cdf484e1",
+                        "order": 4,
+                        "required": true,
+                        "time_phased": false
+                    }
+                ],
+                "id": "911a105f-c3f1-4dcc-bbbb-607ad66a501c",
+                "name": "General Property Assumptions",
+                "order": 0
             },
             {
                 "active": true,
-                "default_value": "0",
-                "description": "Price at which property acquired",
-                "field_key": "Acquisition Price",
-                "field_title": "Acquisition Price",
-                "field_type": "dollars",
-                "id": "66e8d99b-1fed-46a5-b605-57960ab01af2",
-                "order": 1,
-                "required": true,
-                "time_phased": false
+                "fields": [
+                    {
+                        "active": true,
+                        "default_value": "1",
+                        "description": "Uncollectible rental income and other charges that are ultimately written off as losses",
+                        "field_key": "Bad Debt",
+                        "field_title": "Bad Debt / Collection Loss",
+                        "field_type": "percent",
+                        "id": "f8257445-bd31-42f0-85ca-b89e88b32575",
+                        "order": 0,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "5",
+                        "description": "Long-term expected vacancy rate (standard assumption of 5% is given as default value)",
+                        "field_key": "Vacancy",
+                        "field_title": "Vacancy",
+                        "field_type": "percent",
+                        "id": "27aaff2a-def2-4e8e-9e90-c27efa26d36a",
+                        "order": 1,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "",
+                        "description": "",
+                        "field_key": "Months of Lease-Up",
+                        "field_title": "Months of Lease-Up",
+                        "field_type": "months",
+                        "id": "581748d5-6664-4b98-9af3-85d5c9272738",
+                        "order": 2,
+                        "required": true,
+                        "time_phased": false
+                    }
+                ],
+                "id": "e3abc2f9-5c12-44e1-830d-f606297fd310",
+                "name": "Leasing Assumptions",
+                "order": 1
             },
             {
                 "active": true,
-                "default_value": "",
-                "description": "Date the model will start",
-                "field_key": "Model Start Date",
-                "field_title": "Model Start Date",
-                "field_type": "date",
-                "id": "10b859a9-ba2c-4824-bd5e-dff5d88bad09",
-                "order": 2,
-                "required": true,
-                "time_phased": false
+                "fields": [
+                    {
+                        "active": true,
+                        "default_value": "60",
+                        "description": "",
+                        "field_key": "Multifamily Exit Month",
+                        "field_title": "Multifamily Exit Month",
+                        "field_type": "month",
+                        "id": "e4970bae-5af3-4f93-a0ad-b1bd822d8c79",
+                        "order": 0,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "6",
+                        "description": "",
+                        "field_key": "Multifamily Applied Exit Cap Rate",
+                        "field_title": "Multifamily Applied Exit Cap Rate",
+                        "field_type": "percent",
+                        "id": "c799d610-935a-4860-a98b-04333abdd019",
+                        "order": 1,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "3",
+                        "description": "%",
+                        "field_key": "Multifamily Less: Selling Costs",
+                        "field_title": "Multifamily Less: Selling Costs",
+                        "field_type": "percent",
+                        "id": "8df75a32-2618-4eea-a5df-2ba299715595",
+                        "order": 2,
+                        "required": true,
+                        "time_phased": false
+                    }
+                ],
+                "id": "6a6dd7ae-1c96-4b33-b829-c96c5cc2f8d9",
+                "name": "Exit Assumptions",
+                "order": 2
             },
             {
                 "active": true,
-                "default_value": "",
-                "description": "Gross Square Feet of Property",
-                "field_key": "Gross Buildable Square Feet",
-                "field_title": "Gross Buildable Square Feet",
-                "field_type": "number",
-                "id": "3834e543-40c8-4bde-a747-1ee48781088b",
-                "order": 3,
-                "required": false,
-                "time_phased": false
+                "fields": [
+                    {
+                        "active": true,
+                        "default_value": "Yes",
+                        "description": "",
+                        "field_key": "Permanent Loan Issued?",
+                        "field_title": "Would you like to model in a refinancing of the acquisition loan?",
+                        "field_type": "yes_no",
+                        "id": "628a0805-3eec-4665-a583-2e5548740d93",
+                        "order": 0,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "30",
+                        "description": "",
+                        "field_key": "Refi Amortization",
+                        "field_title": "Refi Amortization",
+                        "field_type": "year",
+                        "id": "77045749-2f8b-46d1-b79c-888478d2a3b9",
+                        "order": 3,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "1.1",
+                        "description": "",
+                        "field_key": "Origination Cost (Includes Title)",
+                        "field_title": "Origination Cost (Includes Title)",
+                        "field_type": "percent",
+                        "id": "aecfc456-c16e-45fb-9b04-0e9ec146b9c9",
+                        "order": 4,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "6",
+                        "description": "",
+                        "field_key": "Applied Cap Rate for Valuation at Refi",
+                        "field_title": "Applied Cap Rate for Valuation at Refi",
+                        "field_type": "percent",
+                        "id": "6c985bc7-fb71-4610-a6c0-df28844376de",
+                        "order": 5,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "75",
+                        "description": "LTV Max",
+                        "field_key": "LTV Max",
+                        "field_title": "LTV Max",
+                        "field_type": "percent",
+                        "id": "da83e07a-20a4-45c7-b2aa-c425e13f3c8e",
+                        "order": 6,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "1.25",
+                        "description": "",
+                        "field_key": "Minimum Debt-Service-Coverage Ratio",
+                        "field_title": "Minimum Debt-Service-Coverage Ratio",
+                        "field_type": "number",
+                        "id": "595dcb3c-f5b6-4f1a-9a78-b93e45953e1b",
+                        "order": 7,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "8.75",
+                        "description": "Net Operating Income Divided by Loan Size",
+                        "field_key": "Debt Yield Min",
+                        "field_title": "Minimum Debt Yield",
+                        "field_type": "percent",
+                        "id": "94b8e07f-fb18-4e2f-b94b-25d4c5b2a5ea",
+                        "order": 8,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "0",
+                        "description": "Share of Equity Contributed by the Sponsor or Lead Investor",
+                        "field_key": "Share of Equity from Sponsor",
+                        "field_title": "Share of Equity from Sponsor",
+                        "field_type": "percent",
+                        "id": "dabaa4d7-42ae-480d-89e2-361dc9c99957",
+                        "order": 9,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "5",
+                        "description": "",
+                        "field_key": "Refinancing: Fixed Interest Rate",
+                        "field_title": "Refinancing: Fixed Interest Rate",
+                        "field_type": "percent",
+                        "id": "37d48ea0-bbe5-4591-8c8e-9149b3cbc9f0",
+                        "order": 10,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "3",
+                        "description": "",
+                        "field_key": "Seasoning Period Post Stabilization",
+                        "field_title": "Seasoning Period Post Stabilization",
+                        "field_type": "months",
+                        "id": "46cb500a-b675-4c1e-947a-517eb50a9e08",
+                        "order": 1,
+                        "required": true,
+                        "time_phased": false
+                    }
+                ],
+                "id": "b85b9958-27c7-43e2-aed3-494d6aff1fe0",
+                "name": "Refinancing",
+                "order": 3
             },
             {
                 "active": true,
-                "default_value": "0",
-                "description": "Share of Equity from Sponsor",
-                "field_key": "Share of Equity from Sponsor",
-                "field_title": "Share of Equity from Sponsor",
-                "field_type": "percent",
-                "id": "e594f0d8-99dd-4a36-8dbe-81f6461ccd0e",
-                "order": 4,
-                "required": true,
-                "time_phased": false
+                "fields": [
+                    {
+                        "active": true,
+                        "default_value": "5",
+                        "description": "",
+                        "field_key": "Less: Vacancy and Bad Debt",
+                        "field_title": "Less: Vacancy and Bad Debt",
+                        "field_type": "percent",
+                        "id": "58f06fa1-7578-4f05-8b37-50907e2bd53d",
+                        "order": 1,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "70",
+                        "description": "",
+                        "field_key": "Renewal Property: Renewal Lease",
+                        "field_title": "Renewal Property: Renewal Lease",
+                        "field_type": "percent",
+                        "id": "b88aa2bf-4a7c-422b-a911-8ebf1cff18d0",
+                        "order": 2,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "0",
+                        "description": "",
+                        "field_key": "Retail Rent: New Lease",
+                        "field_title": "Retail Rent: New Lease",
+                        "field_type": "dollars_per_sf",
+                        "id": "0233516a-6cde-4b56-8190-d40c9b0aa141",
+                        "order": 3,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "0",
+                        "description": "",
+                        "field_key": "Retail Rent: Renewal Lease",
+                        "field_title": "Retail Rent: Renewal Lease",
+                        "field_type": "dollars_per_sf",
+                        "id": "0849256e-e341-4cd8-96fb-de1fbc4e75b5",
+                        "order": 4,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "0",
+                        "description": "",
+                        "field_key": "TI's: New Lease",
+                        "field_title": "TI's: New Lease",
+                        "field_type": "dollars_per_sf",
+                        "id": "0f6a897c-38d6-43e7-a994-4bcb1e7cd77b",
+                        "order": 5,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "0",
+                        "description": "",
+                        "field_key": "TI's: Renewal Lease",
+                        "field_title": "TI's: Renewal Lease",
+                        "field_type": "dollars_per_sf",
+                        "id": "9ddde37e-0b9a-4888-a985-07a75a090254",
+                        "order": 6,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "0",
+                        "description": "",
+                        "field_key": "Leasing Commissions: New Lease",
+                        "field_title": "Leasing Commissions: New Lease",
+                        "field_type": "percent",
+                        "id": "c7b0999e-bff2-4dd6-bd76-3ebdf643ba6a",
+                        "order": 7,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "0",
+                        "description": "",
+                        "field_key": "Leasing Commissions: Renewal Lease",
+                        "field_title": "Leasing Commissions: Renewal Lease",
+                        "field_type": "percent",
+                        "id": "6cc1130b-d3bd-40da-b649-ac5adc08012d",
+                        "order": 8,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "1",
+                        "description": "",
+                        "field_key": "Lease Term: New Lease",
+                        "field_title": "Lease Term: New Lease",
+                        "field_type": "year",
+                        "id": "6479a7aa-aec0-4daf-b6c5-d477372d3e34",
+                        "order": 9,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "1",
+                        "description": "",
+                        "field_key": "Lease Term: Renewal Lease",
+                        "field_title": "Lease Term: Renewal Lease",
+                        "field_type": "year",
+                        "id": "0f50cb75-799c-4ad5-b710-e225e66547dd",
+                        "order": 10,
+                        "required": true,
+                        "time_phased": false
+                    }
+                ],
+                "id": "27c89292-8ae5-4510-94cf-9bec7f8d6f46",
+                "name": "Retail Leasing Assumptions",
+                "order": 4
+            },
+            {
+                "active": true,
+                "fields": [
+                    {
+                        "active": true,
+                        "default_value": "",
+                        "description": "",
+                        "field_key": "Sr. Cons: Exact Loan Amount",
+                        "field_title": "Sr. Cons: Exact Loan Amount",
+                        "field_type": "dollars",
+                        "id": "a7e68582-c04f-42a7-a1a3-f359efdb8c5f",
+                        "order": 1,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "Floating",
+                        "description": "Fixed,Floating",
+                        "field_key": "Sr. Cons: Interest Rate Type",
+                        "field_title": "Sr. Cons: Interest Rate Type",
+                        "field_type": "select_options",
+                        "id": "1584715f-02eb-419e-bd06-731028267999",
+                        "order": 2,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "7.5",
+                        "description": "",
+                        "field_key": "Fixed Rate for Sr. Cons. Loan",
+                        "field_title": "Fixed Rate for Sr. Cons. Loan",
+                        "field_type": "percent",
+                        "id": "a4ac27eb-3eaf-42b6-8b0e-60cb330d44d2",
+                        "order": 3,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "400",
+                        "description": "",
+                        "field_key": "Floating: Spread Over Base Rate",
+                        "field_title": "Floating: Spread Over Base Rate",
+                        "field_type": "number",
+                        "id": "adfb8731-4a7e-4d6e-ad4d-87380ccdcd57",
+                        "order": 5,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "1-Month SOFR",
+                        "description": "",
+                        "field_key": "Floating: Base Rate",
+                        "field_title": "Floating: Base Rate",
+                        "field_type": "number",
+                        "id": "daa1acc5-4525-4b51-989f-73b92bfcdb1e",
+                        "order": 4,
+                        "required": true,
+                        "time_phased": false
+                    }
+                ],
+                "id": "a2543792-4849-419b-b740-d3901edf4496",
+                "name": "Senior Construction Loan Financing",
+                "order": 5
+            },
+            {
+                "active": true,
+                "fields": [
+                    {
+                        "active": true,
+                        "default_value": "10",
+                        "description": "",
+                        "field_key": "Participation",
+                        "field_title": "Participation",
+                        "field_type": "percent",
+                        "id": "d48563a6-92c5-4c8e-994d-a3e22942800d",
+                        "order": 5,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "5",
+                        "description": "",
+                        "field_key": "Interest Rate (Accrual)",
+                        "field_title": "Interest Rate (Accrual)",
+                        "field_type": "percent",
+                        "id": "2b3f1d64-64a5-47b0-9283-464ca1bfb6a9",
+                        "order": 3,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "",
+                        "description": "",
+                        "field_key": "Pref. Equity / Mezz. Loan Amount",
+                        "field_title": "Pref. Equity / Mezz. Loan Amount",
+                        "field_type": "dollars",
+                        "id": "e4d2361f-467f-4474-907a-bac6633e0cdd",
+                        "order": 2,
+                        "required": true,
+                        "time_phased": false
+                    },
+                    {
+                        "active": false,
+                        "default_value": "",
+                        "description": "",
+                        "field_key": "Origination Fee",
+                        "field_title": "Origination Fee",
+                        "field_type": "dollars",
+                        "id": "8c58848b-788d-4c64-8071-7afc7f8ac6cc",
+                        "order": 4,
+                        "required": false,
+                        "time_phased": false
+                    },
+                    {
+                        "active": true,
+                        "default_value": "",
+                        "description": "",
+                        "field_key": "Loan Name",
+                        "field_title": "Loan Name",
+                        "field_type": "text",
+                        "id": "fcd26914-7254-41cf-9e70-1123f77cea49",
+                        "order": 1,
+                        "required": false,
+                        "time_phased": false
+                    }
+                ],
+                "id": "3dab58ba-5875-4fe3-a638-9b1525103c60",
+                "name": "Second Lien",
+                "order": 6
             }
-        ],
-        "id": "f8ad2355-50b8-4490-8f03-3a745e41e6a6",
-        "name": "General Property Assumptions",
-        "order": 0
-    },
-    {
-        "active": true,
-        "fields": [
-            {
-                "active": true,
-                "default_value": "1",
-                "description": "Uncollectible rental income and other charges that are ultimately written off as losses",
-                "field_key": "Bad Debt",
-                "field_title": "Bad Debt / Collection Loss",
-                "field_type": "percent",
-                "id": "deb5d638-017d-4b23-8f65-00149a254b53",
-                "order": 0,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "5",
-                "description": "Long-term expected vacancy rate (standard assumption of 5% is given as default value)",
-                "field_key": "Vacancy",
-                "field_title": "Vacancy",
-                "field_type": "percent",
-                "id": "e09d75ea-d361-479b-a836-182690dfdb1c",
-                "order": 1,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "",
-                "description": "",
-                "field_key": "Months of Lease-Up",
-                "field_title": "Months of Lease-Up",
-                "field_type": "months",
-                "id": "0bc142aa-4861-419d-be79-353cc4f0ea8f",
-                "order": 2,
-                "required": true,
-                "time_phased": false
-            }
-        ],
-        "id": "fb65067b-c12a-4db7-a88a-2c7b5e0a94d7",
-        "name": "Leasing Assumptions",
-        "order": 1
-    },
-    {
-        "active": true,
-        "fields": [
-            {
-                "active": true,
-                "default_value": "60",
-                "description": "",
-                "field_key": "Multifamily Exit Month",
-                "field_title": "Multifamily Exit Month",
-                "field_type": "month",
-                "id": "a3f9b65b-bff1-4228-8016-3ffa57022c80",
-                "order": 0,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "6",
-                "description": "",
-                "field_key": "Multifamily Applied Exit Cap Rate",
-                "field_title": "Multifamily Applied Exit Cap Rate",
-                "field_type": "percent",
-                "id": "92fbdc48-ca16-49cd-a3e9-9b56120e98ba",
-                "order": 1,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "3",
-                "description": "%",
-                "field_key": "Multifamily Less: Selling Costs",
-                "field_title": "Multifamily Less: Selling Costs",
-                "field_type": "percent",
-                "id": "cc9556ed-75c1-441e-850b-4682121715da",
-                "order": 2,
-                "required": true,
-                "time_phased": false
-            }
-        ],
-        "id": "9e5839db-e2c0-4716-bc6b-0cf2dc1cdfae",
-        "name": "Exit Assumptions",
-        "order": 2
-    },
-    {
-        "active": true,
-        "fields": [
-            {
-                "active": true,
-                "default_value": "Yes",
-                "description": "",
-                "field_key": "Permanent Loan Issued?",
-                "field_title": "Would you like to model in a refinancing of the acquisition loan?",
-                "field_type": "yes_no",
-                "id": "130fef6c-7fb2-4c21-9ec0-dbd1e936e883",
-                "order": 0,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "36",
-                "description": "",
-                "field_key": "Refinancing Month",
-                "field_title": "What month is the refinancing to take place?",
-                "field_type": "month",
-                "id": "0b8cf978-9c0e-4e2a-81bb-6eb77f890944",
-                "order": 1,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "30",
-                "description": "",
-                "field_key": "Refi Amortization",
-                "field_title": "Refi Amortization",
-                "field_type": "year",
-                "id": "17a5ebcb-fd8a-4ae8-b426-60577d9560ea",
-                "order": 3,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "1.1",
-                "description": "",
-                "field_key": "Origination Cost (Includes Title)",
-                "field_title": "Origination Cost (Includes Title)",
-                "field_type": "percent",
-                "id": "49fc4379-52e5-4c61-bd3f-9f36ff3401f1",
-                "order": 4,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "6",
-                "description": "",
-                "field_key": "Applied Cap Rate for Valuation at Refi",
-                "field_title": "Applied Cap Rate for Valuation at Refi",
-                "field_type": "percent",
-                "id": "894bea83-14c3-4fb9-8653-4a477d9cc3e7",
-                "order": 5,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "75",
-                "description": "LTV Max",
-                "field_key": "LTV Max",
-                "field_title": "LTV Max",
-                "field_type": "percent",
-                "id": "38de2820-3045-40bc-bbcd-d8980d1a3f39",
-                "order": 6,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "1.25",
-                "description": "",
-                "field_key": "Minimum Debt-Service-Coverage Ratio",
-                "field_title": "Minimum Debt-Service-Coverage Ratio",
-                "field_type": "number",
-                "id": "f84f67d0-d58f-4eee-8be5-a480b1406484",
-                "order": 7,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "8.75",
-                "description": "Net Operating Income Divided by Loan Size",
-                "field_key": "Debt Yield Min",
-                "field_title": "Minimum Debt Yield",
-                "field_type": "percent",
-                "id": "b1e025e2-adb0-44ff-8558-3230283b607e",
-                "order": 8,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "0",
-                "description": "Share of Equity Contributed by the Sponsor or Lead Investor",
-                "field_key": "Share of Equity from Sponsor",
-                "field_title": "Share of Equity from Sponsor",
-                "field_type": "percent",
-                "id": "5d2efd50-a8fd-4a41-bbd5-610a6f296d92",
-                "order": 9,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "5",
-                "description": "",
-                "field_key": "Refinancing: Fixed Interest Rate",
-                "field_title": "Refinancing: Fixed Interest Rate",
-                "field_type": "percent",
-                "id": "e0f90ea0-614f-416d-84e5-ed00355749a6",
-                "order": 10,
-                "required": true,
-                "time_phased": false
-            }
-        ],
-        "id": "30ad7385-4fbd-4132-b98a-ca6b1a871cba",
-        "name": "Refinancing",
-        "order": 3
-    },
-    {
-        "active": true,
-        "fields": [
-            {
-                "active": true,
-                "default_value": "5",
-                "description": "",
-                "field_key": "Less: Vacancy and Bad Debt",
-                "field_title": "Less: Vacancy and Bad Debt",
-                "field_type": "percent",
-                "id": "2c190fa6-41cf-4d02-bc6b-6b48d79243e8",
-                "order": 1,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "70",
-                "description": "",
-                "field_key": "Renewal Property: Renewal Lease",
-                "field_title": "Renewal Property: Renewal Lease",
-                "field_type": "percent",
-                "id": "8fa4fa7c-9fee-4227-a22e-2e118e661cd0",
-                "order": 2,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "0",
-                "description": "",
-                "field_key": "Retail Rent: New Lease",
-                "field_title": "Retail Rent: New Lease",
-                "field_type": "dollars_per_sf",
-                "id": "3a2f28b8-d1ae-4f9d-97e3-73c5b231f0c4",
-                "order": 3,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "0",
-                "description": "",
-                "field_key": "Retail Rent: Renewal Lease",
-                "field_title": "Retail Rent: Renewal Lease",
-                "field_type": "dollars_per_sf",
-                "id": "b804931a-1840-498b-95ca-975524be63c3",
-                "order": 4,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "0",
-                "description": "",
-                "field_key": "TI's: New Lease",
-                "field_title": "TI's: New Lease",
-                "field_type": "dollars_per_sf",
-                "id": "2367ed1e-8874-4082-99e9-d1c2c05b6ac8",
-                "order": 5,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "0",
-                "description": "",
-                "field_key": "TI's: Renewal Lease",
-                "field_title": "TI's: Renewal Lease",
-                "field_type": "dollars_per_sf",
-                "id": "36314f37-c472-417b-b023-5d51bab54931",
-                "order": 6,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "0",
-                "description": "",
-                "field_key": "Leasing Commissions: New Lease",
-                "field_title": "Leasing Commissions: New Lease",
-                "field_type": "percent",
-                "id": "bca8e2a7-c1a4-42b5-a4c2-256c698cb872",
-                "order": 7,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "0",
-                "description": "",
-                "field_key": "Leasing Commissions: Renewal Lease",
-                "field_title": "Leasing Commissions: Renewal Lease",
-                "field_type": "percent",
-                "id": "67817ac6-b90e-418e-87c4-09f741b6c163",
-                "order": 8,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "1",
-                "description": "",
-                "field_key": "Lease Term: New Lease",
-                "field_title": "Lease Term: New Lease",
-                "field_type": "year",
-                "id": "a7baa6f8-73c9-4c05-80eb-1ed9ae25b760",
-                "order": 9,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "1",
-                "description": "",
-                "field_key": "Lease Term: Renewal Lease",
-                "field_title": "Lease Term: Renewal Lease",
-                "field_type": "year",
-                "id": "e3b6b8c9-904f-4e72-b594-3be99b295f2e",
-                "order": 10,
-                "required": true,
-                "time_phased": false
-            }
-        ],
-        "id": "a06806b1-2a79-41fc-bfc6-658b32f4ff4c",
-        "name": "Retail Leasing Assumptions",
-        "order": 4
-    },
-    {
-        "active": true,
-        "fields": [
-            {
-                "active": true,
-                "default_value": "",
-                "description": "",
-                "field_key": "Sr. Cons: Exact Loan Amount",
-                "field_title": "Sr. Cons: Exact Loan Amount",
-                "field_type": "dollars",
-                "id": "0ce23500-4dfb-4ec1-8b26-5f193c9341da",
-                "order": 1,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "7.5",
-                "description": "",
-                "field_key": "Fixed Rate for Sr. Cons. Loan",
-                "field_title": "Fixed Rate for Sr. Cons. Loan",
-                "field_type": "percent",
-                "id": "09e453ba-aa28-42a1-8420-fc7b24e283f9",
-                "order": 3,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "400",
-                "description": "",
-                "field_key": "Floating: Spread Over Base Rate",
-                "field_title": "Floating: Spread Over Base Rate",
-                "field_type": "number",
-                "id": "f64371c5-7507-4c39-9ac6-5bfa700b5565",
-                "order": 5,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "Floating",
-                "description": "Fixed,Floating",
-                "field_key": "Sr. Cons: Interest Rate Type",
-                "field_title": "Sr. Cons: Interest Rate Type",
-                "field_type": "select_options",
-                "id": "380ce977-86c2-4780-a9ed-aa19b8ac58e5",
-                "order": 2,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "400",
-                "description": "",
-                "field_key": "Floating: Base Rate",
-                "field_title": "Floating: Base Rate",
-                "field_type": "number",
-                "id": "3f7f2a2a-4436-4d98-a6df-1e521e0600d4",
-                "order": 4,
-                "required": true,
-                "time_phased": false
-            }
-        ],
-        "id": "333e5736-6ada-4520-82db-d9d1aecbb3e3",
-        "name": "Senior Construction Loan Financing",
-        "order": 5
-    },
-    {
-        "active": true,
-        "fields": [
-            {
-                "active": true,
-                "default_value": "5",
-                "description": "",
-                "field_key": "Interest Rate (Accrual)",
-                "field_title": "Interest Rate (Accrual)",
-                "field_type": "percent",
-                "id": "ad95364e-abd3-43e1-82a6-9275ae1cc995",
-                "order": 2,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "10",
-                "description": "",
-                "field_key": "Participation",
-                "field_title": "Participation",
-                "field_type": "percent",
-                "id": "12c2e9bd-5e2b-4a7a-b2e5-6b13612683ec",
-                "order": 4,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "",
-                "description": "",
-                "field_key": "Pref. Equity / Mezz. Loan Amount",
-                "field_title": "Pref. Equity / Mezz. Loan Amount",
-                "field_type": "dollars",
-                "id": "bbbb394d-420d-47d7-a99a-db65a9e16bea",
-                "order": 1,
-                "required": true,
-                "time_phased": false
-            },
-            {
-                "active": true,
-                "default_value": "",
-                "description": "",
-                "field_key": "Origination Fee",
-                "field_title": "Origination Fee",
-                "field_type": "dollars",
-                "id": "182c7c40-b75e-4629-a21f-55ad80c2a7e8",
-                "order": 3,
-                "required": false,
-                "time_phased": false
-            }
-        ],
-        "id": "f2b2600e-4f4d-473b-9fe5-a7843582a032",
-        "name": "Second Lien",
-        "order": 6
-    }
-]}
-
-export const modelTypePresets = {
-    "sections": [
-        {
-            "active": true,
-            "fields": [
-                {
-                    "active": true,
-                    "default_value": "0",
-                    "description": "Price to Compare the Purchase Price to",
-                    "field_key": "Asking Price",
-                    "field_title": "Asking Price",
-                    "field_type": "dollars",
-                    "id": "35c0233b-9fe8-4d37-a81c-72bae936bcd4",
-                    "order": 0,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "0",
-                    "description": "Price at which property acquired",
-                    "field_key": "Acquisition Price",
-                    "field_title": "Acquisition Price",
-                    "field_type": "dollars",
-                    "id": "66e8d99b-1fed-46a5-b605-57960ab01af2",
-                    "order": 1,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "",
-                    "description": "Date the model will start",
-                    "field_key": "Model Start Date",
-                    "field_title": "Model Start Date",
-                    "field_type": "date",
-                    "id": "10b859a9-ba2c-4824-bd5e-dff5d88bad09",
-                    "order": 2,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "",
-                    "description": "Gross Square Feet of Property",
-                    "field_key": "Gross Buildable Square Feet",
-                    "field_title": "Gross Buildable Square Feet",
-                    "field_type": "number",
-                    "id": "3834e543-40c8-4bde-a747-1ee48781088b",
-                    "order": 3,
-                    "required": false,
-                    "time_phased": false
-                },
-                // {
-                //     "active": true,
-                //     "default_value": "0",
-                //     "description": "Share of Equity from Sponsor",
-                //     "field_key": "Share of Equity from Sponsor",
-                //     "field_title": "Share of Equity from Sponsor",
-                //     "field_type": "percent",
-                //     "id": "e594f0d8-99dd-4a36-8dbe-81f6461ccd0e",
-                //     "order": 4,
-                //     "required": true,
-                //     "time_phased": false
-                // }
-            ],
-            "id": "f8ad2355-50b8-4490-8f03-3a745e41e6a6",
-            "name": "General Property Assumptions",
-            "order": 0
-        },
-        {
-            "active": true,
-            "fields": [
-                {
-                    "active": true,
-                    "default_value": "1",
-                    "description": "Uncollectible rental income and other charges that are ultimately written off as losses",
-                    "field_key": "Bad Debt",
-                    "field_title": "Bad Debt / Collection Loss",
-                    "field_type": "percent",
-                    "id": "deb5d638-017d-4b23-8f65-00149a254b53",
-                    "order": 0,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "5",
-                    "description": "Long-term expected vacancy rate (standard assumption of 5% is given as default value)",
-                    "field_key": "Vacancy",
-                    "field_title": "Vacancy",
-                    "field_type": "percent",
-                    "id": "e09d75ea-d361-479b-a836-182690dfdb1c",
-                    "order": 1,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "",
-                    "description": "",
-                    "field_key": "Months of Lease-Up",
-                    "field_title": "Months of Lease-Up",
-                    "field_type": "months",
-                    "id": "0bc142aa-4861-419d-be79-353cc4f0ea8f",
-                    "order": 2,
-                    "required": true,
-                    "time_phased": false
-                }
-            ],
-            "id": "fb65067b-c12a-4db7-a88a-2c7b5e0a94d7",
-            "name": "Leasing Assumptions",
-            "order": 1
-        },
-        {
-            "active": true,
-            "fields": [
-                {
-                    "active": true,
-                    "default_value": "60",
-                    "description": "",
-                    "field_key": "Multifamily Exit Month",
-                    "field_title": "Multifamily Exit Month",
-                    "field_type": "month",
-                    "id": "a3f9b65b-bff1-4228-8016-3ffa57022c80",
-                    "order": 0,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "6",
-                    "description": "",
-                    "field_key": "Multifamily Applied Exit Cap Rate",
-                    "field_title": "Multifamily Applied Exit Cap Rate",
-                    "field_type": "percent",
-                    "id": "92fbdc48-ca16-49cd-a3e9-9b56120e98ba",
-                    "order": 1,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "3",
-                    "description": "%",
-                    "field_key": "Multifamily Less: Selling Costs",
-                    "field_title": "Multifamily Less: Selling Costs",
-                    "field_type": "percent",
-                    "id": "cc9556ed-75c1-441e-850b-4682121715da",
-                    "order": 2,
-                    "required": true,
-                    "time_phased": false
-                }
-            ],
-            "id": "9e5839db-e2c0-4716-bc6b-0cf2dc1cdfae",
-            "name": "Exit Assumptions",
-            "order": 2
-        },
-        {
-            "active": true,
-            "fields": [
-                {
-                    "active": true,
-                    "default_value": "Yes",
-                    "description": "",
-                    "field_key": "Permanent Loan Issued?",
-                    "field_title": "Would you like to model in a refinancing of the acquisition loan?",
-                    "field_type": "yes_no",
-                    "id": "130fef6c-7fb2-4c21-9ec0-dbd1e936e883",
-                    "order": 0,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "36",
-                    "description": "",
-                    "field_key": "Refinancing Month",
-                    "field_title": "What month is the refinancing to take place?",
-                    "field_type": "month",
-                    "id": "0b8cf978-9c0e-4e2a-81bb-6eb77f890944",
-                    "order": 1,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "30",
-                    "description": "",
-                    "field_key": "Refi Amortization",
-                    "field_title": "Refi Amortization",
-                    "field_type": "year",
-                    "id": "17a5ebcb-fd8a-4ae8-b426-60577d9560ea",
-                    "order": 3,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "1.1",
-                    "description": "",
-                    "field_key": "Origination Cost (Includes Title)",
-                    "field_title": "Origination Cost (Includes Title)",
-                    "field_type": "percent",
-                    "id": "49fc4379-52e5-4c61-bd3f-9f36ff3401f1",
-                    "order": 4,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "6",
-                    "description": "",
-                    "field_key": "Applied Cap Rate for Valuation at Refi",
-                    "field_title": "Applied Cap Rate for Valuation at Refi",
-                    "field_type": "percent",
-                    "id": "894bea83-14c3-4fb9-8653-4a477d9cc3e7",
-                    "order": 5,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "75",
-                    "description": "LTV Max",
-                    "field_key": "LTV Max",
-                    "field_title": "LTV Max",
-                    "field_type": "percent",
-                    "id": "38de2820-3045-40bc-bbcd-d8980d1a3f39",
-                    "order": 6,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "1.25",
-                    "description": "",
-                    "field_key": "Minimum Debt-Service-Coverage Ratio",
-                    "field_title": "Minimum Debt-Service-Coverage Ratio",
-                    "field_type": "number",
-                    "id": "f84f67d0-d58f-4eee-8be5-a480b1406484",
-                    "order": 7,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "8.75",
-                    "description": "Net Operating Income Divided by Loan Size",
-                    "field_key": "Debt Yield Min",
-                    "field_title": "Minimum Debt Yield",
-                    "field_type": "percent",
-                    "id": "b1e025e2-adb0-44ff-8558-3230283b607e",
-                    "order": 8,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "0",
-                    "description": "Share of Equity Contributed by the Sponsor or Lead Investor",
-                    "field_key": "Share of Equity from Sponsor",
-                    "field_title": "Share of Equity from Sponsor",
-                    "field_type": "percent",
-                    "id": "5d2efd50-a8fd-4a41-bbd5-610a6f296d92",
-                    "order": 9,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "5",
-                    "description": "",
-                    "field_key": "Refinancing: Fixed Interest Rate",
-                    "field_title": "Refinancing: Fixed Interest Rate",
-                    "field_type": "percent",
-                    "id": "e0f90ea0-614f-416d-84e5-ed00355749a6",
-                    "order": 10,
-                    "required": true,
-                    "time_phased": false
-                }
-            ],
-            "id": "30ad7385-4fbd-4132-b98a-ca6b1a871cba",
-            "name": "Refinancing",
-            "order": 3
-        },
-        {
-            "active": true,
-            "fields": [
-                {
-                    "active": true,
-                    "default_value": "5",
-                    "description": "",
-                    "field_key": "Less: Vacancy and Bad Debt",
-                    "field_title": "Less: Vacancy and Bad Debt",
-                    "field_type": "percent",
-                    "id": "2c190fa6-41cf-4d02-bc6b-6b48d79243e8",
-                    "order": 1,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "70",
-                    "description": "",
-                    "field_key": "Renewal Property: Renewal Lease",
-                    "field_title": "Renewal Property: Renewal Lease",
-                    "field_type": "percent",
-                    "id": "8fa4fa7c-9fee-4227-a22e-2e118e661cd0",
-                    "order": 2,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "0",
-                    "description": "",
-                    "field_key": "Retail Rent: New Lease",
-                    "field_title": "Retail Rent: New Lease",
-                    "field_type": "dollars_per_sf",
-                    "id": "3a2f28b8-d1ae-4f9d-97e3-73c5b231f0c4",
-                    "order": 3,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "0",
-                    "description": "",
-                    "field_key": "Retail Rent: Renewal Lease",
-                    "field_title": "Retail Rent: Renewal Lease",
-                    "field_type": "dollars_per_sf",
-                    "id": "b804931a-1840-498b-95ca-975524be63c3",
-                    "order": 4,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "0",
-                    "description": "",
-                    "field_key": "TI's: New Lease",
-                    "field_title": "TI's: New Lease",
-                    "field_type": "dollars_per_sf",
-                    "id": "2367ed1e-8874-4082-99e9-d1c2c05b6ac8",
-                    "order": 5,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "0",
-                    "description": "",
-                    "field_key": "TI's: Renewal Lease",
-                    "field_title": "TI's: Renewal Lease",
-                    "field_type": "dollars_per_sf",
-                    "id": "36314f37-c472-417b-b023-5d51bab54931",
-                    "order": 6,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "0",
-                    "description": "",
-                    "field_key": "Leasing Commissions: New Lease",
-                    "field_title": "Leasing Commissions: New Lease",
-                    "field_type": "percent",
-                    "id": "bca8e2a7-c1a4-42b5-a4c2-256c698cb872",
-                    "order": 7,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "0",
-                    "description": "",
-                    "field_key": "Leasing Commissions: Renewal Lease",
-                    "field_title": "Leasing Commissions: Renewal Lease",
-                    "field_type": "percent",
-                    "id": "67817ac6-b90e-418e-87c4-09f741b6c163",
-                    "order": 8,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "1",
-                    "description": "",
-                    "field_key": "Lease Term: New Lease",
-                    "field_title": "Lease Term: New Lease",
-                    "field_type": "year",
-                    "id": "a7baa6f8-73c9-4c05-80eb-1ed9ae25b760",
-                    "order": 9,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "1",
-                    "description": "",
-                    "field_key": "Lease Term: Renewal Lease",
-                    "field_title": "Lease Term: Renewal Lease",
-                    "field_type": "year",
-                    "id": "e3b6b8c9-904f-4e72-b594-3be99b295f2e",
-                    "order": 10,
-                    "required": true,
-                    "time_phased": false
-                }
-            ],
-            "id": "a06806b1-2a79-41fc-bfc6-658b32f4ff4c",
-            "name": "Retail Leasing Assumptions",
-            "order": 4
-        },
-        {
-            "active": true,
-            "fields": [
-                {
-                    "active": true,
-                    "default_value": "",
-                    "description": "",
-                    "field_key": "Sr. Cons: Exact Loan Amount",
-                    "field_title": "Sr. Cons: Exact Loan Amount",
-                    "field_type": "dollars",
-                    "id": "0ce23500-4dfb-4ec1-8b26-5f193c9341da",
-                    "order": 1,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "Floating",
-                    "description": "Fixed,Floating",
-                    "field_key": "Sr. Cons: Interest Rate Type",
-                    "field_title": "Sr. Cons: Interest Rate Type",
-                    "field_type": "select_options",
-                    "id": "380ce977-86c2-4780-a9ed-aa19b8ac58e5",
-                    "order": 2,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "7.5",
-                    "description": "",
-                    "field_key": "Fixed Rate for Sr. Cons. Loan",
-                    "field_title": "Fixed Rate for Sr. Cons. Loan",
-                    "field_type": "percent",
-                    "id": "09e453ba-aa28-42a1-8420-fc7b24e283f9",
-                    "order": 3,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "400",
-                    "description": "",
-                    "field_key": "Floating: Base Rate",
-                    "field_title": "Floating: Base Rate",
-                    "field_type": "number",
-                    "id": "3f7f2a2a-4436-4d98-a6df-1e521e0600d4",
-                    "order": 4,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "400",
-                    "description": "",
-                    "field_key": "Floating: Spread Over Base Rate",
-                    "field_title": "Floating: Spread Over Base Rate",
-                    "field_type": "number",
-                    "id": "f64371c5-7507-4c39-9ac6-5bfa700b5565",
-                    "order": 5,
-                    "required": true,
-                    "time_phased": false
-                }
-            ],
-            "id": "333e5736-6ada-4520-82db-d9d1aecbb3e3",
-            "name": "Senior Construction Loan Financing",
-            "order": 5
-        },
-        {
-            "active": true,
-            "fields": [
-                {
-                    "active": true,
-                    "default_value": "",
-                    "description": "",
-                    "field_key": "Pref. Equity / Mezz. Loan Amount",
-                    "field_title": "Pref. Equity / Mezz. Loan Amount",
-                    "field_type": "dollars",
-                    "id": "bbbb394d-420d-47d7-a99a-db65a9e16bea",
-                    "order": 1,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "5",
-                    "description": "",
-                    "field_key": "Interest Rate (Accrual)",
-                    "field_title": "Interest Rate (Accrual)",
-                    "field_type": "percent",
-                    "id": "ad95364e-abd3-43e1-82a6-9275ae1cc995",
-                    "order": 2,
-                    "required": true,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "",
-                    "description": "",
-                    "field_key": "Origination Fee",
-                    "field_title": "Origination Fee",
-                    "field_type": "dollars",
-                    "id": "182c7c40-b75e-4629-a21f-55ad80c2a7e8",
-                    "order": 3,
-                    "required": false,
-                    "time_phased": false
-                },
-                {
-                    "active": true,
-                    "default_value": "10",
-                    "description": "",
-                    "field_key": "Participation",
-                    "field_title": "Participation",
-                    "field_type": "percent",
-                    "id": "12c2e9bd-5e2b-4a7a-b2e5-6b13612683ec",
-                    "order": 4,
-                    "required": true,
-                    "time_phased": false
-                }
-            ],
-            "id": "f2b2600e-4f4d-473b-9fe5-a7843582a032",
-            "name": "Second Lien",
-            "order": 6
-        }
-    ]
+        ]
 }
 
 // export const modelTypePresets = {

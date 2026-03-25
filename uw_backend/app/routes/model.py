@@ -22,6 +22,7 @@ from datetime import datetime
 import os
 from google.auth import default
 import traceback
+import time
 from flask import g
 try:
     from google.cloud import storage  # type: ignore
@@ -1066,12 +1067,13 @@ def user_models_single_field_update():
             copied_sheet_id=sheet_id,
             mapped_values=data.get('updates'),
             model_mapping=data.get('model_mapping'),
-            variable_mapping=data.get('variable_mapping')
+            variable_mapping=data.get('variable_mapping'),
+            development_model=data.get('development_model', False)
         )
 
 
 
-        print("result", result)
+        # print("result", result)
         print(f"🔄 Linked user and model_type to user_model.")
 
         return jsonify({"result": result}), 201
@@ -1365,6 +1367,7 @@ def get_user_model(user_model_id):
                 'name': model_type.name,
                 'description': model_type.description,
                 'is_active': model_type.is_active,
+                'development_model': getattr(model_type, 'development_model', False),
                 'show_retail': model_type.show_retail,
                 'show_rental_units': model_type.show_rental_units
             },
@@ -1593,6 +1596,7 @@ def get_user_model_version(user_model_version_id):
                 'name': model_type.name,
                 'description': model_type.description,
                 'is_active': model_type.is_active,
+                'development_model': getattr(model_type, 'development_model', False),
                 'show_retail': model_type.show_retail,
                 'show_rental_units': model_type.show_rental_units
             },
@@ -1672,16 +1676,16 @@ def get_all_user_models():
             v_ms = int((time.monotonic() - v_started) * 1000)
             version_count = len(versions)
             # print(f"   • user_model_id={user_model.id} versions={version_count} (loaded in {v_ms} ms)")
-            # Get the most recent version (by created_at or version_number, fallback to first if none)
+            # Get the most recent version and the first version (by created_at / version_number)
             most_recent_version = None
+            first_version = None
             if version_count > 0:
-                most_recent_version = max(
-                    versions,
-                    key=lambda v: (
-                        getattr(v, 'created_at', None) or getattr(v, 'updated_at', None) or 0,
-                        getattr(v, 'version_number', 0)
-                    )
+                _version_key = lambda v: (
+                    getattr(v, 'created_at', None) or getattr(v, 'updated_at', None) or 0,
+                    getattr(v, 'version_number', 0)
                 )
+                most_recent_version = max(versions, key=_version_key)
+                first_version = min(versions, key=_version_key)
             # Load active model tags
             tags = session.query(ModelTag).filter(
                 ModelTag.user_model_id == user_model.id,
@@ -1695,6 +1699,10 @@ def get_all_user_models():
                 'created_at': t.created_at.isoformat() if getattr(t, 'created_at', None) else None,
                 'updated_at': t.updated_at.isoformat() if getattr(t, 'updated_at', None) else None,
             } for t in tags]
+            # created_at = when the 1st version was created; updated_at = when the most recent version was created
+            created_at_value = first_version.created_at.isoformat() if first_version and getattr(first_version, 'created_at', None) else (user_model.created_at.isoformat() if user_model.created_at else None)
+            updated_at_value = most_recent_version.created_at.isoformat() if most_recent_version and getattr(most_recent_version, 'created_at', None) else None
+
             # Prepare the data
             user_models_data.append({
                 'id': str(user_model.id),
@@ -1703,7 +1711,8 @@ def get_all_user_models():
                 'city': user_model.city,
                 'state': user_model.state,
                 'zip_code': user_model.zip_code,
-                'created_at': user_model.created_at.isoformat() if user_model.created_at else None,
+                'created_at': created_at_value,
+                'updated_at': updated_at_value,
                 'levered_irr': most_recent_version.levered_irr if most_recent_version else None,
                 'levered_moic': most_recent_version.levered_moic if most_recent_version else None,
                 'version_count': version_count,
@@ -2149,11 +2158,6 @@ def download_worksheet(version_id):
                 print(f"📝 [DEBUG] Received {len(notes_payload) if hasattr(notes_payload,'__len__') else 'some'} notes with download request")
             except Exception:
                 print("📝 [DEBUG] Received notes payload with download request")
-        
-        user_model_version = session.query(UserModelVersion).get(version_id)
-        if user_model_version is None:
-            print(f"❌ [DEBUG] UserModelVersion not found for id: {version_id}")
-            return jsonify({'error': 'User model version not found'}), 404
 
         print(f"✅ [DEBUG] Found UserModelVersion: {user_model_version}")
         print(f"🔗 [DEBUG] Google Sheet URL: {user_model_version.google_sheet_url}")
@@ -2166,9 +2170,13 @@ def download_worksheet(version_id):
             traceback.print_exc()
             return jsonify({'error': 'Invalid Google Sheet URL format'}), 400
 
+        download_t0 = time.perf_counter()
+        notes_elapsed_ms = 0.0
+
         # If notes provided, write them into "Diligence and Notes" before export
         try:
             if notes_payload is not None:
+                t_notes = time.perf_counter()
                 ss = gs_client.open_by_key(sheet_id)
                 try:
                     ws = ss.worksheet("Diligence and Notes")
@@ -2207,20 +2215,38 @@ def download_worksheet(version_id):
                         ws.format(rng, {"textFormat": {"bold": False}})
                     except Exception:
                         print("ℹ️ Unable to remove bold format from notes range (non-fatal).")
+                notes_elapsed_ms = (time.perf_counter() - t_notes) * 1000
         except Exception as e:
             print(f"⚠️ [DEBUG] Failed to write notes to sheet: {e}")
             # Continue anyway; export will still proceed
 
+        t_export = time.perf_counter()
         try:
-            output_path = export_google_sheet(sheet_id)
-            print(f"📄 [DEBUG] ODS export path/response ready: {output_path}")
+            # development_model lives on ModelType, not UserModel
+            model_type = session.query(ModelType).filter_by(id=user_model.model_type_id).first()
+            development_model = bool(getattr(model_type, "development_model", False)) if model_type else False
+            response = export_google_sheet(
+                sheet_id,
+                filename="worksheet_export.xlsx",
+                development_model=development_model,
+            )
         except Exception as e:
-            print(f"❌ [DEBUG] Failed to export Google Sheet as ODS for sheet_id: {sheet_id}")
+            export_elapsed_ms = (time.perf_counter() - t_export) * 1000
+            print(
+                f"❌ [DEBUG] Failed to export Google Sheet for sheet_id={sheet_id} "
+                f"after {export_elapsed_ms:.0f}ms: {e}"
+            )
             traceback.print_exc()
             return jsonify({'error': f'Failed to export Google Sheet: {str(e)}'}), 500
 
-        print(f"⬇️ [DEBUG] Sending file to client.")
-        return export_google_sheet(sheet_id, filename="worksheet_export.xlsx")
+        export_elapsed_ms = (time.perf_counter() - t_export) * 1000
+        total_ms = (time.perf_counter() - download_t0) * 1000
+        print(
+            f"⏱️ [download_worksheet] version_id={version_id} "
+            f"notes_write_ms={notes_elapsed_ms:.0f} export_ms={export_elapsed_ms:.0f} total_ms={total_ms:.0f}"
+        )
+        print("⬇️ [DEBUG] Sending file to client.")
+        return response
     except Exception as e:
         print(f"❌ [DEBUG] Exception in download_worksheet: {str(e)}")
         traceback.print_exc()

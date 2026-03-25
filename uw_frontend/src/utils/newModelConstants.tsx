@@ -1,3 +1,8 @@
+export const FIELD_TITLE_CONSTANTS = {
+  ASKING_PRICE_LAND: "Asking Price of Land",
+  ACQUISITION_VALUE_LAND: "Acquisition / Value of Land"
+};
+
 export const OperatingExpensesBasic = [
     { id: '1', name: 'Property Taxes', factor: 0, broker: 0, cost_per: 'Per unit' },
     { id: '2', name: 'Insurance', factor: 0, broker: 0, cost_per: 'Per unit' },
@@ -62,6 +67,7 @@ export const AmenityIncomeSuggested = [
   { id: '2', name: 'Storage', start_month: 0, utilization: 0, unit_count: 0, monthly_fee: 0 },
   { id: '3', name: 'Laundry', start_month: 0, utilization: 0, unit_count: 0, monthly_fee: 0 },
   { id: '4', name: 'Gym/Amenity Space', start_month: 0, utilization: 0, unit_count: 0, monthly_fee: 0 },
+  { id: '5', name: 'RUBS', start_month: 0, utilization: 0, unit_count: 0, monthly_fee: 0 },
 ]
 
 export const AmenityIncomeBasic = [
@@ -945,7 +951,7 @@ export const ExpensesBasicDevelopment = [
     id: "206",
     name: "GC Fee",
     statistic: null,
-    factor: "Total percent of hard costs",
+    factor: "Percent of Hard Costs",
     cost_per: 0,
     type: "Soft Costs",
     start_month: 0,

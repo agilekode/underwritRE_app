@@ -201,7 +201,11 @@ const CustomFooter = ({
       monthly = Math.round(((Number(row.cost_per)/100 * cl) / monthsInPeriod) * 100) / 100;
       annual = (Number(row.cost_per)/100) * cl;
     } else if (row.factor && row.factor.toLowerCase() === "Percent of Pref / Mezz Loan".toLowerCase()) {
+      const prefMezzLoanField = modelDetails?.user_model_field_values?.find(
+        (field: any) => field.field_key && field.field_key.trim() === "Pref. Equity / Mezz. Loan Amount"
+      );
       const candidates = [
+        prefMezzLoanField?.value,
         variables?.["Pref. / Mezz: Loan Amount"],
       ];
       let pm = 0;
@@ -259,16 +263,19 @@ const CustomFooter = ({
       monthly = Math.round(((Number(row.cost_per) / 100) * insuranceAnnual / monthsInPeriod) * 100) / 100;
       annual = (Number(row.cost_per) / 100) * insuranceAnnual;
     }
-    else if (row.factor && row.factor.toLowerCase() === "Total percent of other expenses".toLowerCase()) {
+    else if ((row.factor || "").toLowerCase().includes("percent of other")) {
       // Calculate the sum of other expenses for this type
+      const buildableSf = Number(buildableSqFt ?? 0);
       const otherTotals = filteredExpenses
         .filter((exp) => exp.id !== row.id)
         .map((exp) => {
-          if (exp.factor && exp.factor.toLowerCase() === "Total".toLowerCase()) return exp.cost_per || 0;
-          if (exp.factor && exp.factor.toLowerCase() === "per Unit".toLowerCase() || exp.factor && exp.factor.toLowerCase() === "per SF".toLowerCase() || exp.factor && exp.factor.toLowerCase() === "per Month".toLowerCase()) {
+          const f = (exp.factor || "").trim().toLowerCase();
+          if (f === "total") return Number(exp.cost_per) ?? 0;
+          if (f.includes("buildable") && f.includes("sf")) return Number(exp.cost_per || 0) * buildableSf;
+          if (f === "per unit" || f === "per sf" || f === "per month") {
             return Number(exp.cost_per || 0) * Number(exp.statistic || 0);
           }
-          if (exp.factor && exp.factor.toLowerCase() === "Percent of Purchase Price".toLowerCase()) {
+          if (f === "percent of purchase price") {
             const acquisitionPriceField = modelDetails?.user_model_field_values?.find(
               (field: any) => field.field_key && field.field_key.trim() === "Acquisition Price"
             );
@@ -649,10 +656,12 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
               { value: "per SF", label: "per SF" },
               { value: "per Month", label: "per Month" },
               { value: "Total", label: "Total" },
+
             ];
           } else if (thisType === "Hard Costs") {
             options = [
               { value: "per Unit", label: "per Unit" },
+              { value: "$ / buildable SF", label: "$ / buildable SF" },
               { value: "per SF", label: "per SF" },
               { value: "per Month", label: "per Month" },
               { value: "Total", label: "Total" },
@@ -889,12 +898,20 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
         }
 
         // If factor is "Total percent of other expenses", show sum of other expenses
-        if (params.row.factor.toLowerCase() === "Total percent of other expenses".toLowerCase()) {
+        const rowFactor = (params.row.factor || "").trim().toLowerCase();
+        const isTotalPercentOfOther = rowFactor === "total percent of other expenses" || rowFactor.includes("percent of other");
+        if (isTotalPercentOfOther) {
           const { id, type } = params.row;
+          const buildableSf = Number(buildableSQFt ?? 0);
           const otherTotals = expenses
             .filter((exp) => exp.type === type && exp.id !== id)
             .map((exp) => {
-              if (exp.factor && exp.factor.toLowerCase() === "Total".toLowerCase()) return exp.cost_per;
+              const f = (exp.factor || "").trim().toLowerCase();
+              if (f === "total") return Number(exp.cost_per) ?? 0;
+              // $ / buildable SF (any casing/spacing) – use same buildable SF as the column uses for those rows
+              if (f.includes("buildable") && f.includes("sf")) {
+                return Number(exp.cost_per) * buildableSf;
+              }
               if (exp.factor && exp.factor.toLowerCase() === "Percent of Purchase Price".toLowerCase()) {
                 const acquisitionPriceField = modelDetails?.user_model_field_values?.find(
                   (field: any) => field.field_key && field.field_key.trim() === "Acquisition Price"
@@ -950,7 +967,7 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           );
         }
         // Show read-only buildable SF when using "$ / buildable SF"
-        if (params.row.factor.toLowerCase() === "$ / buildable sf".toLowerCase()) {
+        if ((params.row.factor || "").trim().toLowerCase().includes("buildable")) {
           const sf = Number(buildableSQFt || 0);
           return (
             <span style={{ color: editable ? "inherit" : "#999" }}>
@@ -1005,7 +1022,11 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           );
         }
         else if (params.row.factor.toLowerCase() === "Percent of Pref / Mezz Loan".toLowerCase()) {
+          const prefMezzLoanField = modelDetails?.user_model_field_values?.find(
+            (field: any) => field.field_key && field.field_key.trim() === "Pref. Equity / Mezz. Loan Amount"
+          );
           const candidates = [
+            prefMezzLoanField?.value,
             variables?.["Pref. / Mezz: Loan Amount"],
 
           ];
@@ -1139,7 +1160,11 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           }
           value = (Number(cost_per) / 100) * cl;
         } else if (factor && factor.toLowerCase() === "Percent of Pref / Mezz Loan".toLowerCase()) {
+          const prefMezzLoanField = modelDetails?.user_model_field_values?.find(
+            (field: any) => field.field_key && field.field_key.trim() === "Pref. Equity / Mezz. Loan Amount"
+          );
           const cand = [
+            prefMezzLoanField?.value,
             variables?.["Pref. / Mezz: Loan Amount"],
             variables?.["Max Pref / Mezz Loan"],
             variables?.["Pref / Mezz Loan Amount"],
@@ -1191,20 +1216,22 @@ const handleCellChange = (id: string, field: string, value: string | number) => 
           });
           value = (Number(cost_per) / 100) * insuranceAnnual;
         }
-        else if (factor && factor.toLowerCase() === "Total percent of other expenses".toLowerCase()) {
+        else if ((factor || "").trim().toLowerCase() === "total percent of other expenses" || (factor || "").toLowerCase().includes("percent of other")) {
 
             const { id, type } = params.row;
+            const buildableSf = Number(buildableSQFt ?? 0);
             const otherTotals = expenses
                 .filter((exp) => exp.type === type && exp.id !== id)
                 .map((exp) => {
-                if (exp.factor && exp.factor.toLowerCase() === "Total".toLowerCase()) return exp.cost_per;
-                else if (
-                    exp.factor && exp.factor.toLowerCase() === "per Unit".toLowerCase() ||
-                    exp.factor && exp.factor.toLowerCase() === "per SF".toLowerCase() ||
-                    exp.factor && exp.factor.toLowerCase() === "per Month".toLowerCase()
+                const f = (exp.factor || "").trim().toLowerCase();
+                if (f === "total") return Number(exp.cost_per) ?? 0;
+                if (f.includes("buildable") && f.includes("sf")) return Number(exp.cost_per) * buildableSf;
+                if (
+                    f === "per unit" || f === "per sf" || f === "per month"
                 ) {
                     return Number(exp.cost_per) * Number(exp.statistic);
-                }else if (exp.factor && exp.factor.toLowerCase() === "Percent of Purchase Price".toLowerCase()) {
+                }
+                if (f === "percent of purchase price") {
                   const acquisitionPriceField = modelDetails?.user_model_field_values?.find(
                     (field: any) => field.field_key && field.field_key.trim() === "Acquisition Price"
                   );

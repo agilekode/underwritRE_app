@@ -188,7 +188,6 @@ const Home = () => {
 
     fetchUserModels();
   }, [user, userModels, setUserModels, getAccessTokenSilently]);
-  console.log(userModels);
   const models = userModels
     .filter((m: any) => m.active !== false)
     .map((model: any) => ({
@@ -203,12 +202,29 @@ const Home = () => {
       minute: '2-digit',
       hour12: true
     }) : 'N/A',
-    created_at_raw: model.created_at ? new Date(model.created_at).getTime() : 0,
+    created_at_raw: (() => {
+      if (!model.created_at) return 0;
+      const t = new Date(model.created_at).getTime();
+      return Number.isFinite(t) ? t : 0;
+    })(),
     created_date: model.created_at ? new Date(model.created_at).toLocaleDateString('en-US', {
       month: '2-digit',
       day: '2-digit',
       year: 'numeric',
     }) : 'N/A',
+    updated_at: model.updated_at ? new Date(model.updated_at).toLocaleString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }) : 'N/A',
+    updated_at_raw: (() => {
+      if (!model.updated_at) return 0;
+      const t = new Date(model.updated_at).getTime();
+      return Number.isFinite(t) ? t : 0;
+    })(),
     irr: model.levered_irr && !String(model.levered_irr).startsWith('#') ? `${model.levered_irr}` : 'N/A',
     moic: model.levered_moic && !String(model.levered_moic).startsWith('#') ? `${model.levered_moic}` : 'N/A',
     version_count: model.version_count,
@@ -417,7 +433,10 @@ const Home = () => {
       case 'moic':
         return value ? parseFloat(value.replace('x', '')) : null;
       case 'created_at':
-        return typeof value === 'number' ? value : (value ? new Date(value).getTime() : null);
+      case 'updated_at': {
+        const n = typeof value === 'number' ? value : (value ? new Date(value).getTime() : null);
+        return n != null && Number.isFinite(n) ? n : null;
+      }
       case 'version_count':
         return typeof value === 'number' ? value : null;
       default:
@@ -427,6 +446,22 @@ const Home = () => {
 
   const sortedModels = React.useMemo(() => {
     return [...filteredModels].sort((a, b) => {
+      // "Most recently updated": primary = updated_at, secondary = created_at (when null or equal)
+      if (orderBy === 'updated_at') {
+        const aPrimary = parseValue(a.updated_at_raw, 'updated_at');
+        const bPrimary = parseValue(b.updated_at_raw, 'updated_at');
+        const aSecondary = a.created_at_raw ?? 0;
+        const bSecondary = b.created_at_raw ?? 0;
+        if (aPrimary === null && bPrimary === null) {
+          return order === 'desc' ? bSecondary - aSecondary : aSecondary - bSecondary;
+        }
+        if (aPrimary === null) return 1;
+        if (bPrimary === null) return -1;
+        const primaryDiff = order === 'desc' ? (bPrimary as number) - (aPrimary as number) : (aPrimary as number) - (bPrimary as number);
+        if (primaryDiff !== 0) return primaryDiff;
+        return order === 'desc' ? bSecondary - aSecondary : aSecondary - bSecondary;
+      }
+
       const sortKey = orderBy === 'created_at' ? 'created_at_raw' : orderBy;
       const aValue = parseValue(a[sortKey], orderBy);
       const bValue = parseValue(b[sortKey], orderBy);
@@ -616,9 +651,26 @@ const Home = () => {
           <Select
             value={`${orderBy}_${order}`}
             onChange={(e) => {
-              const [field, dir] = (e.target.value as string).split('_');
+              const raw = e.target.value as string;
+              const parts = raw.split('_');
+              const dir = parts.pop() ?? 'desc';
+              const field = parts.join('_');
               setOrderBy(field);
               setOrder(dir as 'asc' | 'desc');
+            }}
+            renderValue={(v) => {
+              const labels: Record<string, string> = {
+                created_at_desc: 'Newest first',
+                created_at_asc: 'Oldest first',
+                updated_at_desc: 'Most recently updated',
+                name_asc: 'Name A–Z',
+                name_desc: 'Name Z–A',
+                irr_desc: 'IRR (high–low)',
+                irr_asc: 'IRR (low–high)',
+                moic_desc: 'MOIC (high–low)',
+                moic_asc: 'MOIC (low–high)',
+              };
+              return labels[String(v)] ?? String(v);
             }}
             size="small"
             startAdornment={<SortIcon sx={{ color: 'rgba(255,255,255,0.7)', fontSize: 16, mr: 0.5 }} />}
@@ -640,6 +692,7 @@ const Home = () => {
           >
             <MenuItem value="created_at_desc">Newest first</MenuItem>
             <MenuItem value="created_at_asc">Oldest first</MenuItem>
+            <MenuItem value="updated_at_desc">Most recently updated</MenuItem>
             <MenuItem value="name_asc">Name A–Z</MenuItem>
             <MenuItem value="name_desc">Name Z–A</MenuItem>
             <MenuItem value="irr_desc">IRR (high–low)</MenuItem>
@@ -802,11 +855,13 @@ const Home = () => {
                 </Typography>
 
                 {/* Location + Model type on same row */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1,mb: 1 }}>
                   <LocationOnIcon sx={{ fontSize: 14, color: colors.grey[400] }} />
                   <Typography variant="body2" sx={{ color: colors.grey[600], fontSize: '0.8rem', flex: 1 }}>
                     {model.location}
                   </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1.5 }}>
                   {model.model_type && (
                     <Box sx={{
                       px: 1.25,
@@ -876,6 +931,22 @@ const Home = () => {
                     </IconButton>
                   </Tooltip>
                 </Box>
+
+                {/* Created at / Last updated */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mt: 0.75, width: '100%' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: colors.grey[400], fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Created at</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem', color: colors.grey[700] }}>{model.created_at}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: colors.grey[400], fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Last updated</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem', color: colors.grey[700] }}>{model.updated_at}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Typography variant="caption" sx={{ color: colors.grey[400], fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Versions:</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem', color: colors.grey[700] }}>{model.version_count}</Typography>
+                  </Box>
+                </Box>
               </Box>
 
               {/* Bottom metrics row */}
@@ -892,7 +963,7 @@ const Home = () => {
                     {model.irr}
                   </Typography>
                 </Box>
-                <Box sx={{ flex: 1, py: 1.5, textAlign: 'center', borderRight: `1px solid ${colors.grey[300]}` }}>
+                <Box sx={{ flex: 1, py: 1.5, textAlign: 'center' }}>
                   <Typography variant="caption" sx={{ color: colors.grey[400], fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block' }}>
                     MOIC
                   </Typography>

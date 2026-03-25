@@ -39,7 +39,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
 import CloseIcon from "@mui/icons-material/Close";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
-import GridOnIcon from "@mui/icons-material/GridOn";
+import DownloadIcon from "@mui/icons-material/Download";
 import RetailSummary from "../components/RetailSummary";
 import DevelopmentRentalAssumptionsReadOnly from "../components/DevelopmentRentalAssumptionsReadOnly";
 import { Link } from "react-router-dom";
@@ -80,6 +80,8 @@ const ModelDetails = () => {
   // Polling refs for sensitivity generation status
   const pollingTimerRef = useRef<number | null>(null);
   const pollAttemptsRef = useRef<number>(0);
+  /** Tracks if sensitivity was already selectable so we default PDF "Sensitivity Tables" to true only on first transition to ready */
+  const sensitivityPdfWasSelectableRef = useRef(false);
 
   const clearPolling = () => {
     if (pollingTimerRef.current) {
@@ -171,7 +173,10 @@ const ModelDetails = () => {
     if (isNaN(num)) return str;
 
     if (type === 'irr' || (type === 'auto' && str.endsWith('%'))) {
-      return `${num.toFixed(1)}%`;
+      // Preserve original decimal precision for percentages (e.g., 5.75% stays 5.75%)
+      const m = str.match(/\.([0-9]+)\s*%$/);
+      const decimals = m ? Math.min(Math.max(m[1].length, 0), 4) : 0;
+      return `${num.toFixed(decimals)}%`;
     }
     if (type === 'moic') {
       return `${num.toFixed(2)}x`;
@@ -308,7 +313,9 @@ const ModelDetails = () => {
         }
 
         setModelDetails(data);
-        console.log("MODEL DETAILS", data);
+        if (process.env.REACT_APP_DEVELOPMENT_MODE === "local" || process.env.REACT_APP_DEVELOPMENT_MODE === "dev") {
+          console.log("MODEL DETAILS", data);
+        }
         // Set the selected version to the current version if not already set
         if (!selectedVersion && data.version_id) {
           setSelectedVersion(data.version_id);
@@ -683,10 +690,12 @@ const ModelDetails = () => {
   // PDF options state (defaults)
   const [pdfOptions, setPdfOptions] = useState<Record<string, boolean>>({});
   const [pdfOrder, setPdfOrder] = useState<string[]>([]);
+
+  /** Table/picture-driven PDF defaults. Do NOT set "Sensitivity Tables" here — pictures often load after sensitivity data, and a full replace would wipe the sync effect below. */
   useEffect(() => {
     const base: Record<string, boolean> = {
       "Summary Info": true,
-      "Sensitivity Tables": true,
+      "KEY PERFORMANCE METRICS": true,
       "Income and Expenses": true,
       "Include Company Info": true,
       "Include Company Logo": true,
@@ -696,10 +705,11 @@ const ModelDetails = () => {
     tablesToShow.forEach((t: any) => {
       if (t?.table_name) base[t.table_name] = true;
     });
-    setPdfOptions(base);
-    // Initialize ordering: core sections, tables, then property images by default
+    setPdfOptions((prev) => ({ ...prev, ...base }));
+
     const defaultOrder: string[] = [
       "Summary Info",
+      "KEY PERFORMANCE METRICS",
       "Sensitivity Tables",
       "Income and Expenses",
       ...tablesToShow.map((t: any) => t?.table_name).filter(Boolean),
@@ -708,6 +718,24 @@ const ModelDetails = () => {
     ];
     setPdfOrder(defaultOrder);
   }, [tablesToShow, pictures]);
+
+  /** Sensitivity Tables checkbox only: unchecked until data exists, then default checked on first availability (preserve user toggle after). */
+  useEffect(() => {
+    const hasSensitivityData =
+      (Array.isArray(irrSensitivityData.values) && irrSensitivityData.values.length > 0) ||
+      (Array.isArray(moicSensitivityData.values) && moicSensitivityData.values.length > 0);
+    const sensitivityTablesSelectable = !isCalculating && hasSensitivityData;
+    setPdfOptions((prev) => {
+      if (!sensitivityTablesSelectable) {
+        sensitivityPdfWasSelectableRef.current = false;
+        return { ...prev, "Sensitivity Tables": false };
+      }
+      const firstTimeReady = !sensitivityPdfWasSelectableRef.current;
+      sensitivityPdfWasSelectableRef.current = true;
+      const nextVal = firstTimeReady ? true : (prev["Sensitivity Tables"] ?? true);
+      return { ...prev, "Sensitivity Tables": nextVal };
+    });
+  }, [isCalculating, irrSensitivityData, moicSensitivityData]);
 
   const togglePdfOption = (key: string) =>
     setPdfOptions((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1076,26 +1104,43 @@ const ModelDetails = () => {
         padding: "8px 16px",
         backgroundColor: colors.grey[50],
         borderTop: `1px solid ${colors.grey[300]}`,
-        display: "flex",
-        justifyContent: "flex-end",
-        alignItems: "center",
       }}
     >
-      <div style={{ display: "flex", gap: "24px", justifyContent: "flex-end", width: "100%" }}>
-        <div style={{ textAlign: "right" }}>
-          <strong>Total Units:</strong> {units.length}
+      {/* Align to visible columns: 0.6fr | 1fr | 1fr | 1fr | 1fr | 1fr | 0.8fr | 1fr */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "0.6fr 1fr 1fr 1fr 1fr 1fr 0.8fr 1fr",
+          columnGap: 16,
+          width: "100%",
+          alignItems: "center",
+          minHeight: 36,
+        }}
+      >
+        {/* Under 'Unit' */}
+        <div style={{ gridColumn: 1, textAlign: "left", fontWeight: 700, color: colors.grey[900] }}>
+          Total: {units.length}
         </div>
-        <div style={{ textAlign: "right" }}>
-          <strong>Total Rentable Square Feet:</strong>{" "}
-          {totalSquareFeet.toLocaleString()}
+        {/* Under 'Layout' spacer */}
+        <div style={{ gridColumn: 2 }} />
+        {/* Under 'Square Feet' */}
+        <div style={{ gridColumn: 3, textAlign: "right", fontWeight: 700, color: colors.grey[900] }}>
+          {totalSquareFeet.toLocaleString()} sf
         </div>
-        <div style={{ textAlign: "right" }}>
-          <strong>Total Current Rent:</strong> $
-          {totalCurrentRent.toLocaleString()}
+        {/* Under 'Current Rent' */}
+        <div style={{ gridColumn: 4, textAlign: "right", fontWeight: 700, color: colors.grey[900] }}>
+          {/* <span>Total Current Rent:</span>{' '} */}
+          <span>${totalCurrentRent.toLocaleString()}</span>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <strong>Total Pro Forma Rent:</strong> ${totalPfRent.toLocaleString()}
+        <div style={{ gridColumn: 5 }} />
+
+        {/* Under 'Pro Forma Rent' */}
+        <div style={{ gridColumn: 6, textAlign: "right", fontWeight: 700, color: colors.grey[900] }}>
+          {/* <span>Total Pro Forma Rent:</span>{' '} */}
+          <span>${totalPfRent.toLocaleString()}</span>
         </div>
+        <div style={{ gridColumn: 7 }} />
+        <div style={{ gridColumn: 8 }} />
       </div>
       {modelDetails.units.length > 100 && <GridPagination />}
     </div>
@@ -1389,9 +1434,29 @@ const ModelDetails = () => {
             )}
 
             <Tooltip title="Edit Model">
+              <Button
+                size="small"
+                variant="contained"
+                disabled={downloadingPDF || downloading || isCalculating}
+                startIcon={<EditIcon fontSize="small" />}
+                onClick={() => navigate(`/edit-model/${modelDetails.version_id}`)}
+                sx={{
+                  backgroundColor: colors.blue,
+                  color: "#fff",
+                  textTransform: "none",
+                  fontSize: "0.8125rem",
+                  fontWeight: 500,
+                  "&:hover": { backgroundColor: colors.blueDark },
+                  "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
+                }}
+              >
+                Edit
+              </Button>
+            </Tooltip>
+
+            <Tooltip title="Download PDF Summary">
               <IconButton
                 size="small"
-                disabled={downloadingPDF || downloading || isCalculating}
                 sx={{
                   backgroundColor: colors.blue,
                   color: "#fff",
@@ -1400,56 +1465,11 @@ const ModelDetails = () => {
                   "&:hover": { backgroundColor: colors.blueDark },
                   "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
                 }}
-                onClick={() => {
-                  navigate(`/edit-model/${modelDetails.version_id}`);
-                }}
+                onClick={() => setDownloadOptionsOpen(true)}
+                disabled={downloadingPDF || downloading || isCalculating}
               >
-                <EditIcon fontSize="small" />
+                <PictureAsPdfIcon fontSize="small" />
               </IconButton>
-            </Tooltip>
-
-            <Tooltip 
-              title={
-                isFreemium ? (
-                  <Box sx={{ p: 0.5 }}>
-                    <Typography variant="body2" sx={{ fontSize: '0.75rem', mb: 0.5, color: 'white' }}>
-                      Excel/PDF downloads are available on the Pro plan.
-                    </Typography>
-                    <Link 
-                      to="/settings?upgrade=pro" 
-                      style={{ 
-                        color: '#60a5fa', 
-                        fontSize: '0.75rem', 
-                        fontWeight: 700, 
-                        textDecoration: 'none',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                    >
-                      Upgrade to Pro →
-                    </Link>
-                  </Box>
-                ) : "Download PDF Summary"
-              }
-              disableInteractive={!isFreemium}
-            >
-              <span>
-                <IconButton
-                  size="small"
-                  sx={{
-                    backgroundColor: colors.blue,
-                    color: "#fff",
-                    width: 36,
-                    height: 36,
-                    "&:hover": { backgroundColor: colors.blueDark },
-                    "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
-                  }}
-                  onClick={() => setDownloadOptionsOpen(true)}
-                  disabled={isFreemium || downloadingPDF || downloading || isCalculating}
-                >
-                  <PictureAsPdfIcon fontSize="small" />
-                </IconButton>
-              </span>
             </Tooltip>
 
             <Tooltip 
@@ -1484,7 +1504,7 @@ const ModelDetails = () => {
               disableInteractive={!isFreemium}
             >
               <span>
-                <IconButton
+                <Button
                   size="small"
                   sx={{
                     backgroundColor: colors.blue,
@@ -1498,7 +1518,7 @@ const ModelDetails = () => {
                   onClick={() =>
                     downloadWorksheet(getAccessTokenSilently, modelDetails)
                   }
-                  disabled={isFreemium || downloadingPDF || downloading || isCalculating}
+                  disabled={downloadingPDF || downloading || isCalculating}
                 >
                   {downloading ? (
                     <span
@@ -1539,12 +1559,28 @@ const ModelDetails = () => {
               {pdfOrder.map((key) => {
                 if (!key) return null;
                 if (key === "Include Company Info" || key === "Include Company Logo") return null;
+                const hasSensitivityData =
+                  (Array.isArray(irrSensitivityData.values) && irrSensitivityData.values.length > 0) ||
+                  (Array.isArray(moicSensitivityData.values) && moicSensitivityData.values.length > 0);
+                const sensitivityReady = !isCalculating && hasSensitivityData;
                 const disabled =
                   key === "Property Images"
                     ? (!Array.isArray(pictures) || pictures.length === 0)
                     : key === "Include Notes"
                       ? !(Array.isArray(notes) && notes.length > 1)
+                      : key === "Sensitivity Tables"
+                        ? !sensitivityReady
                       : false;
+                const label =
+                  key === "Sensitivity Tables"
+                    ? isCalculating
+                      ? "Sensitivity Tables (Calculating…)"
+                      : !hasSensitivityData
+                        ? "Sensitivity Tables (not available yet)"
+                        : "Sensitivity Tables"
+                    : key === "KEY PERFORMANCE METRICS"
+                      ? "Key Performance Metrics"
+                    : key;
                 return (
                   <Box
                     key={`opt-${key}`}
@@ -1567,7 +1603,7 @@ const ModelDetails = () => {
                           disabled={disabled}
                         />
                       }
-                      label={key}
+                      label={label}
                     />
                     <Box
                       sx={{ display: 'flex', alignItems: 'center', pr: 1, color: 'text.secondary', cursor: 'grab' }}
@@ -1640,10 +1676,24 @@ const ModelDetails = () => {
             ))}
             <Tab label="Notes & Pictures" />
           </Tabs>
+          <Box sx={{ p:1, maxWidth: '1100px', margin: '0 auto' }}>
+
+
           {tabIndex === 0 && (
             <Box sx={{ mt: 2 }}>
-              {/* Key Performance Metrics */}
-              <Box sx={{ mb: 2, mt: 4, px:2 }}>
+             
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 2, mt: 1 }}>
+                {summaryTables.map((tbl: any, idx: number) => (
+                  <Box key={idx}>
+                    <table style={{ borderCollapse: "collapse", width: "100%", border: `2px solid ${colors.navy}`, fontFamily: 'inherit', fontSize: '0.875rem' }}>
+                      <tbody>{renderTableMappingRows(tbl)}</tbody>
+                    </table>
+                  </Box>
+                ))}
+              </Box>
+
+               {/* Key Performance Metrics */}
+               <Box sx={{ mb: 2, mt: 4, px:2 }}>
                 <Box
                   sx={{
                     display: "grid",
@@ -1691,17 +1741,6 @@ const ModelDetails = () => {
                   )}
                 </Box>
               </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, px: 2, mt: 1 }}>
-                {summaryTables.map((tbl: any, idx: number) => (
-                  <Box key={idx}>
-                    <table style={{ borderCollapse: "collapse", width: "100%", border: `2px solid ${colors.navy}`, fontFamily: 'inherit', fontSize: '0.875rem' }}>
-                      <tbody>{renderTableMappingRows(tbl)}</tbody>
-                    </table>
-                  </Box>
-                ))}
-              </Box>
-
-              
               <Box sx={{ mt: 2, px:2 }}>
                 {/* <Typography
                   variant="h5"
@@ -1717,12 +1756,60 @@ const ModelDetails = () => {
                   Sensitivity Analysis
                 </Typography> */}
 
-                <Box
+               
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  {/* IRR Sensitivity */}
+                  <Card
+                    elevation={0}
+                    sx={{
+                      borderRadius: 1,
+                      overflow: "hidden",
+                      border: `2px solid ${colors.navy}`,
+                      // transition: "all 0.2s ease-in-out",
+                      // "&:hover": {
+                      //   boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                      // },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        p: 2,
+                        bgcolor: "grey.50",
+                        borderBottom: "1px solid",
+                        borderColor: "divider",
+                        backgroundColor: colors.navy,
+                      }}
+                    >
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          fontWeight: 600,
+                          fontFamily:
+                            '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+                          fontSize: "1.25rem",
+                          color: "#fff",
+                        }}
+                      >
+                        Levered IRR Sensitivity Analysis
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontFamily:
+                            '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+                          color: "#fff",
+                          mt: 0.5,
+                        }}
+                      >
+                        Impact of exit cap rate and purchase price on IRR
+                      </Typography>
+                      <Box
                   sx={{
                     display: "flex",
                     alignItems: "center",
                     gap: 2,
-                    mb: 3,
+                    mb: 1,
+                    mt: 1,
                     backgroundColor: "grey.50",
                     p: 2,
                     borderRadius: 2,
@@ -1836,52 +1923,6 @@ const ModelDetails = () => {
                   </Button>
                 </Box>
 
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {/* IRR Sensitivity */}
-                  <Card
-                    elevation={0}
-                    sx={{
-                      borderRadius: 1,
-                      overflow: "hidden",
-                      border: `2px solid ${colors.navy}`,
-                      // transition: "all 0.2s ease-in-out",
-                      // "&:hover": {
-                      //   boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                      // },
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        p: 2,
-                        bgcolor: "grey.50",
-                        borderBottom: "1px solid",
-                        borderColor: "divider",
-                        backgroundColor: colors.navy,
-                      }}
-                    >
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          fontWeight: 600,
-                          fontFamily:
-                            '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-                          fontSize: "1.25rem",
-                          color: "#fff",
-                        }}
-                      >
-                        Levered IRR Sensitivity Analysis
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontFamily:
-                            '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-                          color: "#fff",
-                          mt: 0.5,
-                        }}
-                      >
-                        Impact of exit cap rate and purchase price on IRR
-                      </Typography>
                     </Box>
                     <Box sx={{ p: 3 }}>
                       {irrSensitivityData.values.length === 0 && (
@@ -2106,6 +2147,18 @@ const ModelDetails = () => {
                       minWidth: 100,
                       align: 'right',
                       headerAlign: 'right',
+                      renderCell: (params: any) => {
+                        const v = params.value !== undefined && params.value !== null ? Number(params.value) : null;
+                        const label =
+                          v === 0
+                            ? "Keep Tenant"
+                            : v === 1
+                            ? "Vacate & Re-Lease"
+                            : v === 2
+                            ? "Market Adjustment"
+                            : "";
+                        return <span>{label}</span>;
+                      },
                     },
                     {
                       field: "vacate_month",
@@ -2114,6 +2167,13 @@ const ModelDetails = () => {
                       minWidth: 100,
                       align: 'right',
                       headerAlign: 'right',
+                      renderCell: (params: any) => (
+                        <span>
+                          {params.value !== undefined && params.value !== null && params.value !== ""
+                            ? `Month ${params.value}`
+                            : ""}
+                        </span>
+                      ),
                     },
                   ]}
                   rows={modelDetails.units.map((unit: any, index: number) => ({
@@ -2193,6 +2253,13 @@ const ModelDetails = () => {
                       minWidth: 120,
                       align: 'right',
                       headerAlign: 'right',
+                      renderCell: (params: any) => (
+                        <span>
+                          {params.value !== undefined && params.value !== null && params.value !== ""
+                            ? `Month ${params.value}`
+                            : ""}
+                        </span>
+                      ),
                     },
                     {
                       field: "utilization",
@@ -2368,6 +2435,12 @@ const ModelDetails = () => {
                       ? modelDetails.expenses.filter(
                           (expense: any) => expense.type === "Retail"
                         )
+                      : []
+                  }
+                  isDevelopmentModel={modelDetails?.model_type?.development_model === true || (Array.isArray(modelDetails?.development_units) && modelDetails.development_units.length > 0)}
+                  developmentUnits={
+                    Array.isArray(modelDetails.development_units)
+                      ? modelDetails.development_units
                       : []
                   }
                 />
@@ -2706,6 +2779,7 @@ const ModelDetails = () => {
             return null;
           })()}
         </Box>
+      </Box>
       </Box>
     </Box>
   );

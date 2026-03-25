@@ -30,8 +30,8 @@ export default function GrossPotentialRetailIncomeTable({
     const f = modelDetails?.user_model_field_values?.find((x: any) => x.field_key === field_key);
     return f ? f.field_id : '';
   };
-  const vacancyPct = Number(getFieldValue('Vacancy ', 5) || 0);
-  const vacancyRate = vacancyPct / 100;
+  const vacancyPct = getFieldValue('Vacancy ', 5);
+  const vacancyRate = Number(vacancyPct || 0) / 100;
   const totalSF = (retailIncome || []).reduce((sum, r: any) => sum + Number(r.square_feet || 0), 0);
   const baseAnnual = (retailIncome || []).reduce(
     (sum, r: any) => sum + Number(r.square_feet || 0) * Number(r.rent_per_square_foot_per_year || 0),
@@ -129,8 +129,13 @@ export default function GrossPotentialRetailIncomeTable({
             value={vacancyPct}
             onChange={(e) => {
               const raw = e.target.value;
+              const digitsAndDotOnly = raw.replace(/[^\d.]/g, '');
+              const parts = digitsAndDotOnly.split('.');
+              const sanitized = parts.length > 1
+                ? `${parts[0]}.${parts.slice(1).join('')}`
+                : digitsAndDotOnly;
               const id = getFieldId('Vacancy ');
-              handleFieldChange(id, 'Vacancy ', raw === '' ? '' : Number(raw));
+              handleFieldChange(id, 'Vacancy ', sanitized);
             }}
             size="small"
             sx={{ maxWidth: 140 }}

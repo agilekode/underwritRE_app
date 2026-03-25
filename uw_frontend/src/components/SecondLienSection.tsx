@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Typography,
   Box,
   Card,
   CardContent,
   TextField,
+  CircularProgress,
 } from "@mui/material";
 import { CurrencyInput, PercentInput } from './StandardInput';
 import { InfoBox, FormRow } from './StandardLayout';
@@ -53,37 +54,44 @@ export default function SecondLienSection({
     return field ? field.field_id : "";
   };
 
-  const [loanAmount, setLoanAmount] = useState(getFieldValue("Pref. Equity / Mezz. Loan Amount", ""));
-  const [interestRate, setInterestRate] = useState(getFieldValue("Interest Rate (Accrual)", 5));
-  const [participation, setParticipation] = useState(getFieldValue("Participation", 10));
-  const [loanName, setLoanName] = useState(getFieldValue("Loan Name", "Pref / Mezz Loan"));
+  const [loanAmount, setLoanAmount] = useState(() =>
+    getFieldValue("Pref. Equity / Mezz. Loan Amount", "")
+  );
+  const [interestRate, setInterestRate] = useState(() => getFieldValue("Interest Rate (Accrual)", 5));
+  const [participation, setParticipation] = useState(() => getFieldValue("Participation", 10));
+  const [loanName, setLoanName] = useState(() => getFieldValue("Loan Name", "Pref / Mezz Loan"));
 
-  // Rehydrate when modelDetails updates (e.g. on load of existing model)
+  const SECOND_LIEN_FIELD_KEYS = useMemo(
+    () =>
+      [
+        "Pref. Equity / Mezz. Loan Amount",
+        "Interest Rate (Accrual)",
+        "Participation",
+        "Loan Name",
+      ] as const,
+    []
+  );
+
+  const secondLienValuesFingerprint = useMemo(() => {
+    const umfv = modelDetails?.user_model_field_values;
+    if (!Array.isArray(umfv)) return "";
+    return SECOND_LIEN_FIELD_KEYS.map((k) => {
+      const f = umfv.find((x: any) => x.field_key === k);
+      return `${k}=${f?.value ?? ""}`;
+    }).join("|");
+  }, [modelDetails?.user_model_field_values, SECOND_LIEN_FIELD_KEYS]);
+
   useEffect(() => {
-    setLoanName(getFieldValue("Loan Name", "Pref / Mezz Loan"));
     setLoanAmount(getFieldValue("Pref. Equity / Mezz. Loan Amount", ""));
     setInterestRate(getFieldValue("Interest Rate (Accrual)", 5));
-
     setParticipation(getFieldValue("Participation", 10));
-  }, [modelDetails]);
+    setLoanName(getFieldValue("Loan Name", "Pref / Mezz Loan"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- secondLienValuesFingerprint tracks these fields in modelDetails
+  }, [secondLienValuesFingerprint]);
 
-  useEffect(() => {
-    handleFieldChange(getFieldId("Pref. Equity / Mezz. Loan Amount"), "Pref. Equity / Mezz. Loan Amount", loanAmount);
-  }, [loanAmount]);
-
-  useEffect(() => {
-    handleFieldChange(getFieldId("Interest Rate (Accrual)"), "Interest Rate (Accrual)", interestRate);
-  }, [interestRate]);
-
-
-
-  useEffect(() => {
-    handleFieldChange(getFieldId("Participation"), "Participation", participation);
-  }, [participation]);
-
-  useEffect(() => {
-    handleFieldChange(getFieldId("Loan Name"), "Loan Name", loanName);
-  }, [loanName]);
+  const pushField = (field_key: string, value: string | number) => {
+    handleFieldChange(getFieldId(field_key), field_key, value);
+  };
 
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto", px: 4, pb: 4 }}>
@@ -101,7 +109,11 @@ export default function SecondLienSection({
                 <TextField
                   label="Loan Name"
                   value={loanName}
-                  onChange={(e) => setLoanName(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLoanName(v);
+                    pushField("Loan Name", v);
+                  }}
                   size="small"
                   fullWidth
                 />
@@ -112,7 +124,11 @@ export default function SecondLienSection({
                 <CurrencyInput
                   label="Pref. Equity / Mezz. Loan Amount"
                   value={loanAmount}
-                  onChange={(e) => setLoanAmount(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLoanAmount(v);
+                    pushField("Pref. Equity / Mezz. Loan Amount", v);
+                  }}
                   fullWidth
                 />
                
@@ -122,13 +138,21 @@ export default function SecondLienSection({
               <PercentInput
                   label="Interest Rate (Accrual)"
                   value={interestRate}
-                  onChange={(e) => setInterestRate(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setInterestRate(v);
+                    pushField("Interest Rate (Accrual)", v);
+                  }}
                   fullWidth
                 />
                 <PercentInput
                   label="Participation"
                   value={participation}
-                  onChange={(e) => setParticipation(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setParticipation(v);
+                    pushField("Participation", v);
+                  }}
                   fullWidth
                 />
               </FormRow>
@@ -150,8 +174,35 @@ export default function SecondLienSection({
         >
           <Card
             elevation={0}
-            sx={{ backgroundColor: colors.white, border: `1px solid ${colors.grey[300]}`, borderRadius: 2 }}
+            sx={{
+              backgroundColor: colors.white,
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 2,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
           >
+            {finalMetricsCalculating && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1.5,
+                  backgroundColor: 'rgba(255, 255, 255, 0.68)',
+                  backdropFilter: 'blur(2px)',
+                }}
+              >
+                <CircularProgress size={28} thickness={4} />
+                <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
+                  Updating summary...
+                </Typography>
+              </Box>
+            )}
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
                 Second Lien Summary
@@ -160,7 +211,7 @@ export default function SecondLienSection({
               {/* Primary metric */}
               <Box sx={{ mb: 3 }}>
                 <InfoBox
-                  label="Pref / Mezz Loan Size"
+                  label={`${loanName} Loan Size`} 
                   value={formatCurrencySafe(loanAmount)}
                   variant="primary"
                 />

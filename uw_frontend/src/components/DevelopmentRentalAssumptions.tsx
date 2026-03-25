@@ -13,7 +13,7 @@ export interface DevelopmentUnitRow {
   unit_type: string;
   avg_sf: number | null;
   units: number | null;
-  avg_rent: number | null; // average monthly rent per unit
+  avg_rent: number | null; // annual rent per unit (monthly = avg_rent / 12)
 }
 
 interface DevelopmentRentalAssumptionsProps {
@@ -49,6 +49,7 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
     const trimmed = (newUnitType || '').trim().toLowerCase();
     return trimmed.length > 0 && existingUnitTypesSet.has(trimmed);
   }, [newUnitType, existingUnitTypesSet]);
+  const shouldPulseAddButton = rows.length === 0;
 
   const addUnitType = (name: string) => {
     // Allow blank unit types; user can edit in-row later
@@ -74,12 +75,13 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
     const withDerived = rows.map(r => {
       const avgSf = Number(r.avg_sf || 0);
       const units = Number(r.units || 0);
-      const avgRent = Number(r.avg_rent || 0);
+      const avgRentAnnual = Number(r.avg_rent || 0);
+      const avgRentMonthly = avgRentAnnual / 12;
       const totalSf = Math.max(0, Math.round(avgSf * units));
-      const monthlyRent = Math.max(0, Math.round(avgRent * units));
+      const monthlyRent = Math.max(0, Math.round(avgRentMonthly * units));
       const annualRent = monthlyRent * 12;
-      // Rent PSF should be based on ANNUAL rent divided by total square feet
-      const rentPsf = totalSf > 0 ? annualRent / totalSf : 0;
+      // Rent PSF = Avg. Rent (annual per unit) / Avg. SF
+      const rentPsf = avgSf > 0 ? avgRentAnnual / avgSf : 0;
       return { ...r, totalSf, rentPsf, monthlyRent, annualRent };
     });
     const totals = withDerived.reduce(
@@ -92,7 +94,7 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
       },
       { units: 0, totalSf: 0, monthlyRent: 0, annualRent: 0 }
     );
-    // Table Rent PSF should be total annual rent divided by total SF
+    // Rent PSF total = total annual rent / total SF (same as avg rent / avg sf at portfolio level)
     const weightedRentPsf = totals.totalSf > 0 ? totals.annualRent / totals.totalSf : 0;
     // Avg Rent should be total annual rent divided by total units
     const avgRent = totals.units > 0 ? Math.round(totals.annualRent / totals.units) : 0;
@@ -257,7 +259,7 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
       valueGetter: (p: any) => ((p && p.row && p.row.monthlyRent) ?? 0),
       renderCell: (params: any) => (
         <span className="u-muted">
-          {Number(params.row.monthlyRent ?? 0).toLocaleString()}
+          ${Number(params.row.monthlyRent ?? 0).toLocaleString()}
         </span>
       ),
     },
@@ -269,7 +271,7 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
       valueGetter: (p: any) => ((p && p.row && p.row.annualRent) ?? 0),
       renderCell: (params: any) => (
         <span className="u-muted">
-          {Number(params.row.annualRent ?? 0).toLocaleString()}
+          ${Number(params.row.annualRent ?? 0).toLocaleString()}
         </span>
       ),
     },
@@ -377,7 +379,28 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
               startIcon={<AddIcon />}
               onClick={() => addUnitType(newUnitType)}
               disabled={duplicateExists}
-              sx={{ whiteSpace: 'nowrap', minWidth: 160, fontSize: 14, fontWeight: 600 }}
+              sx={{
+                whiteSpace: 'nowrap',
+                minWidth: 160,
+                fontSize: 14,
+                fontWeight: 600,
+                boxShadow: shouldPulseAddButton ? '0 0 0 0 rgba(25, 118, 210, 0.45)' : undefined,
+                animation: shouldPulseAddButton ? 'add-unit-pulse 1.8s ease-in-out infinite' : 'none',
+                '@keyframes add-unit-pulse': {
+                  '0%': {
+                    transform: 'scale(1)',
+                    boxShadow: '0 0 0 0 rgba(25, 118, 210, 0.45)',
+                  },
+                  '50%': {
+                    transform: 'scale(1.03)',
+                    boxShadow: '0 0 0 10px rgba(25, 118, 210, 0)',
+                  },
+                  '100%': {
+                    transform: 'scale(1)',
+                    boxShadow: '0 0 0 0 rgba(25, 118, 210, 0)',
+                  },
+                },
+              }}
             >
               Add Unit Type
             </Button>
@@ -386,9 +409,9 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
             <div><span style={{ fontWeight: 600 }}>Units:</span> {computed.totals.units.toLocaleString()}</div>
             <div><span style={{ fontWeight: 600 }}>Total SF:</span> {computed.totals.totalSf.toLocaleString()}</div>
             <div><span style={{ fontWeight: 600 }}>Rent PSF:</span> ${computed.weightedRentPsf.toFixed(2)}</div>
-            <div><span style={{ fontWeight: 600 }}>Avg. Rent:</span> {computed.avgRent.toLocaleString()}</div>
-            <div><span style={{ fontWeight: 600 }}>Monthly Rent:</span> {computed.totals.monthlyRent.toLocaleString()}</div>
-            <div><span style={{ fontWeight: 600 }}>Annual Rent:</span> {computed.totals.annualRent.toLocaleString()}</div>
+            <div><span style={{ fontWeight: 600 }}>Avg. Rent:</span> ${computed.avgRent.toLocaleString()}</div>
+            <div><span style={{ fontWeight: 600 }}>Monthly Rent:</span> ${computed.totals.monthlyRent.toLocaleString()}</div>
+            <div><span style={{ fontWeight: 600 }}>Annual Rent:</span> ${computed.totals.annualRent.toLocaleString()}</div>
           </div>
         </div>
       );

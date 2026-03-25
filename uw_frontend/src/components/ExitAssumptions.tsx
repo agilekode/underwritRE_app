@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, CircularProgress } from "@mui/material";
 import { NumberInput, PercentInput } from "./StandardInput";
 import { ContentCard } from "./StandardLayout";
 import { colors } from "../theme";
@@ -92,6 +92,28 @@ const MetricTile = ({ label, value, highlight = false }: { label: string; value:
   </Box>
 );
 
+const LoadingOverlay = () => (
+  <Box
+    sx={{
+      position: "absolute",
+      inset: 0,
+      zIndex: 2,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 1.5,
+      backgroundColor: "rgba(255, 255, 255, 0.68)",
+      backdropFilter: "blur(2px)",
+    }}
+  >
+    <CircularProgress size={28} thickness={4} />
+    <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
+      Updating summary...
+    </Typography>
+  </Box>
+);
+
 export default function ExitAssumptions({
   modelDetails,
   handleFieldChange,
@@ -99,6 +121,8 @@ export default function ExitAssumptions({
   showRentalUnits = true,
   variables,
   numUnits = 0,
+  developmentModel = false,
+  finalMetricsCalculating
 }: {
   modelDetails: any;
   handleFieldChange: (
@@ -110,7 +134,11 @@ export default function ExitAssumptions({
   showRentalUnits?: boolean;
   variables?: any;
   numUnits?: number;
+  developmentModel?: boolean;
+  finalMetricsCalculating?: boolean;
 }) {
+
+  
   // Exact field_key strings (must match backend)
   const K = {
     mfExitMonth: "Multifamily Exit Month",
@@ -120,6 +148,8 @@ export default function ExitAssumptions({
     rtCapRate: "Retail Applied Exit Cap Rate",
     rtSellingCosts: "Retail Less: Selling Costs",
   };
+
+
 
   const getFieldValue = (field_key: string, def: any) => {
     const f = modelDetails?.user_model_field_values?.find(
@@ -265,7 +295,8 @@ export default function ExitAssumptions({
                 />
               </Box>
             </Box>
-            <Box>
+            <Box sx={{ position: "relative", overflow: "hidden", borderRadius: 1 }}>
+              {finalMetricsCalculating && <LoadingOverlay />}
               <SectionHeader title="Results" description="Implied valuation and proceeds." />
               <Box sx={listSx}>
                 <ValueRow
@@ -298,7 +329,7 @@ export default function ExitAssumptions({
         </ContentCard>
       )}
 
-      {showRetail && (
+      {showRetail && !developmentModel && (
         <ContentCard title={`${space_type} Exit Assumptions`}>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 3 }}>
             <Box>
@@ -348,35 +379,61 @@ export default function ExitAssumptions({
                 />
               </Box>
             </Box>
-            <Box>
+            <Box sx={{ position: "relative", overflow: "hidden", borderRadius: 1 }}>
+              {finalMetricsCalculating && <LoadingOverlay />}
               <SectionHeader title="Results" description="Implied valuation and proceeds." />
               <Box sx={listSx}>
                 <ValueRow
                   label={`Forward NOI in ${variables?.["Deal Time Horizon"] ?? ""}`}
                   value={formatCurrency(parseNumber(variables?.["Retail: Forward NOI in Month"], 0))}
                 />
-                <ValueRow
+                {!developmentModel && (
+                  <ValueRow
+                    label="Implied Valuation at Exit"
+                    value={formatCurrency(parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0))}
+                  />
+                )}
+                {developmentModel && (
+                  <ValueRow
                   label="Implied Valuation at Exit"
-                  value={formatCurrency(parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0))}
+                  value={formatCurrency(parseNumber(variables?.["Implied Valuation at Exit"], 0))}
                 />
-                {numUnits > 0 && (
+                )}
+                {/* {numUnits > 0 && !developmentModel && (
                   <ValueRow
                     label="Implied Valuation per Unit"
                     value={(() => {
+
                       const totalVal = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
                       const perUnit = numUnits > 0 ? Math.round(totalVal / numUnits) : 0;
                       return formatCurrency(perUnit);
                     })()}
                   />
-                )}
+                )} */}
+                {/* {numUnits > 0 && developmentModel && (
+                  <ValueRow
+                    label="Implied Valuation per Unit"
+                    value={(() => {
+
+                      const totalVal = parseNumber(variables?.["Implied Valuation at Exit"], 0);
+                      const perUnit = numUnits > 0 ? Math.round(totalVal / numUnits) : 0;
+                      return formatCurrency(perUnit);
+                    })()}
+                  />
+                )} */}
+                
                 {numUnits === 0 && (
                   <ValueRow
                     label="Implied Valuation per SF"
                     value={(() => {
-                      const totalVal = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
-                      const SF = getFieldValue("Gross Square Feet", 0);
-                      const perSF = totalVal / SF;
-                      return formatCurrency(perSF) + " / SF";
+                      if (developmentModel) {
+                        return formatCurrency(parseNumber(variables?.["Implied Valuation at Exit"], 0)) + " / SF" + " (" + getFieldValue("Gross Buildable Square Feet", 0) + " SF)";
+                      } else {
+                        const totalVal = parseNumber(variables?.["Retail: Implied Valuation at Exit"], 0);
+                        const SF = getFieldValue("Gross Square Feet", 0);
+                        const perSF = totalVal / SF;
+                        return formatCurrency(perSF) + " / SF";
+                      }
                     })()}
                   />
                 )}
@@ -395,8 +452,10 @@ export default function ExitAssumptions({
       )}
 
       {showRetail && showRentalUnits && (
-        <ContentCard title="Combined Exit Summary">
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+        <ContentCard title={developmentModel ? "Development Exit Summary" : "Combined Exit Summary"}>
+          <Box sx={{ position: "relative", overflow: "hidden", borderRadius: 1 }}>
+            {finalMetricsCalculating && <LoadingOverlay />}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
             <MetricTile
               label="Total Implied Property Valuation at Exit"
               value={(() => {
@@ -423,6 +482,7 @@ export default function ExitAssumptions({
                 return `${blended.toFixed(2)}%`;
               })()}
             />
+          </Box>
           </Box>
         </ContentCard>
       )}

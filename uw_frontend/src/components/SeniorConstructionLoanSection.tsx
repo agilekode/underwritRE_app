@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Typography,
   Box,
@@ -8,6 +8,7 @@ import {
   InputLabel,
   Card,
   CardContent,
+  CircularProgress,
 } from "@mui/material";
 import { CurrencyInput, PercentInput, NumberInput } from './StandardInput';
 import { InfoBox, FormRow } from './StandardLayout';
@@ -48,7 +49,6 @@ export default function SeniorConstructionLoanSection({
 }) {
   const getFieldValue = (field_key: string, defaultValue: any) => {
     const field = modelDetails?.user_model_field_values?.find((f: any) => f.field_key === field_key);
-
     return field ? field.value : defaultValue;
   };
 
@@ -57,40 +57,50 @@ export default function SeniorConstructionLoanSection({
     return field ? field.field_id : "";
   };
 
-  const [interestRateType, setInterestRateType] = useState(getFieldValue("Sr. Cons: Interest Rate Type", "Floating"));
-  const [exactLoanAmount, setExactLoanAmount] = useState(getFieldValue("Sr. Cons: Exact Loan Amount", 0));
-  const [fixedRate, setFixedRate] = useState(getFieldValue("Fixed Rate for Sr. Cons. Loan", 7.5));
-  const [baseRate, setBaseRate] = useState(getFieldValue("Floating: Base Rate", "1-Month SOFR"));
-  const [spreadOverBaseRate, setSpreadOverBaseRate] = useState(getFieldValue("Floating: Spread Over Base Rate", 400));
+  const [interestRateType, setInterestRateType] = useState(() =>
+    getFieldValue("Sr. Cons: Interest Rate Type", "Floating")
+  );
+  const [exactLoanAmount, setExactLoanAmount] = useState(() => getFieldValue("Sr. Cons: Exact Loan Amount", 0));
+  const [fixedRate, setFixedRate] = useState(() => getFieldValue("Fixed Rate for Sr. Cons. Loan", 7.5));
+  const [baseRate, setBaseRate] = useState(() => getFieldValue("Floating: Base Rate", "1-Month SOFR"));
+  const [spreadOverBaseRate, setSpreadOverBaseRate] = useState(() =>
+    getFieldValue("Floating: Spread Over Base Rate", 400)
+  );
 
-  // Rehydrate when modelDetails updates (e.g. on load of existing model)
+  const SR_CONS_FIELD_KEYS = useMemo(
+    () =>
+      [
+        "Sr. Cons: Interest Rate Type",
+        "Sr. Cons: Exact Loan Amount",
+        "Fixed Rate for Sr. Cons. Loan",
+        "Floating: Base Rate",
+        "Floating: Spread Over Base Rate",
+      ] as const,
+    []
+  );
+
+  /** Stable fingerprint so we rehydrate when API / parent modelDetails loads or updates, without re-running on every parent render */
+  const srConsValuesFingerprint = useMemo(() => {
+    const umfv = modelDetails?.user_model_field_values;
+    if (!Array.isArray(umfv)) return "";
+    return SR_CONS_FIELD_KEYS.map((k) => {
+      const f = umfv.find((x: any) => x.field_key === k);
+      return `${k}=${f?.value ?? ""}`;
+    }).join("|");
+  }, [modelDetails?.user_model_field_values, SR_CONS_FIELD_KEYS]);
+
   useEffect(() => {
     setInterestRateType(getFieldValue("Sr. Cons: Interest Rate Type", "Floating"));
     setExactLoanAmount(getFieldValue("Sr. Cons: Exact Loan Amount", 0));
     setFixedRate(getFieldValue("Fixed Rate for Sr. Cons. Loan", 7.5));
     setBaseRate(getFieldValue("Floating: Base Rate", "1-Month SOFR"));
     setSpreadOverBaseRate(getFieldValue("Floating: Spread Over Base Rate", 400));
-  }, [modelDetails]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- srConsValuesFingerprint tracks Sr. Cons. values in modelDetails
+  }, [srConsValuesFingerprint]);
 
-  useEffect(() => {
-    handleFieldChange(getFieldId("Sr. Cons: Interest Rate Type"), "Sr. Cons: Interest Rate Type", interestRateType);
-  }, [interestRateType]);
-
-  useEffect(() => {
-    handleFieldChange(getFieldId("Sr. Cons: Exact Loan Amount"), "Sr. Cons: Exact Loan Amount", exactLoanAmount);
-  }, [exactLoanAmount]);
-
-  useEffect(() => {
-    handleFieldChange(getFieldId("Fixed Rate for Sr. Cons. Loan"), "Fixed Rate for Sr. Cons. Loan", fixedRate);
-  }, [fixedRate]);
-
-  useEffect(() => {
-    handleFieldChange(getFieldId("Floating: Base Rate"), "Floating: Base Rate", baseRate);
-  }, [baseRate]);
-
-  useEffect(() => {
-    handleFieldChange(getFieldId("Floating: Spread Over Base Rate"), "Floating: Spread Over Base Rate", spreadOverBaseRate);
-  }, [spreadOverBaseRate]);
+  const pushField = (field_key: string, value: string | number) => {
+    handleFieldChange(getFieldId(field_key), field_key, value);
+  };
 
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto", px: 4, pb: 4 }}>
@@ -109,7 +119,11 @@ export default function SeniorConstructionLoanSection({
               <CurrencyInput
                 label="Exact Loan Amount"
                 value={exactLoanAmount}
-                onChange={(e) => setExactLoanAmount(e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setExactLoanAmount(v);
+                  pushField("Sr. Cons: Exact Loan Amount", v);
+                }}
                 fullWidth
               />
             </CardContent>
@@ -128,7 +142,11 @@ export default function SeniorConstructionLoanSection({
                 <Select
                   value={interestRateType}
                   label="Interest Rate Type"
-                  onChange={(e) => setInterestRateType(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setInterestRateType(v);
+                    pushField("Sr. Cons: Interest Rate Type", v);
+                  }}
                   sx={{ fontSize: '0.875rem', '& .MuiSelect-select': { fontSize: '0.875rem' } }}
                 >
                   <MenuItem value="Fixed" sx={{ fontSize: '0.875rem' }}>Fixed</MenuItem>
@@ -140,7 +158,11 @@ export default function SeniorConstructionLoanSection({
                 <PercentInput
                   label="Fixed Rate for Sr. Cons. Loan"
                   value={fixedRate}
-                  onChange={(e) => setFixedRate(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setFixedRate(v);
+                    pushField("Fixed Rate for Sr. Cons. Loan", v);
+                  }}
                   fullWidth
                 />
               )}
@@ -152,7 +174,11 @@ export default function SeniorConstructionLoanSection({
                     <Select
                       value={baseRate}
                       label="Base Rate"
-                      onChange={(e) => setBaseRate(e.target.value)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setBaseRate(v);
+                        pushField("Floating: Base Rate", v);
+                      }}
                       sx={{ fontSize: '0.875rem', '& .MuiSelect-select': { fontSize: '0.875rem' } }}
                     >
                       <MenuItem value="1-Month SOFR" sx={{ fontSize: '0.875rem' }}>1-Month SOFR</MenuItem>
@@ -162,7 +188,11 @@ export default function SeniorConstructionLoanSection({
                   <NumberInput
                     label="Spread Over Base Rate (bps)"
                     value={spreadOverBaseRate}
-                    onChange={(e) => setSpreadOverBaseRate(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSpreadOverBaseRate(v);
+                      pushField("Floating: Spread Over Base Rate", v);
+                    }}
                     allowDecimals
                     fullWidth
                   />
@@ -187,8 +217,35 @@ export default function SeniorConstructionLoanSection({
         >
           <Card
             elevation={0}
-            sx={{ backgroundColor: colors.white, border: `1px solid ${colors.grey[300]}`, borderRadius: 2 }}
+            sx={{
+              backgroundColor: colors.white,
+              border: `1px solid ${colors.grey[300]}`,
+              borderRadius: 2,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
           >
+            {finalMetricsCalculating && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1.5,
+                  backgroundColor: 'rgba(255, 255, 255, 0.68)',
+                  backdropFilter: 'blur(2px)',
+                }}
+              >
+                <CircularProgress size={28} thickness={4} />
+                <Typography variant="body2" sx={{ fontWeight: 600, color: colors.grey[700] }}>
+                  Updating summary...
+                </Typography>
+              </Box>
+            )}
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
                 Construction Loan Summary

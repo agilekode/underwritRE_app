@@ -277,36 +277,38 @@ const RetailIncomeTable: React.FC<{
         />
       )
     },
-    ...(showIndustrialColumns ? [{
-      field: 'rent_type',
-      headerName: 'Rent Type',
-      flex: 0.9,
-      minWidth: 120,
-      editable: false,
-      renderCell: (params: any) => (
-        <Select
-          size="small"
-          fullWidth
-          value={params.value ?? 'Gross'}
-          onChange={(e) => handleCellChange(params.id as string, 'rent_type', e.target.value)}
-          displayEmpty
-          variant="standard"
-          disableUnderline
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          sx={{
-            background: 'transparent',
-            fontFamily: typography.fontFamily,
-            fontSize: 14.5,
-            fontWeight: 600,
-            '& .MuiSelect-select': { textAlign: 'left', py: 0.5 },
-          }}
-        >
-          <MenuItem value="Gross">Gross</MenuItem>
-          <MenuItem value="NNN">NNN</MenuItem>
-        </Select>
-      )
-    }] as GridColDef[] : []),
+    ...(showIndustrialColumns ? [
+    //   {
+    //   field: 'rent_type',
+    //   headerName: 'Rent Type',
+    //   flex: 0.9,
+    //   minWidth: 120,
+    //   editable: false,
+    //   renderCell: (params: any) => (
+    //     <Select
+    //       size="small"
+    //       fullWidth
+    //       value={params.value ?? 'Gross'}
+    //       onChange={(e) => handleCellChange(params.id as string, 'rent_type', e.target.value)}
+    //       displayEmpty
+    //       variant="standard"
+    //       disableUnderline
+    //       onClick={(e) => e.stopPropagation()}
+    //       onMouseDown={(e) => e.stopPropagation()}
+    //       sx={{
+    //         background: 'transparent',
+    //         fontFamily: typography.fontFamily,
+    //         fontSize: 14.5,
+    //         fontWeight: 600,
+    //         '& .MuiSelect-select': { textAlign: 'left', py: 0.5 },
+    //       }}
+    //     >
+    //       <MenuItem value="Gross">Gross</MenuItem>
+    //       <MenuItem value="NNN">NNN</MenuItem>
+    //     </Select>
+    //   )
+    // }
+  ] as GridColDef[] : []),
     
     // { 
     //   field: 'monthly_rent', 
@@ -335,7 +337,7 @@ const RetailIncomeTable: React.FC<{
       renderCell: (params) => {
         const row = params.row;
         const annualRent = row.rent_per_square_foot_per_year * row.square_feet;
-        const formattedAnnualRent = annualRent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formattedAnnualRent = annualRent.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
         return (
           <span style={{ color: colors.grey[600] }}>${formattedAnnualRent}</span>
         );
@@ -458,10 +460,10 @@ const RetailIncomeTable: React.FC<{
           )}
           <Box sx={{ textAlign: 'right' }}>
             <Box component="span" sx={{ fontWeight: 600 }}>Total Monthly Rent:</Box>{' '}
-            ${totalMonthlyRent.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${totalMonthlyRent.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </Box>
           <Box sx={{ textAlign: 'right' }}>
-            <Box component="span" sx={{ fontWeight: 600 }}>Total Annual Rent:</Box> ${totalAnnualRent.toLocaleString()}
+            <Box component="span" sx={{ fontWeight: 600 }}>Total Annual Rent:</Box> ${totalAnnualRent.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </Box>
         </Box>
       </Box>
