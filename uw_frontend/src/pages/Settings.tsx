@@ -140,6 +140,11 @@ const Settings = () => {
       setSubJustStarted(true);
       fetchSubscription();
     }
+    const upgrade = qs.get('upgrade');
+    if (upgrade && ['pro', 'max'].includes(upgrade.toLowerCase())) {
+      setSelectedTier(upgrade.toLowerCase());
+      setTimeout(() => beginSignup(), 100);
+    }
   }, [location.search, fetchSubscription]);
 
   // Fetch Company Info

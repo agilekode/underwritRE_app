@@ -67,7 +67,7 @@ const AppRoutes: React.FC = () => {
         element={adminEmails.includes(user?.email || '') ? <UserIssues /> : <Navigate to="/" replace />}
       />
       <Route path="/" element={<Home />} />
-      <Route path="/create-model" element={<ProtectedRoute element={<CreateModel />} />} />
+      <Route path="/create-model" element={<CreateModel />} />
       <Route path="/models/:id" element={<ProtectedRoute element={<ModelDetails />} />} />
       <Route path="/edit-model/:id" element={<ProtectedRoute element={<EditModel />} />} />
       <Route path="/settings" element={<Settings />} />
