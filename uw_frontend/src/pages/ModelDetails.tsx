@@ -76,6 +76,8 @@ const ModelDetails = () => {
   // Polling refs for sensitivity generation status
   const pollingTimerRef = useRef<number | null>(null);
   const pollAttemptsRef = useRef<number>(0);
+  /** Tracks if sensitivity was already selectable so we default PDF "Sensitivity Tables" to true only on first transition to ready */
+  const sensitivityPdfWasSelectableRef = useRef(false);
 
   const clearPolling = () => {
     if (pollingTimerRef.current) {
@@ -307,7 +309,9 @@ const ModelDetails = () => {
         }
 
         setModelDetails(data);
-        console.log("MODEL DETAILS", data);
+        if (process.env.REACT_APP_DEVELOPMENT_MODE === "local" || process.env.REACT_APP_DEVELOPMENT_MODE === "dev") {
+          console.log("MODEL DETAILS", data);
+        }
         // Set the selected version to the current version if not already set
         if (!selectedVersion && data.version_id) {
           setSelectedVersion(data.version_id);
@@ -682,10 +686,12 @@ const ModelDetails = () => {
   // PDF options state (defaults)
   const [pdfOptions, setPdfOptions] = useState<Record<string, boolean>>({});
   const [pdfOrder, setPdfOrder] = useState<string[]>([]);
+
+  /** Table/picture-driven PDF defaults. Do NOT set "Sensitivity Tables" here — pictures often load after sensitivity data, and a full replace would wipe the sync effect below. */
   useEffect(() => {
     const base: Record<string, boolean> = {
       "Summary Info": true,
-      "Sensitivity Tables": true,
+      "KEY PERFORMANCE METRICS": true,
       "Income and Expenses": true,
       "Include Company Info": true,
       "Include Company Logo": true,
@@ -695,10 +701,11 @@ const ModelDetails = () => {
     tablesToShow.forEach((t: any) => {
       if (t?.table_name) base[t.table_name] = true;
     });
-    setPdfOptions(base);
-    // Initialize ordering: core sections, tables, then property images by default
+    setPdfOptions((prev) => ({ ...prev, ...base }));
+
     const defaultOrder: string[] = [
       "Summary Info",
+      "KEY PERFORMANCE METRICS",
       "Sensitivity Tables",
       "Income and Expenses",
       ...tablesToShow.map((t: any) => t?.table_name).filter(Boolean),
@@ -707,6 +714,24 @@ const ModelDetails = () => {
     ];
     setPdfOrder(defaultOrder);
   }, [tablesToShow, pictures]);
+
+  /** Sensitivity Tables checkbox only: unchecked until data exists, then default checked on first availability (preserve user toggle after). */
+  useEffect(() => {
+    const hasSensitivityData =
+      (Array.isArray(irrSensitivityData.values) && irrSensitivityData.values.length > 0) ||
+      (Array.isArray(moicSensitivityData.values) && moicSensitivityData.values.length > 0);
+    const sensitivityTablesSelectable = !isCalculating && hasSensitivityData;
+    setPdfOptions((prev) => {
+      if (!sensitivityTablesSelectable) {
+        sensitivityPdfWasSelectableRef.current = false;
+        return { ...prev, "Sensitivity Tables": false };
+      }
+      const firstTimeReady = !sensitivityPdfWasSelectableRef.current;
+      sensitivityPdfWasSelectableRef.current = true;
+      const nextVal = firstTimeReady ? true : (prev["Sensitivity Tables"] ?? true);
+      return { ...prev, "Sensitivity Tables": nextVal };
+    });
+  }, [isCalculating, irrSensitivityData, moicSensitivityData]);
 
   const togglePdfOption = (key: string) =>
     setPdfOptions((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1162,7 +1187,6 @@ const ModelDetails = () => {
 
   // Render a styled table mapping after removing entirely blank rows and columns
   const renderTableMappingRows = (mapping: any, maxWidth: number | null = null) => {
-    console.log('mapping', mapping);
     const data: any[][] = Array.isArray(mapping?.data) ? mapping.data : [];
     const styles: any[][] = Array.isArray(mapping?.styles)
       ? mapping.styles
@@ -1430,7 +1454,7 @@ const ModelDetails = () => {
                 variant="contained"
                 startIcon={<PictureAsPdfIcon fontSize="small" />}
                 onClick={() => setDownloadOptionsOpen(true)}
-                disabled={downloadingPDF || downloading || isCalculating}
+                disabled={downloadingPDF || downloading}
                 sx={{
                   backgroundColor: colors.blue,
                   color: "#fff",
@@ -1511,12 +1535,28 @@ const ModelDetails = () => {
               {pdfOrder.map((key) => {
                 if (!key) return null;
                 if (key === "Include Company Info" || key === "Include Company Logo") return null;
+                const hasSensitivityData =
+                  (Array.isArray(irrSensitivityData.values) && irrSensitivityData.values.length > 0) ||
+                  (Array.isArray(moicSensitivityData.values) && moicSensitivityData.values.length > 0);
+                const sensitivityReady = !isCalculating && hasSensitivityData;
                 const disabled =
                   key === "Property Images"
                     ? (!Array.isArray(pictures) || pictures.length === 0)
                     : key === "Include Notes"
                       ? !(Array.isArray(notes) && notes.length > 1)
+                      : key === "Sensitivity Tables"
+                        ? !sensitivityReady
                       : false;
+                const label =
+                  key === "Sensitivity Tables"
+                    ? isCalculating
+                      ? "Sensitivity Tables (Calculating…)"
+                      : !hasSensitivityData
+                        ? "Sensitivity Tables (not available yet)"
+                        : "Sensitivity Tables"
+                    : key === "KEY PERFORMANCE METRICS"
+                      ? "Key Performance Metrics"
+                    : key;
                 return (
                   <Box
                     key={`opt-${key}`}
@@ -1539,7 +1579,7 @@ const ModelDetails = () => {
                           disabled={disabled}
                         />
                       }
-                      label={key}
+                      label={label}
                     />
                     <Box
                       sx={{ display: 'flex', alignItems: 'center', pr: 1, color: 'text.secondary', cursor: 'grab' }}

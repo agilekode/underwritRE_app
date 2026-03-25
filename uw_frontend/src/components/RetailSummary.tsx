@@ -120,14 +120,14 @@ const RetailSummary: React.FC<{
     },
     ...(showIndustrialColumns
       ? ([
-          {
-            field: 'rent_type',
-            headerName: 'Rent Type',
-            flex: 0.9,
-            minWidth: 120,
-            sortable: false,
-            renderCell: (params) => <span>{params.value ?? 'Gross'}</span>,
-          },
+          // {
+          //   field: 'rent_type',
+          //   headerName: 'Rent Type',
+          //   flex: 0.9,
+          //   minWidth: 120,
+          //   sortable: false,
+          //   renderCell: (params) => <span>{params.value ?? 'Gross'}</span>,
+          // },
         ] as GridColDef[])
       : []),
     {

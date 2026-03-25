@@ -229,7 +229,7 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
                     }}
                   >
                     <ListItemIcon sx={{ minWidth: 36 }}>
-                      {completed ? (
+                      {completed || existingModel ? (
                         <Check sx={{ color: colors.white, fontSize: '1.25rem' }} />
                       ) : (
                         <Circle
@@ -436,25 +436,28 @@ const ModelStepper: React.FC<ModelStepperProps> = ({
                 Save & Exit
               </Button>
             )}
-            <Button
-              variant="contained"
-              onClick={onNext}
-              disabled={isNavDisabled || !isStepComplete(activeStep)}
-              endIcon={activeStep === steps.length - 1 ? undefined : <ChevronRight />}
-              sx={{
-                textTransform: 'none',
-                fontWeight: 600,
-                minWidth: 140,
-              }}
-            >
-              {activeStep === steps.length - 1
-                ? isCreating
-                  ? 'Creating Model...'
-                  : 'Finish'
-                : existingModel
-                ? 'Next'
-                : 'Continue'}
-            </Button>
+            {/* Finish/Continue: hide Finish on last step when editing — same as ModelStepper.old (only Save & Exit completes) */}
+            {!(activeStep === steps.length - 1 && existingModel) && (
+              <Button
+                variant="contained"
+                onClick={onNext}
+                disabled={isNavDisabled || !isStepComplete(activeStep)}
+                endIcon={activeStep === steps.length - 1 ? undefined : <ChevronRight />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 140,
+                }}
+              >
+                {activeStep === steps.length - 1
+                  ? isCreating
+                    ? 'Creating Model...'
+                    : 'Finish'
+                  : existingModel
+                  ? 'Next'
+                  : 'Continue'}
+              </Button>
+            )}
           </Box>
         </Box>
       </Box>

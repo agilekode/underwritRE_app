@@ -6,6 +6,7 @@ from collections import defaultdict
 import pandas as pd
 from flask import send_file
 import io
+import uuid
 import tempfile
 import ezodf
 import os
@@ -654,7 +655,7 @@ def generate_google_sheet_for_user_model(user_email, template_file_id):
         raise
 
 
-def export_google_sheet(sheet_id: str, filename: str = "exported_model.xlsx"):
+def export_google_sheet_old(sheet_id: str, filename: str = "exported_model.xlsx", development_model=False):
     """
     Export Google Sheet as Excel file, removing internal mapping sheets.
     """
@@ -680,6 +681,13 @@ def export_google_sheet(sheet_id: str, filename: str = "exported_model.xlsx"):
     removed = []
     hidden = []
 
+    if development_model:
+        workbook.calculation.calcMode = "auto"
+        workbook.calculation.iterate = True
+        workbook.calculation.iterateCount = 1000
+        workbook.calculation.iterateDelta = 0.001
+        workbook.calculation.fullCalcOnLoad = True
+        workbook.calculation.forceFullCalc = True
     # Remove specified sheets
     for sheet_name in sheets_to_remove:
         if sheet_name in workbook.sheetnames:
@@ -712,6 +720,73 @@ def export_google_sheet(sheet_id: str, filename: str = "exported_model.xlsx"):
         download_name=filename
     )
 
+
+
+def export_google_sheet(sheet_id: str, filename: str = "exported_model.xlsx", development_model=False):
+    """
+    Export Google Sheet as XLSX: copy the spreadsheet, apply tab changes via Sheets API on the
+    copy only (never mutate the user's live file), then Drive-export and delete the copy.
+    """
+    sheets_to_remove = {"Variable Mapping", "Table Mapping", "Model Variable Mapping"}
+    sheets_to_hide = {"Underwriting Assumptions"}
+    XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    copy_id = None
+    try:
+        copied = drive_service.files().copy(
+            fileId=sheet_id,
+            body={"name": f"_worksheet_export_{uuid.uuid4().hex[:16]}"},
+            supportsAllDrives=True,
+        ).execute()
+        copy_id = copied["id"]
+
+        if development_model:
+            enable_iterative_calculation(copy_id)
+
+        meta = sheets_service.spreadsheets().get(
+            spreadsheetId=copy_id,
+            fields="sheets.properties(sheetId,title)",
+        ).execute()
+
+        batch_requests = []
+        for sh in meta.get("sheets", []):
+            props = sh.get("properties", {})
+            title = props.get("title")
+            sid = props.get("sheetId")
+            if title is None or sid is None:
+                continue
+            if title in sheets_to_remove:
+                batch_requests.append({"deleteSheet": {"sheetId": sid}})
+            elif title in sheets_to_hide:
+                batch_requests.append(
+                    {
+                        "updateSheetProperties": {
+                            "properties": {"sheetId": sid, "hidden": True},
+                            "fields": "hidden",
+                        }
+                    }
+                )
+
+        if batch_requests:
+            sheets_service.spreadsheets().batchUpdate(
+                spreadsheetId=copy_id, body={"requests": batch_requests}
+            ).execute()
+
+        export_req = drive_service.files().export_media(fileId=copy_id, mimeType=XLSX_MIME)
+        xlsx_io = io.BytesIO(export_req.execute())
+        xlsx_io.seek(0)
+        return send_file(
+            xlsx_io,
+            mimetype=XLSX_MIME,
+            as_attachment=True,
+            download_name=filename,
+        )
+    finally:
+        if copy_id:
+            try:
+                drive_service.files().delete(fileId=copy_id, supportsAllDrives=True).execute()
+            except Exception:
+                pass
 
 def extract_tables_for_storage_batch(sheet_id, table_mapping_data, sheets_service):
     range_map = {}
@@ -6839,6 +6914,9 @@ def run_full_sheet_update(
         if development_model:
             year_row = 11
             noi_year_row = 5
+        elif industrial_model:
+            year_row = 13
+            noi_year_row = 4
         else:
             year_row = 14
             noi_year_row = 4
@@ -7236,18 +7314,22 @@ def update_google_sheet_and_get_values(
 
     # Step 3: Extract tables (wait for Google Sheets recalculation after run_full_sheet_update)
     time.sleep(3)
-    t4 = time.time()
-    tables = extract_tables_for_storage_batch(copied_sheet_id, table_mapping_data, sheets_service)
-    t5 = time.time()
-    timings['extract_tables'] = t5 - t4
-    print(f"✅ Extracted {len(tables)} tables in {timings['extract_tables']:.3f}s")
 
     # Step 4: Extract variables (retry logic handles recalculation timing)
-    t6 = time.time()
+    t4 = time.time()
     variables = extract_variables_from_sheet_batch(copied_sheet_id, variable_data, sheets_service, development_model=development_model)
-    t7 = time.time()
-    timings['extract_variables'] = t7 - t6
+    t5 = time.time()
+    timings['extract_variables'] = t5 - t4
     print(f"📈 Extracted variables: {variables} in {timings['extract_variables']:.3f}s")
+
+
+    t6 = time.time()
+    tables = extract_tables_for_storage_batch(copied_sheet_id, table_mapping_data, sheets_service)
+    t7 = time.time()
+    timings['extract_tables'] = t7 - t6
+    print(f"✅ Extracted {len(tables)} tables in {timings['extract_tables']:.3f}s")
+
+
 
 
 
@@ -7565,6 +7647,7 @@ def update_google_sheet_and_get_values_final(
     development_model
 ):
     print("📤 Starting Google Sheet generation workflow...")
+    print("update_google_sheet_and_get_values_final")
     timings = {}
     t0 = time.time()
     sheets_service = build("sheets", "v4", credentials=creds)
@@ -7600,6 +7683,14 @@ def update_google_sheet_and_get_values_final(
     timings['extract_variables'] = t7 - t6
     print(f"📈 Extracted variables: {variables} in {timings['extract_variables']:.3f}s")
 
+    t4 = time.time()
+    tables = extract_tables_for_storage_batch(copied_sheet_id, table_mapping_data, sheets_service)
+    t5 = time.time()
+    timings['extract_tables'] = t5 - t4
+    print(f"✅ Extracted {len(tables)} tables in {timings['extract_tables']:.3f}s")
+
+
+
     # Step 3: Insert blank rows/columns for expense table formatting
     if development_model:
         add_blank_row_and_column_to_sheets(spreadsheet, ["Closing Costs",
@@ -7612,16 +7703,7 @@ def update_google_sheet_and_get_values_final(
                                                         "Reserves",
                                                         "Hard Costs"
                                                         ])
-
-    # Step 4: Extract tables (after structural changes so tables have correct formatting)
-    # Wait for Google Sheets to recalculate after blank row/column insertion
-    time.sleep(3)
-    t4 = time.time()
-    tables = extract_tables_for_storage_batch(copied_sheet_id, table_mapping_data, sheets_service)
-    t5 = time.time()
-    timings['extract_tables'] = t5 - t4
-    print(f"✅ Extracted {len(tables)} tables in {timings['extract_tables']:.3f}s")
-
+                                                        
     # Total time
     timings['total'] = t5 - t0
     print(f"⏱️ Total time: {timings['total']:.3f}s")
