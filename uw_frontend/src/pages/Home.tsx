@@ -192,7 +192,6 @@ const Home = () => {
 
     fetchUserModels();
   }, [user, userModels, setUserModels, getAccessTokenSilently]);
-  console.log(userModels);
   const models = userModels
     .filter((m: any) => m.active !== false)
     .map((model: any) => ({

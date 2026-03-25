@@ -282,9 +282,6 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
       return;
     }
 
-    // console.log("selectedModelTypeInfo", selectedModelTypeInfo);
-
-
     if(selectedModelTypeInfo?.development_model) {
 
       
@@ -522,17 +519,6 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
           return;
         }
         data.google_sheet_url = '';
-        console.log("EXISTING MODEL GEN")
-
-        if (data.model_type?.development_model) {
-          data.user_model_field_values.forEach((fieldValue: any) => {
-            if (fieldValue.field_key === "Asking Price") {
-              fieldValue.field_title = FIELD_TITLE_CONSTANTS.ASKING_PRICE_LAND;
-            } else if (fieldValue.field_key === "Acquisition Price") {
-              fieldValue.field_title = FIELD_TITLE_CONSTANTS.ACQUISITION_VALUE_LAND;
-            }
-          });
-        }
 
         generateGoogleSheet(data.model_type.id);
         setModelDetails(data);
@@ -594,7 +580,6 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     }
 
     if (EXPANDED_PRIMARY_STEPS.includes(current) && EXPANDED_SECONDARY_STEPS.includes(next)) {
-      console.log("CREATING INT from stepper")
       handleCreateIntermediate();
     }
     else if (EXPANDED_SECONDARY_STEPS.includes(current) && EXPANDED_PRIMARY_STEPS.includes(next)) {
@@ -769,7 +754,6 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
     timeField?: 'start_month' | 'end_month',
     fieldType?: string // <-- optionally pass fieldType if available
   ) => {
-    console.log("handleFieldChange", fieldId, field_key, value, isTimePhased, timeField, fieldType);
   // Preserve leading zero for decimals lik
   // e 0.25; only strip for integers like 01
   if (typeof value === 'string' && value.length > 1 && value.startsWith('0') && value[1] !== '.') {
@@ -838,7 +822,7 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
             (f: any) => f.id === fieldId || f.field_key === field_key
           )?.field_type;
           let updateObject = { ...updatedFieldValues.find((field: any) => field.field_key === field_key) };
-          console.log("updateObject", updateObject);
+
           updateObject["field_type"] = sectionFieldType;
           updateObject["section"] = section.name;
 
@@ -1277,7 +1261,7 @@ const isStepComplete = (step: number) => {
       }
       let current = steps[activeStep];
       if (EXPANDED_PRIMARY_STEPS.includes(current)) {
-        console.log("Creating intermediate for primary step", current);
+
         await handleCreateIntermediate();
       }
       else if (EXPANDED_EXPENSE_STEPS.includes(current)) {
@@ -1422,8 +1406,9 @@ const isStepComplete = (step: number) => {
           ...prevDetails,
           google_sheet_url: data.sheet_url
         }));
-        console.log("generateGoogleSheet")
-        console.log("google sheet url", data.sheet_url);
+        if (process.env.REACT_APP_DEVELOPMENT_MODE === "local" || process.env.REACT_APP_DEVELOPMENT_MODE === "dev") {
+          console.log("google sheet url", data.sheet_url);
+        }
         (window as any).__generatedSheetUrl = data.sheet_url;
       } else {
         console.error('Error generating Google Sheet:', data.error);
@@ -1437,7 +1422,6 @@ const isStepComplete = (step: number) => {
     setModelCreationStarted(true);
     // setIntroStepComplete(true);
     if (selectedModelType && !existingModel) {
-      console.log("GETTING STARTED - no existing model")
       generateGoogleSheet(selectedModelType);
     }
   };
@@ -1520,7 +1504,13 @@ const isStepComplete = (step: number) => {
           activeStep={activeStep}
           completedSteps={completedSteps}
           onStepChange={handleStepChange}
-          onNext={activeStep === steps.length - 1 ? handleFinish : handleNext}
+          onNext={
+            activeStep === steps.length - 1
+              ? existingModel
+                ? handleSaveAndExit
+                : handleFinish
+              : handleNext
+          }
           onBack={handleBack}
           isStepComplete={isStepComplete}
           isCreating={isCreating}

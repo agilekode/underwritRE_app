@@ -563,12 +563,13 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
     const dataRows = rowsIn.map((r: any) => {
       const avgSf = Number(r?.avg_sf || 0);
       const units = Number(r?.units || 0);
-      const avgRent = Number(r?.avg_rent || 0) / 12;
+      const avgRentAnnual = Number(r?.avg_rent || 0);
+      const avgRentMonthly = avgRentAnnual / 12;
       const totalSf = Math.max(0, Math.round(avgSf * units));
-      const monthlyRent = Math.max(0, Math.round(avgRent * units));
+      const monthlyRent = Math.max(0, Math.round(avgRentMonthly * units));
       const annualRent = monthlyRent * 12;
-      // Rent PSF = Avg. Rent / Avg. SF
-      const rentPsf = avgSf > 0 ? avgRent / avgSf : 0;
+      // Rent PSF = annual Avg. Rent per unit / Avg. SF (matches DevelopmentRentalAssumptions)
+      const rentPsf = avgSf > 0 ? avgRentAnnual / avgSf : 0;
       totals.units += units;
       totals.totalSf += totalSf;
       totals.monthlyRent += monthlyRent;
@@ -579,13 +580,13 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
         Number(units).toLocaleString(),
         Number(totalSf).toLocaleString(),
         `$${Number(rentPsf).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        `$${Number(avgRent).toLocaleString()}`,
+        `$${Number(avgRentAnnual).toLocaleString()}`,
         `$${Number(monthlyRent).toLocaleString()}`,
         `$${Number(annualRent).toLocaleString()}`,
       ];
     });
-    // Rent PSF total = total monthly rent / total SF
-    const weightedRentPsf = totals.totalSf > 0 ? totals.monthlyRent / totals.totalSf : 0;
+    // Rent PSF total = total annual rent / total SF
+    const weightedRentPsf = totals.totalSf > 0 ? totals.annualRent / totals.totalSf : 0;
     const avgRent = totals.units > 0 ? Math.round(totals.annualRent / totals.units) : 0;
     const totalsRow = [
       'Totals',
@@ -783,7 +784,7 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
     const otherPct = base.toFixed(6);
 
     return (
-      <View style={styles.section} break>
+      <View style={styles.section}>
         <View style={styles.sectionHeaderWrap}>
           <Text style={styles.sectionTitle}>OPERATING EXPENSES</Text>
         </View>
@@ -1071,43 +1072,77 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
 
         
 
-        {/* Render sections strictly in the provided order */}
+        {/* Render sections strictly in the provided order. Page breaks use visible order only — idx alone is wrong when unchecked items precede the first checked section. */}
         {Array.isArray(order) && order.length > 0
-          ? order.map((key, idx) => {
+          ? (() => {
+              let visibleSectionIndex = 0;
+              const sectionBreakProps = () => {
+                const isFirst = visibleSectionIndex === 0;
+                visibleSectionIndex += 1;
+                return isFirst ? {} : { break: true };
+              };
+              return order.map((key, idx) => {
               // Handle named tables from otherTables
               const tbl = (otherTables as any[]).find((t: any) => t?.table_name === key);
 
               if (key === "Summary Info" && options["Summary Info"]) {
                 return (
-                  <View key={`sec-${idx}`} style={styles.section} {...(idx > 0 ? { break: false } : {})}>
-              <Text style={styles.sectionTitle}>Key Performance Metrics</Text>
-              <View style={styles.grid}>
-                <View style={styles.gridItemThird}>
-                  <Text style={styles.label}>Levered IRR</Text>
-                  <Text style={styles.value}>{formatKpiValue(modelDetails?.levered_irr ?? variables?.["Levered IRR"], 'irr')}</Text>
-                </View>
-                <View style={styles.gridItemThird}>
-                  <Text style={styles.label}>Levered MOIC</Text>
-                  <Text style={styles.value}>{formatKpiValue(modelDetails?.levered_moic ?? variables?.["Levered MOIC"], 'moic')}</Text>
-                </View>
-                <View style={styles.gridItemThird}>
-                  <Text style={styles.label}>Hold Period</Text>
-                  <Text style={styles.value}>{holdMonths !== null ? `${String(holdMonths)} Months` : '-'}</Text>
-                </View>
-              </View>
+                  <View key={`sec-${idx}`} style={styles.section} {...sectionBreakProps()}>
             {summaryTables && summaryTables.length > 0 ? (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Summary Tables</Text>
+                <Text style={styles.sectionTitle}>Summary Info</Text>
                         {summaryTables.map((tbl: any, i: number) => renderPdfTable(tbl, `sum-${i}`))}
               </View>
-            ) : null}
+            ) : (
+              <Text style={{ fontSize: 10, color: "#6B7280", marginTop: 4 }}>No summary tables for this model.</Text>
+            )}
+                  </View>
+                );
+              }
+
+              if (key === "KEY PERFORMANCE METRICS" && options["KEY PERFORMANCE METRICS"]) {
+                const primaryKeys = new Set(["Levered IRR", "Levered MOIC"]);
+                const extraVariableEntries = Object.entries(variables || {})
+                  .filter(([k, v]) => {
+                    if (primaryKeys.has(k)) return false;
+                    if (v === undefined || v === null || v === "") return false;
+                    const s = String(v);
+                    if (s.length > 220) return false;
+                    return true;
+                  })
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .slice(0, 24);
+                return (
+                  <View key={`sec-${idx}`} style={styles.section} {...sectionBreakProps()}>
+                    <Text style={styles.sectionTitle}>KEY PERFORMANCE METRICS</Text>
+                    <View style={styles.grid}>
+                      <View style={styles.gridItemThird}>
+                        <Text style={styles.label}>Levered IRR</Text>
+                        <Text style={styles.value}>
+                          {formatKpiValue(modelDetails?.levered_irr ?? variables?.["Levered IRR"], "irr")}
+                        </Text>
+                      </View>
+                      <View style={styles.gridItemThird}>
+                        <Text style={styles.label}>Levered MOIC</Text>
+                        <Text style={styles.value}>
+                          {formatKpiValue(modelDetails?.levered_moic ?? variables?.["Levered MOIC"], "moic")}
+                        </Text>
+                      </View>
+                      <View style={styles.gridItemThird}>
+                        <Text style={styles.label}>Hold Period</Text>
+                        <Text style={styles.value}>
+                          {holdMonths !== null ? `${String(holdMonths)} Months` : "-"}
+                        </Text>
+                      </View>
+                    </View>
+                   
                   </View>
                 );
               }
 
               if (key === "Sensitivity Tables" && options["Sensitivity Tables"]) {
                 return (
-                  <View key={`sec-${idx}`} style={styles.section} {...(idx > 0 ? { break: true } : {})}>
+                  <View key={`sec-${idx}`} style={styles.section} {...sectionBreakProps()}>
             <Text style={styles.sectionTitle}>Sensitivity Tables</Text>
             {irrTable ? (
               <>
@@ -1129,7 +1164,7 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
 
               if (key === "Income and Expenses" && options["Income and Expenses"]) {
                 return (
-                  <View key={`sec-${idx}`} style={styles.section} {...(idx > 0 ? { break: true} : {})}>
+                  <View key={`sec-${idx}`} style={styles.section} {...sectionBreakProps()}>
             <Text style={styles.sectionTitle}>Income and Expenses</Text>
             {(
               retailMode ||
@@ -1168,7 +1203,7 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
 
               if (key === "Property Images" && options["Property Images"] && Array.isArray(pictures) && pictures.length > 0) {
                 return (
-                  <View key={`sec-${idx}`} style={styles.section} {...(idx > 0 ? { break: true } : {})}>
+                  <View key={`sec-${idx}`} style={styles.section} {...sectionBreakProps()}>
                     <Text style={styles.sectionTitle}>Property Images</Text>
                     <View style={{ marginBottom: 8 }}>
                       <Image
@@ -1205,7 +1240,7 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
               if (key === "Include Notes" && options["Include Notes"]) {
                 if (Array.isArray(notes) && notes.length > 1) {
                   return (
-                    <View key={`sec-${idx}`} style={styles.section} {...(idx > 0 ? { break: true } : {})}>
+                    <View key={`sec-${idx}`} style={styles.section} {...sectionBreakProps()}>
                       <Text style={styles.sectionTitle}>Notes</Text>
                       <View style={{ marginTop: 6 }}>
                         {notes.map((n, i) => {
@@ -1237,14 +1272,15 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
               // Handle named table
               if (tbl && options[key]) {
                 return (
-                  <View key={`tbl-${idx}`} style={styles.section} {...(idx > 0 ? { break: true } : {})}>
+                  <View key={`tbl-${idx}`} style={styles.section} {...sectionBreakProps()}>
                     <Text style={styles.sectionTitle}>{key}</Text>
                     {renderPdfTable(tbl, `tbl-${idx}`)}
                 </View>
                 );
               }
               return null;
-            })
+            });
+            })()
           : null}
         <Text
           style={styles.pageNumber}
