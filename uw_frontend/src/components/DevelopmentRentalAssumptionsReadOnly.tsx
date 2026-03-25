@@ -13,12 +13,13 @@ export const DevelopmentRentalAssumptionsReadOnly: React.FC<Props> = ({ rows }) 
     const withDerived = (rows || []).map((r) => {
       const avgSf = Number(r.avg_sf || 0);
       const units = Number(r.units || 0);
-      const avgRent = Number(r.avg_rent || 0) / 12;
+      const avgRentAnnual = Number(r.avg_rent || 0);
+      const avgRentMonthly = avgRentAnnual / 12;
       const totalSf = Math.max(0, Math.round(avgSf * units));
-      const monthlyRent = Math.max(0, Math.round(avgRent * units));
+      const monthlyRent = Math.max(0, Math.round(avgRentMonthly * units));
       const annualRent = monthlyRent * 12;
-      // Rent PSF = Avg. Rent / Avg. SF
-      const rentPsf = avgSf > 0 ? avgRent / avgSf : 0;
+      // Rent PSF = Avg. Rent (annual per unit) / Avg. SF
+      const rentPsf = avgSf > 0 ? avgRentAnnual / avgSf : 0;
       return { ...r, totalSf, rentPsf, monthlyRent, annualRent };
     });
     const totals = withDerived.reduce(
@@ -31,8 +32,8 @@ export const DevelopmentRentalAssumptionsReadOnly: React.FC<Props> = ({ rows }) 
       },
       { units: 0, totalSf: 0, monthlyRent: 0, annualRent: 0 }
     );
-    // Rent PSF total = total monthly rent / total SF
-    const weightedRentPsf = totals.totalSf > 0 ? totals.monthlyRent / totals.totalSf : 0;
+    // Rent PSF total = total annual rent / total SF
+    const weightedRentPsf = totals.totalSf > 0 ? totals.annualRent / totals.totalSf : 0;
     const avgRent = totals.units > 0 ? Math.round(totals.annualRent / totals.units) : 0;
     return { withDerived, totals, weightedRentPsf, avgRent };
   }, [rows]);
@@ -136,7 +137,7 @@ export const DevelopmentRentalAssumptionsReadOnly: React.FC<Props> = ({ rows }) 
   // Match DataGrid column flex: Unit Type, Avg. SF, Units, Total SF, Rent PSF, Avg. Rent, Monthly Rent, Annual Rent
   const footerGridTemplateColumns = '1.2fr 0.8fr 0.7fr 0.9fr 0.8fr 0.9fr 1fr 1fr';
 
-  const cellPadding = '0 12px';
+  const cellPadding = '0 10px';
   const Footer = () => {
     return (
       <div

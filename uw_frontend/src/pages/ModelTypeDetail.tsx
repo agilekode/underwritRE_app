@@ -98,7 +98,9 @@ const ModelTypeDetail: React.FC = () => {
         credentials: 'include',
       });
       const data = await res.json();
-      console.log("data", data);
+      if (process.env.REACT_APP_DEVELOPMENT_MODE === "local" || process.env.REACT_APP_DEVELOPMENT_MODE === "dev") {
+        console.log("MODEL TYPE DETAIL", data);
+      }
       setModelType(data);
     } catch (err) {
       // handle error

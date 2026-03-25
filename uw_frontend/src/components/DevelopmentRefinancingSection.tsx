@@ -84,7 +84,7 @@ export default function RefinancingSection({
   variables: any;
   finalMetricsCalculating: boolean;
 }) {
-  console.log("modelDetails", modelDetails);
+
   // Memoize the handleFieldChange function to prevent infinite loops
   const memoizedHandleFieldChange = useCallback(handleFieldChange, [handleFieldChange]);
 
@@ -139,7 +139,6 @@ export default function RefinancingSection({
   }, [modelRefinancing]);
 
   useEffect(() => {
-    console.log("seasoningPeriodPostStabilization", seasoningPeriodPostStabilization);
     handleFieldChange(getFieldId("Seasoning Period Post Stabilization"), "Seasoning Period Post Stabilization", seasoningPeriodPostStabilization);
   }, [seasoningPeriodPostStabilization]);
 
@@ -148,7 +147,6 @@ export default function RefinancingSection({
   }, [fixedInterestRate]);
 
   useEffect(() => {
-    console.log("amortization", amortization);
     handleFieldChange(getFieldId("Refi Amortization"), "Refi Amortization", amortization);
   }, [amortization]);
 
