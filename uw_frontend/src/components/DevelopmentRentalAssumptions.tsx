@@ -13,7 +13,7 @@ export interface DevelopmentUnitRow {
   unit_type: string;
   avg_sf: number | null;
   units: number | null;
-  avg_rent: number | null; // average monthly rent per unit
+  avg_rent: number | null; // annual rent per unit (monthly = avg_rent / 12)
 }
 
 interface DevelopmentRentalAssumptionsProps {
@@ -75,12 +75,13 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
     const withDerived = rows.map(r => {
       const avgSf = Number(r.avg_sf || 0);
       const units = Number(r.units || 0);
-      const avgRent = Number(r.avg_rent || 0) / 12;
+      const avgRentAnnual = Number(r.avg_rent || 0);
+      const avgRentMonthly = avgRentAnnual / 12;
       const totalSf = Math.max(0, Math.round(avgSf * units));
-      const monthlyRent = Math.max(0, Math.round(avgRent * units));
+      const monthlyRent = Math.max(0, Math.round(avgRentMonthly * units));
       const annualRent = monthlyRent * 12;
-      // Rent PSF = Avg. Rent / Avg. SF (per sq ft)
-      const rentPsf = avgSf > 0 ? avgRent / avgSf : 0;
+      // Rent PSF = Avg. Rent (annual per unit) / Avg. SF
+      const rentPsf = avgSf > 0 ? avgRentAnnual / avgSf : 0;
       return { ...r, totalSf, rentPsf, monthlyRent, annualRent };
     });
     const totals = withDerived.reduce(
@@ -93,8 +94,8 @@ export const DevelopmentRentalAssumptions: React.FC<DevelopmentRentalAssumptions
       },
       { units: 0, totalSf: 0, monthlyRent: 0, annualRent: 0 }
     );
-    // Rent PSF total = total monthly rent / total SF
-    const weightedRentPsf = totals.totalSf > 0 ? totals.monthlyRent / totals.totalSf : 0;
+    // Rent PSF total = total annual rent / total SF (same as avg rent / avg sf at portfolio level)
+    const weightedRentPsf = totals.totalSf > 0 ? totals.annualRent / totals.totalSf : 0;
     // Avg Rent should be total annual rent divided by total units
     const avgRent = totals.units > 0 ? Math.round(totals.annualRent / totals.units) : 0;
     return { withDerived, totals, weightedRentPsf, avgRent };

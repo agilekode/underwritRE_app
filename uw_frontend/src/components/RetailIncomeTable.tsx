@@ -277,36 +277,38 @@ const RetailIncomeTable: React.FC<{
         />
       )
     },
-    ...(showIndustrialColumns ? [{
-      field: 'rent_type',
-      headerName: 'Rent Type',
-      flex: 0.9,
-      minWidth: 120,
-      editable: false,
-      renderCell: (params: any) => (
-        <Select
-          size="small"
-          fullWidth
-          value={params.value ?? 'Gross'}
-          onChange={(e) => handleCellChange(params.id as string, 'rent_type', e.target.value)}
-          displayEmpty
-          variant="standard"
-          disableUnderline
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          sx={{
-            background: 'transparent',
-            fontFamily: typography.fontFamily,
-            fontSize: 14.5,
-            fontWeight: 600,
-            '& .MuiSelect-select': { textAlign: 'left', py: 0.5 },
-          }}
-        >
-          <MenuItem value="Gross">Gross</MenuItem>
-          <MenuItem value="NNN">NNN</MenuItem>
-        </Select>
-      )
-    }] as GridColDef[] : []),
+    ...(showIndustrialColumns ? [
+    //   {
+    //   field: 'rent_type',
+    //   headerName: 'Rent Type',
+    //   flex: 0.9,
+    //   minWidth: 120,
+    //   editable: false,
+    //   renderCell: (params: any) => (
+    //     <Select
+    //       size="small"
+    //       fullWidth
+    //       value={params.value ?? 'Gross'}
+    //       onChange={(e) => handleCellChange(params.id as string, 'rent_type', e.target.value)}
+    //       displayEmpty
+    //       variant="standard"
+    //       disableUnderline
+    //       onClick={(e) => e.stopPropagation()}
+    //       onMouseDown={(e) => e.stopPropagation()}
+    //       sx={{
+    //         background: 'transparent',
+    //         fontFamily: typography.fontFamily,
+    //         fontSize: 14.5,
+    //         fontWeight: 600,
+    //         '& .MuiSelect-select': { textAlign: 'left', py: 0.5 },
+    //       }}
+    //     >
+    //       <MenuItem value="Gross">Gross</MenuItem>
+    //       <MenuItem value="NNN">NNN</MenuItem>
+    //     </Select>
+    //   )
+    // }
+  ] as GridColDef[] : []),
     
     // { 
     //   field: 'monthly_rent', 

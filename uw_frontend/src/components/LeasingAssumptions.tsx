@@ -130,7 +130,7 @@ export default function LeasingAssumptions({
       <ContentCard title="Leasing Assumptions">
         <Box sx={{ display: "grid", gap: 3 }}>
           {/* Section 1: Turnover Time */}
-          <Box>
+          {/* <Box>
             <SectionHeader
               title="Turnover Time"
               description="Time the unit is offline for rehab and lease-up."
@@ -182,7 +182,7 @@ export default function LeasingAssumptions({
                 {totalTimeVacant} months
               </Typography>
             </Box>
-          </Box>
+          </Box> */}
 
           {/* Section 2: Turnover Cost */}
           {/* <Box>

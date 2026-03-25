@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Typography,
   Box,
@@ -49,34 +49,49 @@ export default function SecondLienSection({
     return field ? field.value : defaultValue;
   };
 
-  const getFieldId = useCallback((field_key: string) => {
+  const getFieldId = (field_key: string) => {
     const field = modelDetails?.user_model_field_values?.find((f: any) => f.field_key === field_key);
     return field ? field.field_id : "";
-  }, [modelDetails]);
+  };
 
-  const [loanAmount, setLoanAmount] = useState(getFieldValue("Pref. Equity / Mezz. Loan Amount", ""));
-  const [interestRate, setInterestRate] = useState(getFieldValue("Interest Rate (Accrual)", 5));
-  const [participation, setParticipation] = useState(getFieldValue("Participation", 10));
-  const [loanName, setLoanName] = useState(getFieldValue("Loan Name", "Pref / Mezz Loan"));
-  
-  useEffect(() => {
-    handleFieldChange(getFieldId("Pref. Equity / Mezz. Loan Amount"), "Pref. Equity / Mezz. Loan Amount", loanAmount);
-  }, [loanAmount]);
+  const [loanAmount, setLoanAmount] = useState(() =>
+    getFieldValue("Pref. Equity / Mezz. Loan Amount", "")
+  );
+  const [interestRate, setInterestRate] = useState(() => getFieldValue("Interest Rate (Accrual)", 5));
+  const [participation, setParticipation] = useState(() => getFieldValue("Participation", 10));
+  const [loanName, setLoanName] = useState(() => getFieldValue("Loan Name", "Pref / Mezz Loan"));
+
+  const SECOND_LIEN_FIELD_KEYS = useMemo(
+    () =>
+      [
+        "Pref. Equity / Mezz. Loan Amount",
+        "Interest Rate (Accrual)",
+        "Participation",
+        "Loan Name",
+      ] as const,
+    []
+  );
+
+  const secondLienValuesFingerprint = useMemo(() => {
+    const umfv = modelDetails?.user_model_field_values;
+    if (!Array.isArray(umfv)) return "";
+    return SECOND_LIEN_FIELD_KEYS.map((k) => {
+      const f = umfv.find((x: any) => x.field_key === k);
+      return `${k}=${f?.value ?? ""}`;
+    }).join("|");
+  }, [modelDetails?.user_model_field_values, SECOND_LIEN_FIELD_KEYS]);
 
   useEffect(() => {
-    handleFieldChange(getFieldId("Interest Rate (Accrual)"), "Interest Rate (Accrual)", interestRate);
-  }, [interestRate]);
+    setLoanAmount(getFieldValue("Pref. Equity / Mezz. Loan Amount", ""));
+    setInterestRate(getFieldValue("Interest Rate (Accrual)", 5));
+    setParticipation(getFieldValue("Participation", 10));
+    setLoanName(getFieldValue("Loan Name", "Pref / Mezz Loan"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- secondLienValuesFingerprint tracks these fields in modelDetails
+  }, [secondLienValuesFingerprint]);
 
-  useEffect(() => {
-    
-    handleFieldChange(getFieldId("Participation"), "Participation", participation);
-  }, [participation]);
-
-  useEffect(() => {
-    console.log("loanName", loanName);
-    console.log("getFieldId('Loan Name')", getFieldId("Loan Name"));
-    handleFieldChange(getFieldId("Loan Name"), "Loan Name", loanName);
-  }, [loanName]);
+  const pushField = (field_key: string, value: string | number) => {
+    handleFieldChange(getFieldId(field_key), field_key, value);
+  };
 
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto", px: 4, pb: 4 }}>
@@ -94,7 +109,11 @@ export default function SecondLienSection({
                 <TextField
                   label="Loan Name"
                   value={loanName}
-                  onChange={(e) => setLoanName(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLoanName(v);
+                    pushField("Loan Name", v);
+                  }}
                   size="small"
                   fullWidth
                 />
@@ -105,7 +124,11 @@ export default function SecondLienSection({
                 <CurrencyInput
                   label="Pref. Equity / Mezz. Loan Amount"
                   value={loanAmount}
-                  onChange={(e) => setLoanAmount(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setLoanAmount(v);
+                    pushField("Pref. Equity / Mezz. Loan Amount", v);
+                  }}
                   fullWidth
                 />
                
@@ -115,13 +138,21 @@ export default function SecondLienSection({
               <PercentInput
                   label="Interest Rate (Accrual)"
                   value={interestRate}
-                  onChange={(e) => setInterestRate(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setInterestRate(v);
+                    pushField("Interest Rate (Accrual)", v);
+                  }}
                   fullWidth
                 />
                 <PercentInput
                   label="Participation"
                   value={participation}
-                  onChange={(e) => setParticipation(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setParticipation(v);
+                    pushField("Participation", v);
+                  }}
                   fullWidth
                 />
               </FormRow>
