@@ -1029,7 +1029,7 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
       ['Leasing Commissions', money0(commNewAmt), money0(commRenAmt)],
       ['Total Leasing Costs', money0(totalLCNew), money0(totalLCRen)],
       ['Annualized Leasing Costs', money0(amortNew), money0(amortRen)],
-      ['Annual Leasing Cost Reserves', `${money2(weightedPerSF)} / SF`, money0(weightedAnnual)],
+      ['Annual TILC Reserves', `${money2(weightedPerSF)} / SF`, money0(weightedAnnual)],
     ];
     return renderSimpleTable(rows, 'retail-lcr');
   };
@@ -1184,7 +1184,7 @@ export const PdfSummaryDocument: React.FC<PdfSummaryProps> = ({
                   {renderRetailExpenses()}
                 </View>
                 <View wrap={false}>
-                  <Text style={{ fontSize: 10, fontWeight: 700, marginTop: 20 }}>Leasing Cost Reserves</Text>
+                  <Text style={{ fontSize: 10, fontWeight: 700, marginTop: 20 }}>TILC Reserves</Text>
                   {renderRetailLeasingCostReserves()}
                 </View>
               </>

@@ -140,7 +140,7 @@ test.describe('Industrial Model Creation Flow', () => {
         await expect(page.getByText(/recovery income/i)).toBeVisible();
         await page.getByRole('button', { name: /continue/i }).click();
 
-        await expect(page.getByText(/Calculate the Leasing Cost Reserves/i)).toBeVisible({ timeout: 10000 });
+        await expect(page.getByText(/Calculate the TILC Reserves/i)).toBeVisible({ timeout: 10000 });
 
         const renewalRow = page.locator('div:has(> div:has-text("Lease Renewal Probability"))').filter({ has: page.locator('input') });
         const renewalInput = renewalRow.locator('input').last();

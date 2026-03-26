@@ -119,7 +119,7 @@ function LeasingCostReserves({
       {/* Column 1 - Inputs */}
       <Box sx={{ border: `1px solid ${colors.grey[300]}`, borderRadius: 2, overflow: 'hidden', backgroundColor: colors.white }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', bgcolor: colors.grey[50], borderBottom: `1px solid ${colors.grey[300]}` }}>
-          <Cell bold>Calculate the Leasing Cost Reserves</Cell>
+          <Cell bold>Calculate the TILC Reserves</Cell>
           <Cell right bold>New Lease</Cell>
           <Cell right bold>Renewal Lease</Cell>
         </Box>
@@ -266,7 +266,7 @@ function LeasingCostReserves({
         </Box>
 
         <Box sx={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', alignItems: 'center', background: colors.blueTint, py: 1, borderTop: `1px solid ${colors.grey[300]}` }}>
-          <Label>Annual Leasing Cost Reserves</Label>
+          <Label>Annual TILC Reserves</Label>
           <Cell right bold>{`${money2(weightedPerSF)} / SF`}</Cell>
           <Cell right bold>{money0(weightedAnnual)}</Cell>
         </Box>
