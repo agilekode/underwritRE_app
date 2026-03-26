@@ -323,7 +323,7 @@ export const ExpensesBasic = [
 
     {
         "id": "18",
-        "name": "Leasing Cost Reserves",
+        "name": "TILC Reserves",
         "statistic": 0,
         "factor": "per Unit",
         "cost_per": 0,
@@ -646,7 +646,7 @@ export const ExpensesIndustrial = [
 
   {
       "id": "18",
-      "name": "Leasing Cost Reserves",
+      "name": "TILC Reserves",
       "statistic": 0,
       "factor": "per Unit",
       "cost_per": 0,
