@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, g, current_app as app
 from app.auth import requires_auth
 from sqlalchemy.orm import Session
 from app.db import db
-from app.models.user import User
+from app.models.user import User, SubscriptionEvent
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 PRICE_ID_MAX = os.environ.get("PRICE_ID_MAX")
@@ -113,6 +113,27 @@ def customer_has_any_subscription(customer_id: str) -> bool:
         except Exception:
             pass
     return False
+
+
+def log_subscription_event(session, user_id, event_type, from_tier, to_tier, stripe_event_id):
+    """Logs a subscription event to the database for auditability and idempotency."""
+    if not stripe_event_id:
+        return
+        
+    existing = session.query(SubscriptionEvent).filter(SubscriptionEvent.stripe_event_id == stripe_event_id).first()
+    if existing:
+        return existing
+        
+    event = SubscriptionEvent(
+        user_id=user_id,
+        event_type=event_type,
+        from_tier=from_tier,
+        to_tier=to_tier,
+        stripe_event_id=stripe_event_id
+    )
+    session.add(event)
+    session.commit()
+    return event
 
 
 @billing_bp.route("/billing/setup-intent", methods=["POST"])
@@ -441,7 +462,7 @@ def get_subscription_details():
             "invoice_pdf": latest_invoice.get("invoice_pdf"),
             "has_had_subscription": has_had_subscription,
             "eligible_for_trial": not has_had_subscription,
-            "plan_tier": PRICE_ID_MAP.get((price or {}).get("id"), "freemium")
+            "plan_tier": PRICE_ID_MAP.get((price or {}).get("id"), "freemium") if sub.get("status") in ("active", "trialing") else "freemium"
         }
         # Persist latest subscription status to users table to avoid stale values
         try:
@@ -484,14 +505,15 @@ def stripe_webhook():
     payload = request.data
     sig_header = request.headers.get("Stripe-Signature")
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, os.environ["STRIPE_WEBHOOK_SECRET"]
-        )
+    event = stripe.Webhook.construct_event(
+        payload, sig_header, os.environ["STRIPE_WEBHOOK_SECRET"]
+    )
     except Exception as e:
         return str(e), 400
 
     t = event["type"]
     data = event["data"]["object"]
+    stripe_event_id = event.get("id")
 
     if t == "checkout.session.completed":
         customer_id = data.get("customer")
@@ -502,7 +524,21 @@ def stripe_webhook():
                 user = session.query(User).filter(User.stripe_customer_id == customer_id).first()
                 if user:
                     user.stripe_subscription_id = sub_id
-                    # status will be updated in the subscription.updated event
+                    session.commit()
+            finally:
+                session.close()
+    
+    if t == "invoice.payment_failed":
+        customer_id = data.get("customer")
+        if customer_id:
+            session = get_session()
+            try:
+                user = session.query(User).filter(User.stripe_customer_id == customer_id).first()
+                if user:
+                    old_tier = user.plan_tier
+                    user.plan_tier = "freemium"
+                    user.subscription_status = "past_due"
+                    log_subscription_event(session, user.id, "downgraded", old_tier, "freemium", stripe_event_id)
                     session.commit()
             finally:
                 session.close()
@@ -520,18 +556,42 @@ def stripe_webhook():
                 price_id = items[0]["price"].get("id")
         except Exception:
             price_id = None
+            
         if customer_id:
             session = get_session()
             try:
                 user = session.query(User).filter(User.stripe_customer_id == customer_id).first()
                 if user:
+                    old_status = user.subscription_status
+                    old_tier = user.plan_tier
+                    
                     user.subscription_status = status
                     user.current_period_end = current_period_end
                     user.cancel_at_period_end = cancel_at_period_end
                     if price_id:
                         user.plan_price_id = price_id
-                        user.plan_tier = PRICE_ID_MAP.get(price_id, "freemium")
                     user.stripe_subscription_id = sub.get("id", user.stripe_subscription_id)
+
+                    if t == "customer.subscription.deleted" or status in ("past_due", "unpaid", "canceled"):
+                        if old_tier != "freemium":
+                            user.plan_tier = "freemium"
+                            log_subscription_event(session, user.id, "downgraded", old_tier, "freemium", stripe_event_id)
+                    
+                    elif status == "active" and old_status in ("past_due", "unpaid", "incomplete"):
+                        last_event = session.query(SubscriptionEvent).filter(
+                            SubscriptionEvent.user_id == user.id,
+                            SubscriptionEvent.event_type == "downgraded"
+                        ).order_by(SubscriptionEvent.created_at.desc()).first()
+                        
+                        if last_event and last_event.from_tier:
+                            user.plan_tier = last_event.from_tier
+                            log_subscription_event(session, user.id, "upgraded", "freemium", user.plan_tier, stripe_event_id)
+                        elif price_id:
+                            user.plan_tier = PRICE_ID_MAP.get(price_id, "freemium")
+                    
+                    elif status in ("active", "trialing") and price_id:
+                        user.plan_tier = PRICE_ID_MAP.get(price_id, "freemium")
+
                     session.commit()
             finally:
                 session.close()

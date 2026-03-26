@@ -61,6 +61,7 @@ const Home = () => {
 
   const [subLoading, setSubLoading] = useState(true);
   const [isSubActive, setIsSubActive] = useState<boolean>(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [eligibleForTrial, setEligibleForTrial] = useState<boolean>(true);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean>(false);
   const [onboardingData, setOnboardingData] = useState<any>(null);
@@ -142,6 +143,7 @@ const Home = () => {
         }
         if (r.ok && data) {
           const status = data.status as string | undefined;
+          setSubscriptionStatus(status || null);
           setIsSubActive(status === 'active' || status === 'trialing');
           setEligibleForTrial(Boolean(data.eligible_for_trial));
         } else {
@@ -154,6 +156,7 @@ const Home = () => {
         }
       } catch {
         setIsSubActive(false);
+        setSubscriptionStatus(null);
         setEligibleForTrial(true);
       } finally {
         setSubLoading(false);
@@ -873,6 +876,22 @@ const Home = () => {
                     }}>
                       <Typography variant="caption" sx={{ fontSize: '0.72rem', color: colors.grey[700], whiteSpace: 'nowrap', fontWeight: 500 }}>
                         {model.model_type}
+                      </Typography>
+                    </Box>
+                  )}
+                  {user?.plan_tier === 'freemium' && 
+                   ['past_due', 'canceled', 'unpaid'].includes(subscriptionStatus || '') && 
+                   ['Mixed-Use', 'Industrial', 'Development'].includes(model.model_type) && (
+                    <Box sx={{
+                      px: 1,
+                      py: 0.25,
+                      borderRadius: 1,
+                      backgroundColor: '#FEF3C7', // amber-100
+                      border: '1px solid #F59E0B', // amber-500
+                      flexShrink: 0,
+                    }}>
+                      <Typography variant="caption" sx={{ fontSize: '0.72rem', color: '#B45309', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                        Payment issue
                       </Typography>
                     </Box>
                   )}

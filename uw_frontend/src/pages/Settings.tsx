@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Container, Box, Typography, Paper, Divider, Button, Alert, Tooltip } from '@mui/material';
+import { Container, Box, Typography, Paper, Divider, Button, Alert, Tooltip, CircularProgress } from '@mui/material';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { BACKEND_URL } from '../utils/constants';
@@ -122,10 +122,10 @@ const Settings = () => {
   const [highlightedTier, setHighlightedTier] = React.useState<string | null>(null);
 
   const [subDetails, setSubDetails] = React.useState<any | null>(null);
-  const [subLoading, setSubLoading] = React.useState(false);
+  const [subLoading, setSubLoading] = React.useState(true);
 
   const [companyInfo, setCompanyInfo] = React.useState<any | null>(null);
-  const [companyLoading, setCompanyLoading] = React.useState<boolean>(false);
+  const [companyLoading, setCompanyLoading] = React.useState<boolean>(true);
   const [companyEditing, setCompanyEditing] = React.useState<boolean>(false);
   const [companyDraft, setCompanyDraft] = React.useState<{ company_name?: string; company_email?: string; company_phone_number?: string; company_logo_url?: string }>({});
   const [companySaving, setCompanySaving] = React.useState<boolean>(false);
@@ -187,6 +187,7 @@ const Settings = () => {
     const run = async () => {
       if (!appUser?.email) {
         setCompanyInfo(null);
+        setCompanyLoading(false);
         return;
       }
       try {
@@ -289,8 +290,12 @@ const Settings = () => {
   const effectiveStatus: string | null = (subDetails?.status || status || null) as any;
   const isCanceled = effectiveStatus === 'canceled';
 
-  if (isLoading) {
-    return <Typography>Loading...</Typography>;
+  if (isLoading || subLoading || companyLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (

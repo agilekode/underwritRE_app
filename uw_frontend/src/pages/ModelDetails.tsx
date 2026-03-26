@@ -23,6 +23,7 @@ import {
   FormGroup,
   FormControlLabel,
   Checkbox,
+  Alert,
 } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { pdf } from "@react-pdf/renderer";
@@ -43,7 +44,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import RetailSummary from "../components/RetailSummary";
 import DevelopmentRentalAssumptionsReadOnly from "../components/DevelopmentRentalAssumptionsReadOnly";
 import { Link } from "react-router-dom";
-import { usePlanTier } from "../context/UserContext";
+import { usePlanTier, useUser } from "../context/UserContext";
 
 const ModelDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -51,6 +52,9 @@ const ModelDetails = () => {
   const { getAccessTokenSilently, user: auth0User } = useAuth0();
   const planTier = usePlanTier();
   const isFreemium = planTier === 'freemium';
+  const { user } = useUser();
+  const subStatus = user?.subscription_status;
+  const isPaymentFailure = ['past_due', 'canceled', 'unpaid'].includes(subStatus || '');
   const [modelDetails, setModelDetails] = useState<any>(null);
   const [tabIndex, setTabIndex] = useState(0);
   const [downloading, setDownloading] = useState(false);
@@ -1356,6 +1360,29 @@ const ModelDetails = () => {
           padding: 0,
         }}
       >
+        {isPaymentFailure && (
+          <Alert 
+            severity="warning" 
+            sx={{ 
+              borderRadius: 0, 
+              backgroundColor: '#FEF3C7', 
+              color: '#B45309',
+              '& .MuiAlert-icon': { color: '#F59E0B' },
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            Your payment didn't go through. Your existing models are safe, but downloads and new Pro/Max models are paused.{" "}
+            <Link 
+              to="/settings?upgrade=pro" 
+              style={{ color: '#B45309', fontWeight: 700, textDecoration: 'underline' }}
+            >
+              Update Payment Method →
+            </Link>
+          </Alert>
+        )}
         {/* Top navy bar — matches sidebar logo height */}
         <Box
           sx={{
