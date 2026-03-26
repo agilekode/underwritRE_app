@@ -1454,22 +1454,52 @@ const ModelDetails = () => {
               </Button>
             </Tooltip>
 
-            <Tooltip title="Download PDF Summary">
-              <IconButton
-                size="small"
-                sx={{
-                  backgroundColor: colors.blue,
-                  color: "#fff",
-                  width: 36,
-                  height: 36,
-                  "&:hover": { backgroundColor: colors.blueDark },
-                  "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
-                }}
-                onClick={() => setDownloadOptionsOpen(true)}
-                disabled={downloadingPDF || downloading || isCalculating}
-              >
-                <PictureAsPdfIcon fontSize="small" />
-              </IconButton>
+            <Tooltip 
+              title={
+                isFreemium ? (
+                  <Box sx={{ p: 0.5 }}>
+                    <Typography variant="body2" sx={{ fontSize: '0.75rem', mb: 0.5, color: 'white' }}>
+                      Excel/PDF downloads are available on the Pro plan.
+                    </Typography>
+                    <Link 
+                      to="/settings?upgrade=pro" 
+                      style={{ 
+                        color: '#60a5fa', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        textDecoration: 'none',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                    >
+                      Upgrade to Pro →
+                    </Link>
+                  </Box>
+                ) : "Download PDF Summary"
+              }
+              disableInteractive={!isFreemium}
+            >
+              <span>
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<PictureAsPdfIcon fontSize="small" />}
+                  sx={{
+                    backgroundColor: colors.blue,
+                    color: "#fff",
+                    textTransform: "none",
+                    fontWeight: 600,
+                    px: 2.5,
+                    minWidth: "auto",
+                    "&:hover": { backgroundColor: colors.blueDark },
+                    "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
+                  }}
+                  onClick={() => setDownloadOptionsOpen(true)}
+                  disabled={isFreemium || downloadingPDF || downloading || isCalculating}
+                >
+                  PDF
+                </Button>
+              </span>
             </Tooltip>
 
             <Tooltip 
@@ -1506,36 +1536,39 @@ const ModelDetails = () => {
               <span>
                 <Button
                   size="small"
+                  variant="contained"
+                  startIcon={
+                    downloading ? (
+                      <span
+                        style={{
+                          width: 18,
+                          height: 18,
+                          border: "2px solid #fff",
+                          borderTop: `2px solid ${colors.blue}`,
+                          borderRadius: "50%",
+                          display: "inline-block",
+                          animation: "spin 1s linear infinite",
+                        }}
+                      />
+                    ) : (
+                      <DownloadIcon fontSize="small" />
+                    )
+                  }
+                  onClick={() => downloadWorksheet(getAccessTokenSilently, modelDetails)}
+                  disabled={isFreemium || downloadingPDF || downloading || isCalculating}
                   sx={{
                     backgroundColor: colors.blue,
                     color: "#fff",
-                    width: 36,
-                    height: 36,
+                    textTransform: "none",
+                    fontSize: "0.8125rem",
+                    fontWeight: 500,
+                    opacity: downloading ? 0.7 : 1,
                     "&:hover": { backgroundColor: colors.blueDark },
                     "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
-                    opacity: downloading ? 0.7 : 1,
                   }}
-                  onClick={() =>
-                    downloadWorksheet(getAccessTokenSilently, modelDetails)
-                  }
-                  disabled={downloadingPDF || downloading || isCalculating}
                 >
-                  {downloading ? (
-                    <span
-                      style={{
-                        width: 18,
-                        height: 18,
-                        border: "2px solid #fff",
-                        borderTop: `2px solid ${colors.blue}`,
-                        borderRadius: "50%",
-                        display: "inline-block",
-                        animation: "spin 1s linear infinite",
-                      }}
-                    />
-                  ) : (
-                    <GridOnIcon fontSize="small" />
-                  )}
-                </IconButton>
+                  Worksheet
+                </Button>
               </span>
             </Tooltip>
           </Box>

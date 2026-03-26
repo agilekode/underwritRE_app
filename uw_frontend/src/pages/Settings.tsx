@@ -1,11 +1,12 @@
 import React from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Container, Box, Typography, Paper, Divider, Button, Alert } from '@mui/material';
+import { Container, Box, Typography, Paper, Divider, Button, Alert, Tooltip } from '@mui/material';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { BACKEND_URL } from '../utils/constants';
-import { useUser } from '../context/UserContext';
+import { useUser, PlanTier } from '../context/UserContext';
 import { useLocation } from 'react-router-dom';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PK as string);
 
@@ -80,16 +81,45 @@ const formatMoney = (amount?: number | null, currency?: string | null, interval?
   return interval ? `${money} / ${interval}` : money;
 };
 
+const TIERS_FEATURES = {
+  freemium: [
+    'Basic Investment Models',
+    'Standard Financial Analysis',
+    'Single Version Support',
+    '1 Property Image',
+  ],
+  pro: [
+    'Everything in Freemium',
+    'Advanced Model Types (Mixed-Use & Retail/Industrial)',
+    'Deal Version Comparison',
+    'Full Image Gallery',
+    'Priority Email Support',
+    'No Branding on PDFs'
+  ],
+  max: [
+    'Everything in Pro',
+    'Ground-up Development Models',
+    'Custom Table Mappings',
+    'White-label PDF Reports',
+    'Company Branding Integration',
+    'Dedicated Support'
+  ]
+};
+
 const Settings = () => {
   const { isLoading, getAccessTokenSilently } = useAuth0();
   const { user: appUser, isAuthenticated, refreshUser } = useUser();
   const location = useLocation();
+  const pricingRef = React.useRef<HTMLDivElement>(null);
+  const paymentRef = React.useRef<HTMLDivElement>(null);
 
   const [clientSecret, setClientSecret] = React.useState<string | null>(null);
   const [showPayment, setShowPayment] = React.useState(false);
   const [message, setMessage] = React.useState<string>("");
+  const [successMessage, setSuccessMessage] = React.useState<string>("");
   const [subJustStarted, setSubJustStarted] = React.useState(false);
-  const [selectedTier, setSelectedTier] = React.useState<string>("pro");
+  const [selectedTier, setSelectedTier] = React.useState<PlanTier>("pro");
+  const [highlightedTier, setHighlightedTier] = React.useState<string | null>(null);
 
   const [subDetails, setSubDetails] = React.useState<any | null>(null);
   const [subLoading, setSubLoading] = React.useState(false);
@@ -142,8 +172,13 @@ const Settings = () => {
     }
     const upgrade = qs.get('upgrade');
     if (upgrade && ['pro', 'max'].includes(upgrade.toLowerCase())) {
-      setSelectedTier(upgrade.toLowerCase());
-      setTimeout(() => beginSignup(), 100);
+      const tier = upgrade.toLowerCase();
+      setHighlightedTier(tier);
+      setSelectedTier(tier as PlanTier);
+      
+      setTimeout(() => {
+        pricingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500);
     }
   }, [location.search, fetchSubscription]);
 
@@ -198,8 +233,11 @@ const Settings = () => {
     run();
   }, [appUser?.email, getAccessTokenSilently]);
 
-  const beginSignup = async () => {
+  const beginSignup = async (tier?: PlanTier) => {
+    const targetTier = tier || selectedTier;
+    if (tier) setSelectedTier(tier);
     setMessage("");
+    setSuccessMessage("");
     const token = await getAccessTokenSilently({
       authorizationParams: { audience: process.env.REACT_APP_AUTH0_AUDIENCE }
     });
@@ -215,10 +253,13 @@ const Settings = () => {
     const d = await r.json();
     setClientSecret(d.clientSecret);
     setShowPayment(true);
+    setTimeout(() => {
+      paymentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   const handleTierChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedTier(e.target.value);
+    setSelectedTier(e.target.value as PlanTier);
     if (showPayment) {
       setShowPayment(false);
       setClientSecret(null);
@@ -442,11 +483,155 @@ const Settings = () => {
           )}
         </Paper>
 
-        <Paper variant="outlined" sx={{ p: 3, mt: 4 }}>
-          <Typography variant="h5" sx={{ mb: 1, fontWeight: 700 }}>
-            Subscription and Payment Information
+        <Box ref={pricingRef} sx={{ mt: 4 }}>
+          <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
+            Plan & Billing
           </Typography>
-          <Divider sx={{ mb: 2 }} />
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
+              gap: 3,
+              mb: 4
+            }}
+          >
+            {(['freemium', 'pro', 'max'] as PlanTier[]).map((tierId) => {
+              const isCurrent = (appUser?.plan_tier || 'freemium') === tierId;
+              const isPro = tierId === 'pro';
+              const isMax = tierId === 'max';
+              const isFreemium = tierId === 'freemium';
+              const priceText = isFreemium ? '$0' : isPro ? '$20' : '$50';
+              const tierName = tierId.charAt(0).toUpperCase() + tierId.slice(1);
+              const isDowngrade = (appUser?.plan_tier === 'max' && (tierId === 'pro' || tierId === 'freemium')) || 
+                                 (appUser?.plan_tier === 'pro' && tierId === 'freemium');
+              const isWait = highlightedTier === tierId;
+
+                    const isTrialEligible = isPro && canStartTrial;
+
+                    return (
+                      <Paper
+                        key={tierId}
+                        variant="outlined"
+                        sx={{
+                          p: 3,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          position: 'relative',
+                          borderRadius: 3,
+                          borderColor: isWait ? 'primary.main' : 'divider',
+                          borderWidth: isWait ? 2 : 1,
+                          transition: 'all 0.3s ease',
+                          boxShadow: isWait ? 4 : 0,
+                          backgroundColor: 'white',
+                          zIndex: isWait ? 2 : 1,
+                          '&:hover': {
+                            boxShadow: 2,
+                            transform: 'translateY(-4px)',
+                          },
+                        }}
+                      >
+                        {isCurrent && (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: 12,
+                              right: 12,
+                              bgcolor: 'success.main',
+                              color: 'white',
+                              px: 1.5,
+                              py: 0.5,
+                              borderRadius: 2,
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              textTransform: 'uppercase'
+                            }}
+                          >
+                            Current Plan
+                          </Box>
+                        )}
+                        {isTrialEligible && (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: 12,
+                              right: isCurrent ? 120 : 12,
+                              bgcolor: 'primary.main',
+                              color: 'white',
+                              px: 1.5,
+                              py: 0.5,
+                              borderRadius: 2,
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              textTransform: 'uppercase'
+                            }}
+                          >
+                            14-Day Free Trial
+                          </Box>
+                        )}
+                        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, textTransform: 'capitalize' }}>
+                          {tierName}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 2 }}>
+                          <Typography variant="h4" sx={{ fontWeight: 800 }}>{priceText}</Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>/mo</Typography>
+                        </Box>
+                        <Divider sx={{ mb: 2 }} />
+                        <Box sx={{ flexGrow: 1, mb: 3 }}>
+                          {TIERS_FEATURES[tierId as keyof typeof TIERS_FEATURES].map((f, i) => (
+                            <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', mb: 1.25 }}>
+                              <CheckCircleOutlineIcon sx={{ color: 'success.main', fontSize: 18, mr: 1, mt: 0.25 }} />
+                              <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.4 }}>{f}</Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                        {isCurrent ? (
+                          <Button variant="outlined" color="success" disabled fullWidth sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}>
+                            Current Plan
+                          </Button>
+                        ) : isDowngrade ? (
+                          <Tooltip title="Downgrades are currently handled via support.">
+                            <span>
+                              <Button variant="outlined" disabled fullWidth sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}>
+                                Downgrade
+                              </Button>
+                            </span>
+                          </Tooltip>
+                        ) : (
+                          <Box>
+                            <Button
+                              variant={isWait || isTrialEligible ? 'contained' : 'outlined'}
+                              onClick={() => beginSignup(tierId)}
+                              fullWidth
+                              sx={{
+                                borderRadius: 2,
+                                fontWeight: 700,
+                                textTransform: 'none',
+                                py: 1,
+                                boxShadow: isWait ? 2 : 0
+                              }}
+                            >
+                              {isFreemium ? 'Switch to Freemium' : (isTrialEligible ? 'Start 14-day Free Trial' : `Upgrade to ${tierName}`)}
+                            </Button>
+                            {isTrialEligible && (
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
+                                No charge until trial ends
+                              </Typography>
+                            )}
+                          </Box>
+                        )}
+                      </Paper>
+                    );
+            })}
+          </Box>
+        </Box>
+
+
+        {((appUser?.plan_tier && appUser.plan_tier !== 'freemium') || showPayment) && (
+          <Paper variant="outlined" sx={{ p: 3, mt: 4 }}>
+            <Typography variant="h5" sx={{ mb: 1, fontWeight: 700 }}>
+              Subscription and Payment Information
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
 
           {/* Row-based summary */}
           <Box sx={{ mb: 2 }}>
@@ -534,6 +719,7 @@ const Settings = () => {
             )}
           </Box>
 
+          {successMessage && <Alert severity="success" sx={{ mb: 2 }}>{successMessage}</Alert>}
           {message && <Alert severity="warning" sx={{ mb: 2 }}>{message}</Alert>}
 
           {/* Actions */}
@@ -550,7 +736,7 @@ const Settings = () => {
                     <option value="pro">Pro ($20/mo)</option>
                     <option value="max">Max ($50/mo)</option>
                   </select>
-                  <Button variant="contained" onClick={beginSignup}>
+                  <Button variant="contained" onClick={() => beginSignup()}>
                     {isCanceled ? 'Restart subscription' : 'Start 14‑day free trial'}
                   </Button>
                 </Box>
@@ -564,24 +750,28 @@ const Settings = () => {
           )}
 
           {showPayment && clientSecret && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Checkout for {selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)} Tier
-              </Typography>
+            <Box ref={paymentRef} sx={{ mt: 2, maxWidth: 600 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">
+                  Checkout for {selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)} Tier
+                </Typography>
+                <Button size="small" onClick={() => setShowPayment(false)}>Cancel</Button>
+              </Box>
               <Elements stripe={stripePromise} options={{ clientSecret }}>
                 <EmbeddedCheckoutForm
                   tier={selectedTier}
                   onSuccess={() => {
                     setShowPayment(false);
-                    setMessage('Subscription started!');
+                    setSuccessMessage('Successfully upgraded! Your plan has been updated.');
                     setSubJustStarted(true);
-                    openPortal();
+                    fetchSubscription();
                   }}
                 />
               </Elements>
             </Box>
           )}
         </Paper>
+        )}
       </Box>
     </Container>
   );
