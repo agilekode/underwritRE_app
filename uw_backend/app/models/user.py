@@ -21,6 +21,7 @@ class User(Base):
     current_period_end = Column(Integer, nullable=True)   # or DateTime if you prefer
     cancel_at_period_end = Column(Boolean, default=False)
     plan_price_id = Column(String, nullable=True)
+    plan_tier = Column(String, nullable=True, default="freemium")
 
 
 class UserInfo(Base):
@@ -56,3 +57,17 @@ class CompanyInfo(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
 
+
+class SubscriptionEvent(Base):
+    __tablename__ = "subscription_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=False, index=True)
+    
+    event_type = Column(String, nullable=False)
+    from_tier = Column(String, nullable=True)
+    to_tier = Column(String, nullable=True)
+    
+    stripe_event_id = Column(String, unique=True, nullable=True, index=True)
+    
+    created_at = Column(DateTime, server_default=func.now())
