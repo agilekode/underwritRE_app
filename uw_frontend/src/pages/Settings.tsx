@@ -1,12 +1,11 @@
 import React from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Container, Box, Typography, Paper, Divider, Button, Alert, Tooltip, CircularProgress } from '@mui/material';
+import { Container, Box, Typography, Paper, Divider, Button, Alert, Tooltip, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip } from '@mui/material';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { BACKEND_URL } from '../utils/constants';
 import { useUser, PlanTier } from '../context/UserContext';
 import { useLocation } from 'react-router-dom';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PK as string);
 
@@ -79,31 +78,6 @@ const formatMoney = (amount?: number | null, currency?: string | null, interval?
   if (!amount) return '';
   const money = (amount / 100).toLocaleString(undefined, { style: 'currency', currency: (currency || 'usd').toUpperCase() });
   return interval ? `${money} / ${interval}` : money;
-};
-
-const TIERS_FEATURES = {
-  freemium: [
-    'Basic Investment Models',
-    'Standard Financial Analysis',
-    'Single Version Support',
-    '1 Property Image',
-  ],
-  pro: [
-    'Everything in Freemium',
-    'Advanced Model Types (Mixed-Use & Retail/Industrial)',
-    'Deal Version Comparison',
-    'Full Image Gallery',
-    'Priority Email Support',
-    'No Branding on PDFs'
-  ],
-  max: [
-    'Everything in Pro',
-    'Ground-up Development Models',
-    'Custom Table Mappings',
-    'White-label PDF Reports',
-    'Company Branding Integration',
-    'Dedicated Support'
-  ]
 };
 
 const Settings = () => {
@@ -492,142 +466,152 @@ const Settings = () => {
           <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
             Plan & Billing
           </Typography>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
-              gap: 3,
-              mb: 4
-            }}
-          >
-            {(['freemium', 'pro', 'max'] as PlanTier[]).map((tierId) => {
-              const isCurrent = (appUser?.plan_tier || 'freemium') === tierId;
-              const isPro = tierId === 'pro';
-              const isMax = tierId === 'max';
-              const isFreemium = tierId === 'freemium';
-              const priceText = isFreemium ? '$0' : isPro ? '$20' : '$50';
-              const tierName = tierId.charAt(0).toUpperCase() + tierId.slice(1);
-              const isDowngrade = (appUser?.plan_tier === 'max' && (tierId === 'pro' || tierId === 'freemium')) || 
-                                 (appUser?.plan_tier === 'pro' && tierId === 'freemium');
-              const isWait = highlightedTier === tierId;
-
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, mb: 4, overflow: 'hidden' }}>
+            <Table>
+              <TableHead sx={{ backgroundColor: 'action.hover' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700, width: '25%', verticalAlign: 'bottom', pb: 3 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>Compare Plans</Typography>
+                  </TableCell>
+                  {(['freemium', 'pro', 'max'] as PlanTier[]).map((tierId) => {
+                    const isCurrent = (appUser?.plan_tier || 'freemium') === tierId;
+                    const isPro = tierId === 'pro';
+                    const isFreemium = tierId === 'freemium';
+                    const priceText = isFreemium ? '$0' : isPro ? '$20' : '$50';
+                    const tierName = tierId.charAt(0).toUpperCase() + tierId.slice(1);
+                    const isDowngrade = (appUser?.plan_tier === 'max' && (tierId === 'pro' || tierId === 'freemium')) || 
+                                       (appUser?.plan_tier === 'pro' && tierId === 'freemium');
+                    const isWait = highlightedTier === tierId;
                     const isTrialEligible = isPro && canStartTrial;
 
                     return (
-                      <Paper
-                        key={tierId}
-                        variant="outlined"
-                        sx={{
-                          p: 3,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          position: 'relative',
-                          borderRadius: 3,
-                          borderColor: isWait ? 'primary.main' : 'divider',
-                          borderWidth: isWait ? 2 : 1,
-                          transition: 'all 0.3s ease',
-                          boxShadow: isWait ? 4 : 0,
-                          backgroundColor: 'white',
-                          zIndex: isWait ? 2 : 1,
-                          '&:hover': {
-                            boxShadow: 2,
-                            transform: 'translateY(-4px)',
-                          },
-                        }}
-                      >
-                        {isCurrent && (
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              top: 12,
-                              right: 12,
-                              bgcolor: 'success.main',
-                              color: 'white',
-                              px: 1.5,
-                              py: 0.5,
-                              borderRadius: 2,
-                              fontSize: '0.7rem',
-                              fontWeight: 700,
-                              textTransform: 'uppercase'
-                            }}
-                          >
-                            Current Plan
+                      <TableCell key={tierId} align="center" sx={{ width: '25%', verticalAlign: 'top', pt: 3, pb: 2, backgroundColor: highlightedTier === tierId ? 'rgba(25, 118, 210, 0.08)' : 'inherit', transition: 'background-color 0.3s ease' }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, position: 'relative' }}>
+                          {isCurrent && (
+                            <Chip label="Current Plan" color="success" size="small" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.7rem' }} />
+                          )}
+                          {isTrialEligible && !isCurrent && (
+                            <Chip label="14-Day Free Trial" color="primary" size="small" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.7rem' }} />
+                          )}
+                          <Typography variant="h6" sx={{ fontWeight: 700, textTransform: 'capitalize', mt: (!isCurrent && (!isTrialEligible || isCurrent)) ? 3.5 : 0 }}>
+                            {tierName}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'baseline' }}>
+                            <Typography variant="h5" sx={{ fontWeight: 800 }}>{priceText}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>/mo</Typography>
                           </Box>
-                        )}
-                        {isTrialEligible && (
-                          <Box
-                            sx={{
-                              position: 'absolute',
-                              top: 12,
-                              right: isCurrent ? 120 : 12,
-                              bgcolor: 'primary.main',
-                              color: 'white',
-                              px: 1.5,
-                              py: 0.5,
-                              borderRadius: 2,
-                              fontSize: '0.7rem',
-                              fontWeight: 700,
-                              textTransform: 'uppercase'
-                            }}
-                          >
-                            14-Day Free Trial
-                          </Box>
-                        )}
-                        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, textTransform: 'capitalize' }}>
-                          {tierName}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'baseline', mb: 2 }}>
-                          <Typography variant="h4" sx={{ fontWeight: 800 }}>{priceText}</Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>/mo</Typography>
                         </Box>
-                        <Divider sx={{ mb: 2 }} />
-                        <Box sx={{ flexGrow: 1, mb: 3 }}>
-                          {TIERS_FEATURES[tierId as keyof typeof TIERS_FEATURES].map((f, i) => (
-                            <Box key={i} sx={{ display: 'flex', alignItems: 'flex-start', mb: 1.25 }}>
-                              <CheckCircleOutlineIcon sx={{ color: 'success.main', fontSize: 18, mr: 1, mt: 0.25 }} />
-                              <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.4 }}>{f}</Typography>
-                            </Box>
-                          ))}
-                        </Box>
-                        {isCurrent ? (
-                          <Button variant="outlined" color="success" disabled fullWidth sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}>
-                            Current Plan
-                          </Button>
-                        ) : isDowngrade ? (
-                          <Tooltip title="Downgrades are currently handled via support.">
-                            <span>
-                              <Button variant="outlined" disabled fullWidth sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}>
-                                Downgrade
-                              </Button>
-                            </span>
-                          </Tooltip>
-                        ) : (
-                          <Box>
-                            <Button
-                              variant={isWait || isTrialEligible ? 'contained' : 'outlined'}
-                              onClick={() => beginSignup(tierId)}
-                              fullWidth
-                              sx={{
-                                borderRadius: 2,
-                                fontWeight: 700,
-                                textTransform: 'none',
-                                py: 1,
-                                boxShadow: isWait ? 2 : 0
-                              }}
-                            >
-                              {isFreemium ? 'Switch to Freemium' : (isTrialEligible ? 'Start 14-day Free Trial' : `Upgrade to ${tierName}`)}
-                            </Button>
-                            {isTrialEligible && (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
-                                No charge until trial ends
-                              </Typography>
-                            )}
-                          </Box>
-                        )}
-                      </Paper>
+                      </TableCell>
                     );
-            })}
-          </Box>
+                  })}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {
+                [
+                  { 
+                    feature: 'Multifamily Model', 
+                    free: '✨ Unlimited access', 
+                    pro: '✨ Unlimited access', 
+                    max: '✨ Unlimited access' 
+                  },
+                  { 
+                    feature: 'Mixed-Use Model', 
+                    free: '🔒 Unlock with Pro', 
+                    pro: '🚀 Included', 
+                    max: '🚀 Included' 
+                  },
+                  { 
+                    feature: 'Industrial & Retail Model', 
+                    free: '🔒 Unlock with Pro', 
+                    pro: '🚀 Included', 
+                    max: '🚀 Included' 
+                  },
+                  { 
+                    feature: 'MF & Mixed-Use Development Suite', 
+                    free: '🔒 Exclusive to Max', 
+                    pro: '🔒 Upgrade to Max', 
+                    max: '🌟 Premium Access' 
+                  },
+                  { 
+                    feature: 'Excel Export', 
+                    free: '🔒 Pro feature', 
+                    pro: '📊 Export anytime', 
+                    max: '📊 Export anytime' 
+                  },
+                  { 
+                    feature: 'PDF Reports', 
+                    free: '🔒 Pro feature', 
+                    pro: '🧾 Download ready', 
+                    max: '🧾 Download ready' 
+                  }
+                ]
+                .map((row, idx) => (
+                  <TableRow key={idx} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                    <TableCell component="th" scope="row" sx={{ fontWeight: 600 }}>{row.feature}</TableCell>
+                    <TableCell align="center" sx={{ color: row.free.includes('🔒') ? 'text.secondary' : 'inherit', backgroundColor: highlightedTier === 'freemium' ? 'rgba(25, 118, 210, 0.08)' : 'inherit', transition: 'background-color 0.3s ease' }}>{row.free}</TableCell>
+                    <TableCell align="center" sx={{ color: row.pro.includes('🔒') ? 'text.secondary' : 'inherit', backgroundColor: highlightedTier === 'pro' ? 'rgba(25, 118, 210, 0.08)' : 'inherit', transition: 'background-color 0.3s ease' }}>{row.pro}</TableCell>
+                    <TableCell align="center" sx={{ backgroundColor: highlightedTier === 'max' ? 'rgba(25, 118, 210, 0.08)' : 'inherit', transition: 'background-color 0.3s ease' }}>{row.max}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow>
+                  <TableCell />
+                  {(['freemium', 'pro', 'max'] as PlanTier[]).map((tierId) => {
+                    const isCurrent = (appUser?.plan_tier || 'freemium') === tierId;
+                    const isPro = tierId === 'pro';
+                    const isFreemium = tierId === 'freemium';
+                    const isDowngrade = (appUser?.plan_tier === 'max' && (tierId === 'pro' || tierId === 'freemium')) || 
+                                       (appUser?.plan_tier === 'pro' && tierId === 'freemium');
+                    const isWait = highlightedTier === tierId;
+                    const isTrialEligible = isPro && canStartTrial;
+                    const tierName = tierId.charAt(0).toUpperCase() + tierId.slice(1);
+
+                    return (
+                      <TableCell key={tierId} align="center" sx={{ borderBottom: 0, pt: 3, pb: 4, backgroundColor: highlightedTier === tierId ? 'rgba(25, 118, 210, 0.08)' : 'inherit', transition: 'background-color 0.3s ease' }}>
+                        <Box sx={{ mt: 1, width: '100%', maxWidth: 200, mx: 'auto' }}>
+                          {isCurrent ? (
+                            <Button variant="outlined" color="success" disabled fullWidth sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}>
+                              Current Plan
+                            </Button>
+                          ) : isDowngrade ? (
+                            <Tooltip title="Downgrades are currently handled via support.">
+                              <span>
+                                <Button variant="outlined" disabled fullWidth sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}>
+                                  Downgrade
+                                </Button>
+                              </span>
+                            </Tooltip>
+                          ) : (
+                            <Box>
+                              <Button
+                                variant={isWait || isTrialEligible ? 'contained' : 'outlined'}
+                                onClick={() => beginSignup(tierId)}
+                                fullWidth
+                                sx={{
+                                  borderRadius: 2,
+                                  fontWeight: 700,
+                                  textTransform: 'none',
+                                  py: 0.8,
+                                  boxShadow: isWait ? 2 : 0
+                                }}
+                              >
+                                {isFreemium ? 'Switch to Freemium' : (isTrialEligible ? 'Start Free Trial' : `Upgrade to ${tierName}`)}
+                              </Button>
+                              {isTrialEligible && (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 0.5 }}>
+                                  No charge until trial ends
+                                </Typography>
+                              )}
+                            </Box>
+                          )}
+                        </Box>
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Box>
 
 

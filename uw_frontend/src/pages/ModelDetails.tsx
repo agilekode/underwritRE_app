@@ -54,7 +54,8 @@ const ModelDetails = () => {
   const isFreemium = planTier === 'freemium';
   const { user } = useUser();
   const subStatus = user?.subscription_status;
-  const isPaymentFailure = ['past_due', 'canceled', 'unpaid'].includes(subStatus || '');
+  const isPaymentIssue = ['past_due', 'unpaid'].includes(subStatus || '');
+  const isExplicitlyCanceled = subStatus === 'canceled';
   const [modelDetails, setModelDetails] = useState<any>(null);
   const [tabIndex, setTabIndex] = useState(0);
   const [downloading, setDownloading] = useState(false);
@@ -1360,7 +1361,7 @@ const ModelDetails = () => {
           padding: 0,
         }}
       >
-        {isPaymentFailure && (
+        {(isPaymentIssue || isExplicitlyCanceled || (isFreemium && modelDetails && ['Mixed-Use', 'Industrial / Retail', 'Development'].includes(modelDetails.model_type?.name || ''))) && (
           <Alert 
             severity="warning" 
             sx={{ 
@@ -1374,12 +1375,14 @@ const ModelDetails = () => {
               justifyContent: 'center'
             }}
           >
-            Your payment didn't go through. Your existing models are safe, but downloads and new Pro/Max models are paused.{" "}
+            {isPaymentIssue 
+              ? "Your payment didn't go through. Your existing models are safe, but downloads and new Pro/Max models are paused. "
+              : "Your Pro/Max subscription was canceled or expired. Your existing models are safe, but downloads and new Pro/Max models are paused. "}
             <Link 
               to="/settings?upgrade=pro" 
               style={{ color: '#B45309', fontWeight: 700, textDecoration: 'underline' }}
             >
-              Update Payment Method →
+              {isPaymentIssue ? "Update Payment Method →" : "Reactivate Subscription →"}
             </Link>
           </Alert>
         )}

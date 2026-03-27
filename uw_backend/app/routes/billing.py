@@ -303,18 +303,44 @@ def start_subscription():
             )
         except Exception:
             pass
-        # Determine trial eligibility: only if customer has never had any subscription
-        allow_trial = not customer_has_any_subscription(customer_id)
-        create_args = {
-            "customer": customer_id,
-            "items": [{"price": target_price_id}],
-            "default_payment_method": payment_method,
-            "payment_settings": {"save_default_payment_method": "on_subscription"},
-            "metadata": {"auth0_sub": auth0_sub, "auth0_email": email or "", "tier": tier}
-        }
-        if allow_trial:
-            create_args["trial_period_days"] = 14
-        sub = stripe.Subscription.create(**create_args)
+
+        sub_to_update = None
+        session_find = get_session()
+        try:
+            db_user_find = session_find.query(User).filter(User.auth0_user_id == auth0_sub).first()
+            if db_user_find and db_user_find.stripe_subscription_id:
+                try:
+                    existing_sub = stripe.Subscription.retrieve(db_user_find.stripe_subscription_id)
+                    if existing_sub.status not in ("canceled", "incomplete_expired"):
+                        sub_to_update = existing_sub
+                except Exception:
+                    pass
+        finally:
+            session_find.close()
+
+        if sub_to_update:
+            sub = stripe.Subscription.modify(
+                sub_to_update.id,
+                items=[{
+                    "id": sub_to_update["items"]["data"][0].id,
+                    "price": target_price_id,
+                }],
+                default_payment_method=payment_method,
+                proration_behavior="always_invoice",
+                metadata={"auth0_sub": auth0_sub, "auth0_email": email or "", "tier": tier}
+            )
+        else:
+            allow_trial = not customer_has_any_subscription(customer_id)
+            create_args = {
+                "customer": customer_id,
+                "items": [{"price": target_price_id}],
+                "default_payment_method": payment_method,
+                "payment_settings": {"save_default_payment_method": "on_subscription"},
+                "metadata": {"auth0_sub": auth0_sub, "auth0_email": email or "", "tier": tier}
+            }
+            if allow_trial:
+                create_args["trial_period_days"] = 14
+            sub = stripe.Subscription.create(**create_args)
         # Persist subscription fields
         session = get_session()
         try:
@@ -505,9 +531,9 @@ def stripe_webhook():
     payload = request.data
     sig_header = request.headers.get("Stripe-Signature")
     try:
-    event = stripe.Webhook.construct_event(
-        payload, sig_header, os.environ["STRIPE_WEBHOOK_SECRET"]
-    )
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, os.environ["STRIPE_WEBHOOK_SECRET"]
+        )
     except Exception as e:
         return str(e), 400
 
