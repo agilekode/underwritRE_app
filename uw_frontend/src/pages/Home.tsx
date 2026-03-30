@@ -881,7 +881,7 @@ const Home = () => {
                   )}
                   {user?.plan_tier === 'freemium' && 
                    ['past_due', 'canceled', 'unpaid'].includes(subscriptionStatus || '') && 
-                   ['Mixed-Use', 'Industrial / Retail', 'Development'].includes(model.model_type) && (
+                   ['Mixed-Use', 'Industrial / Retail', 'Multifamily and Mixed-Use Development'].includes(model.model_type) && (
                     <Box sx={{
                       px: 1,
                       py: 0.25,
