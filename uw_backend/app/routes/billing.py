@@ -75,12 +75,13 @@ def get_or_create_customer(auth0_sub: str, email: str | None):
                     return candidate.id
             except Exception:
                 pass
-        # Create a new customer
+        # Create a new customer with idempotency key to avoid duplicates on race conditions
         cust = stripe.Customer.create(
             email=email or None,
-            name=email or None,
+            name=email or auth0_sub,
             description=(email or auth0_sub),
-            metadata={"auth0_sub": auth0_sub, "auth0_email": email or ""}
+            metadata={"auth0_sub": auth0_sub, "auth0_email": email or ""},
+            idempotency_key=f"cust_{auth0_sub}"
         )
         user.stripe_customer_id = cust.id
         session.commit()
@@ -134,6 +135,55 @@ def log_subscription_event(session, user_id, event_type, from_tier, to_tier, str
     session.add(event)
     session.commit()
     return event
+
+
+def ensure_freemium_subscription(auth0_sub: str, email: str | None):
+    if not PRICE_ID_FREEMIUM:
+        return None
+        
+    customer_id = get_or_create_customer(auth0_sub, email)
+    session = get_session()
+    try:
+        user = session.query(User).filter(User.auth0_user_id == auth0_sub).first()
+        if not user:
+            return None
+            
+        if user.stripe_subscription_id:
+            try:
+                sub = stripe.Subscription.retrieve(user.stripe_subscription_id)
+                if sub.status not in ("canceled", "incomplete_expired"):
+                    return sub
+            except Exception:
+                pass
+        
+        lst = stripe.Subscription.list(customer=customer_id, status="all", limit=5)
+        for s in getattr(lst, "data", []):
+            if s.status not in ("canceled", "incomplete_expired"):
+                user.stripe_subscription_id = s.id
+                user.subscription_status = s.status
+                session.commit()
+                return s
+        
+        sub = stripe.Subscription.create(
+            customer=customer_id,
+            items=[{"price": PRICE_ID_FREEMIUM}],
+            metadata={"auth0_sub": auth0_sub, "auth0_email": email or "", "tier": "freemium"},
+            idempotency_key=f"sub_freemium_{auth0_sub}"
+        )
+        
+        user.stripe_subscription_id = sub.id
+        user.subscription_status = sub.status
+        user.plan_price_id = PRICE_ID_FREEMIUM
+        user.plan_tier = "freemium"
+        user.current_period_end = sub.get("current_period_end")
+        user.cancel_at_period_end = bool(sub.get("cancel_at_period_end"))
+        session.commit()
+        return sub
+    except Exception as e:
+        print(f"Error in ensure_freemium_subscription: {e}")
+        return None
+    finally:
+        session.close()
 
 
 @billing_bp.route("/billing/setup-intent", methods=["POST"])
@@ -386,6 +436,21 @@ def create_billing_portal():
         return jsonify({"error": str(e)}), 400
 
 
+@billing_bp.route("/billing/ensure-freemium", methods=["POST"])
+@requires_auth
+def ensure_freemium_route():
+    user_claims = getattr(g, 'current_user', None) or {}
+    auth0_sub = user_claims.get('sub')
+    email = user_claims.get('email')
+    if not auth0_sub:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    sub = ensure_freemium_subscription(auth0_sub, email or "")
+    if sub:
+        return jsonify({"status": "ok", "subscriptionId": sub.id})
+    return jsonify({"error": "Could not ensure freemium subscription"}), 400
+
+
 @billing_bp.route("/billing/subscription", methods=["GET"])
 @requires_auth
 def get_subscription_details():
@@ -449,12 +514,17 @@ def get_subscription_details():
                 has_had_subscription = customer_has_any_subscription(customer_id)
 
         if not sub:
-            return jsonify({
-                "subscription": None,
-                "has_had_subscription": has_had_subscription,
-                "eligible_for_trial": not has_had_subscription,
-                "plan_tier": user.plan_tier or "freemium"
-            }), 200
+            sub = ensure_freemium_subscription(auth0_sub, user.email)
+            if sub:
+                customer_id = sub.get("customer")
+                has_had_subscription = True
+            else:
+                return jsonify({
+                    "subscription": None,
+                    "has_had_subscription": has_had_subscription,
+                    "eligible_for_trial": not has_had_subscription,
+                    "plan_tier": user.plan_tier or "freemium"
+                }), 200
         item = sub.get("items", {}).get("data", [None])[0]
         price = item.get("price") if item else None
         recurring = (price or {}).get("recurring", {})
