@@ -1,18 +1,19 @@
 import React from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Container, Box, Typography, Paper, Divider, Button, Alert } from '@mui/material';
+import { Container, Box, Typography, Paper, Divider, Button, Alert, Tooltip, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip } from '@mui/material';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { BACKEND_URL } from '../utils/constants';
-import { useUser } from '../context/UserContext';
+import { useUser, PlanTier } from '../context/UserContext';
 import { useLocation } from 'react-router-dom';
 
 const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PK as string);
 
-function EmbeddedCheckoutForm({ onSuccess }: { onSuccess: () => void }) {
+function EmbeddedCheckoutForm({ onSuccess, tier }: { onSuccess: () => void; tier: string }) {
   const stripe = useStripe();
   const elements = useElements();
   const { getAccessTokenSilently } = useAuth0();
+  const { refreshUser } = useUser();
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string>("");
 
@@ -38,9 +39,13 @@ function EmbeddedCheckoutForm({ onSuccess }: { onSuccess: () => void }) {
           Authorization: `Bearer ${token}`
         },
         credentials: 'include',
-        body: JSON.stringify({ payment_method: setupIntent?.payment_method })
+        body: JSON.stringify({
+          payment_method: setupIntent?.payment_method,
+          tier: tier
+        })
       });
       if (!resp.ok) throw new Error('Failed to start subscription');
+      await refreshUser();
       onSuccess();
     } catch (e: any) {
       setError(e.message || 'Failed to start subscription');
@@ -77,19 +82,24 @@ const formatMoney = (amount?: number | null, currency?: string | null, interval?
 
 const Settings = () => {
   const { isLoading, getAccessTokenSilently } = useAuth0();
-  const { user: appUser, isAuthenticated } = useUser();
+  const { user: appUser, isAuthenticated, refreshUser } = useUser();
   const location = useLocation();
+  const pricingRef = React.useRef<HTMLDivElement>(null);
+  const paymentRef = React.useRef<HTMLDivElement>(null);
 
   const [clientSecret, setClientSecret] = React.useState<string | null>(null);
   const [showPayment, setShowPayment] = React.useState(false);
   const [message, setMessage] = React.useState<string>("");
+  const [successMessage, setSuccessMessage] = React.useState<string>("");
   const [subJustStarted, setSubJustStarted] = React.useState(false);
+  const [selectedTier, setSelectedTier] = React.useState<PlanTier>("pro");
+  const [highlightedTier, setHighlightedTier] = React.useState<string | null>(null);
 
   const [subDetails, setSubDetails] = React.useState<any | null>(null);
-  const [subLoading, setSubLoading] = React.useState(false);
+  const [subLoading, setSubLoading] = React.useState(true);
 
   const [companyInfo, setCompanyInfo] = React.useState<any | null>(null);
-  const [companyLoading, setCompanyLoading] = React.useState<boolean>(false);
+  const [companyLoading, setCompanyLoading] = React.useState<boolean>(true);
   const [companyEditing, setCompanyEditing] = React.useState<boolean>(false);
   const [companyDraft, setCompanyDraft] = React.useState<{ company_name?: string; company_email?: string; company_phone_number?: string; company_logo_url?: string }>({});
   const [companySaving, setCompanySaving] = React.useState<boolean>(false);
@@ -134,6 +144,16 @@ const Settings = () => {
       setSubJustStarted(true);
       fetchSubscription();
     }
+    const upgrade = qs.get('upgrade');
+    if (upgrade && ['pro', 'max'].includes(upgrade.toLowerCase())) {
+      const tier = upgrade.toLowerCase();
+      setHighlightedTier(tier);
+      setSelectedTier(tier as PlanTier);
+      
+      setTimeout(() => {
+        pricingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500);
+    }
   }, [location.search, fetchSubscription]);
 
   // Fetch Company Info
@@ -141,6 +161,7 @@ const Settings = () => {
     const run = async () => {
       if (!appUser?.email) {
         setCompanyInfo(null);
+        setCompanyLoading(false);
         return;
       }
       try {
@@ -152,7 +173,7 @@ const Settings = () => {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
-            'X-User-Email': appUser.email
+            'X-User-Email': appUser?.email || ''
           },
           credentials: 'include'
         });
@@ -187,8 +208,11 @@ const Settings = () => {
     run();
   }, [appUser?.email, getAccessTokenSilently]);
 
-  const beginSignup = async () => {
+  const beginSignup = async (tier?: PlanTier) => {
+    const targetTier = tier || selectedTier;
+    if (tier) setSelectedTier(tier);
     setMessage("");
+    setSuccessMessage("");
     const token = await getAccessTokenSilently({
       authorizationParams: { audience: process.env.REACT_APP_AUTH0_AUDIENCE }
     });
@@ -204,6 +228,17 @@ const Settings = () => {
     const d = await r.json();
     setClientSecret(d.clientSecret);
     setShowPayment(true);
+    setTimeout(() => {
+      paymentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  };
+
+  const handleTierChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedTier(e.target.value as PlanTier);
+    if (showPayment) {
+      setShowPayment(false);
+      setClientSecret(null);
+    }
   };
 
   const openPortal = async () => {
@@ -229,8 +264,12 @@ const Settings = () => {
   const effectiveStatus: string | null = (subDetails?.status || status || null) as any;
   const isCanceled = effectiveStatus === 'canceled';
 
-  if (isLoading) {
-    return <Typography>Loading...</Typography>;
+  if (isLoading || subLoading || companyLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
@@ -423,11 +462,165 @@ const Settings = () => {
           )}
         </Paper>
 
-        <Paper variant="outlined" sx={{ p: 3, mt: 4 }}>
-          <Typography variant="h5" sx={{ mb: 1, fontWeight: 700 }}>
-            Subscription and Payment Information
+        <Box ref={pricingRef} sx={{ mt: 4 }}>
+          <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
+            Plan & Billing
           </Typography>
-          <Divider sx={{ mb: 2 }} />
+          <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, mb: 4, overflow: 'hidden' }}>
+            <Table>
+              <TableHead sx={{ backgroundColor: 'action.hover' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700, width: '25%', verticalAlign: 'bottom', pb: 3 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>Compare Plans</Typography>
+                  </TableCell>
+                  {(['freemium', 'pro', 'max'] as PlanTier[]).map((tierId) => {
+                    const isCurrent = (appUser?.plan_tier || 'freemium') === tierId;
+                    const isPro = tierId === 'pro';
+                    const isFreemium = tierId === 'freemium';
+                    const priceText = isFreemium ? '$0' : isPro ? '$20' : '$50';
+                    const tierName = tierId.charAt(0).toUpperCase() + tierId.slice(1);
+                    const isDowngrade = (appUser?.plan_tier === 'max' && (tierId === 'pro' || tierId === 'freemium')) || 
+                                       (appUser?.plan_tier === 'pro' && tierId === 'freemium');
+                    const isWait = highlightedTier === tierId;
+                    const isTrialEligible = isPro && canStartTrial;
+
+                    return (
+                      <TableCell key={tierId} align="center" sx={{ width: '25%', verticalAlign: 'top', pt: 3, pb: 2, backgroundColor: highlightedTier === tierId ? 'rgba(25, 118, 210, 0.08)' : 'inherit', transition: 'background-color 0.3s ease' }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, position: 'relative' }}>
+                          {isCurrent && (
+                            <Chip label="Current Plan" color="success" size="small" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.7rem' }} />
+                          )}
+                          {isTrialEligible && !isCurrent && (
+                            <Chip label="14-Day Free Trial" color="primary" size="small" sx={{ fontWeight: 700, textTransform: 'uppercase', fontSize: '0.7rem' }} />
+                          )}
+                          <Typography variant="h6" sx={{ fontWeight: 700, textTransform: 'capitalize', mt: (!isCurrent && (!isTrialEligible || isCurrent)) ? 3.5 : 0 }}>
+                            {tierName}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'baseline' }}>
+                            <Typography variant="h5" sx={{ fontWeight: 800 }}>{priceText}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>/mo</Typography>
+                          </Box>
+                        </Box>
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {
+                [
+                  { 
+                    feature: 'Multifamily Model', 
+                    free: '✨ Unlimited access', 
+                    pro: '✨ Unlimited access', 
+                    max: '✨ Unlimited access' 
+                  },
+                  { 
+                    feature: 'Mixed-Use Model', 
+                    free: '🔒 Unlock with Pro', 
+                    pro: '🚀 Included', 
+                    max: '🚀 Included' 
+                  },
+                  { 
+                    feature: 'Industrial & Retail Model', 
+                    free: '🔒 Unlock with Pro', 
+                    pro: '🚀 Included', 
+                    max: '🚀 Included' 
+                  },
+                  { 
+                    feature: 'MF & Mixed-Use Development Suite', 
+                    free: '🔒 Exclusive to Max', 
+                    pro: '🔒 Upgrade to Max', 
+                    max: '🌟 Premium Access' 
+                  },
+                  { 
+                    feature: 'Excel Export', 
+                    free: '🔒 Pro feature', 
+                    pro: '📊 Export anytime', 
+                    max: '📊 Export anytime' 
+                  },
+                  { 
+                    feature: 'PDF Reports', 
+                    free: '🔒 Pro feature', 
+                    pro: '🧾 Download ready', 
+                    max: '🧾 Download ready' 
+                  }
+                ]
+                .map((row, idx) => (
+                  <TableRow key={idx} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                    <TableCell component="th" scope="row" sx={{ fontWeight: 600 }}>{row.feature}</TableCell>
+                    <TableCell align="center" sx={{ color: row.free.includes('🔒') ? 'text.secondary' : 'inherit', backgroundColor: highlightedTier === 'freemium' ? 'rgba(25, 118, 210, 0.08)' : 'inherit', transition: 'background-color 0.3s ease' }}>{row.free}</TableCell>
+                    <TableCell align="center" sx={{ color: row.pro.includes('🔒') ? 'text.secondary' : 'inherit', backgroundColor: highlightedTier === 'pro' ? 'rgba(25, 118, 210, 0.08)' : 'inherit', transition: 'background-color 0.3s ease' }}>{row.pro}</TableCell>
+                    <TableCell align="center" sx={{ backgroundColor: highlightedTier === 'max' ? 'rgba(25, 118, 210, 0.08)' : 'inherit', transition: 'background-color 0.3s ease' }}>{row.max}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow>
+                  <TableCell />
+                  {(['freemium', 'pro', 'max'] as PlanTier[]).map((tierId) => {
+                    const isCurrent = (appUser?.plan_tier || 'freemium') === tierId;
+                    const isPro = tierId === 'pro';
+                    const isFreemium = tierId === 'freemium';
+                    const isDowngrade = (appUser?.plan_tier === 'max' && (tierId === 'pro' || tierId === 'freemium')) || 
+                                       (appUser?.plan_tier === 'pro' && tierId === 'freemium');
+                    const isWait = highlightedTier === tierId;
+                    const isTrialEligible = isPro && canStartTrial;
+                    const tierName = tierId.charAt(0).toUpperCase() + tierId.slice(1);
+
+                    return (
+                      <TableCell key={tierId} align="center" sx={{ borderBottom: 0, pt: 3, pb: 4, backgroundColor: highlightedTier === tierId ? 'rgba(25, 118, 210, 0.08)' : 'inherit', transition: 'background-color 0.3s ease' }}>
+                        <Box sx={{ mt: 1, width: '100%', maxWidth: 200, mx: 'auto' }}>
+                          {isCurrent ? (
+                            <Button variant="outlined" color="success" disabled fullWidth sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}>
+                              Current Plan
+                            </Button>
+                          ) : isDowngrade ? (
+                            <Tooltip title="Downgrades are currently handled via support.">
+                              <span>
+                                <Button variant="outlined" disabled fullWidth sx={{ borderRadius: 2, fontWeight: 700, textTransform: 'none' }}>
+                                  Downgrade
+                                </Button>
+                              </span>
+                            </Tooltip>
+                          ) : (
+                            <Box>
+                              <Button
+                                variant={isWait || isTrialEligible ? 'contained' : 'outlined'}
+                                onClick={() => beginSignup(tierId)}
+                                fullWidth
+                                sx={{
+                                  borderRadius: 2,
+                                  fontWeight: 700,
+                                  textTransform: 'none',
+                                  py: 0.8,
+                                  boxShadow: isWait ? 2 : 0
+                                }}
+                              >
+                                {isFreemium ? 'Switch to Freemium' : (isTrialEligible ? 'Start Free Trial' : `Upgrade to ${tierName}`)}
+                              </Button>
+                              {isTrialEligible && (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 0.5 }}>
+                                  No charge until trial ends
+                                </Typography>
+                              )}
+                            </Box>
+                          )}
+                        </Box>
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+
+
+        {((appUser?.plan_tier && appUser.plan_tier !== 'freemium') || showPayment) && (
+          <Paper variant="outlined" sx={{ p: 3, mt: 4 }}>
+            <Typography variant="h5" sx={{ mb: 1, fontWeight: 700 }}>
+              Subscription and Payment Information
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
 
           {/* Row-based summary */}
           <Box sx={{ mb: 2 }}>
@@ -442,6 +635,9 @@ const Settings = () => {
               }}>
                 {subDetails?.status && (
                   <>
+                    <Typography variant="body2" color="text.secondary">Tier</Typography>
+                    <Typography variant="body1" sx={{ textTransform: 'capitalize' }}>{subDetails?.plan_tier || '—'}</Typography>
+
                     <Typography variant="body2" color="text.secondary">Status</Typography>
                     <Typography variant="body1">{subDetails?.status || status || '—'}</Typography>
                   </>
@@ -512,28 +708,59 @@ const Settings = () => {
             )}
           </Box>
 
+          {successMessage && <Alert severity="success" sx={{ mb: 2 }}>{successMessage}</Alert>}
           {message && <Alert severity="warning" sx={{ mb: 2 }}>{message}</Alert>}
 
           {/* Actions */}
           {!showPayment && !isLoading && !subLoading && (
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {(canStartTrial || isCanceled) && (
-                <Button variant="contained" onClick={beginSignup}>{isCanceled ? 'Restart subscription' : 'Start 14‑day free trial'}</Button>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <select
+                    value={selectedTier}
+                    onChange={handleTierChange}
+                    style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '1rem' }}
+                  >
+                    <option value="freemium">Freemium ($0/mo)</option>
+                    <option value="pro">Pro ($20/mo)</option>
+                    <option value="max">Max ($50/mo)</option>
+                  </select>
+                  <Button variant="contained" onClick={() => beginSignup()}>
+                    {isCanceled ? 'Restart subscription' : 'Start 14‑day free trial'}
+                  </Button>
+                </Box>
               )}
               {(canManage || subJustStarted) && (
-                <Button variant="outlined" onClick={openPortal}>Manage billing</Button>
+                <Button variant="outlined" onClick={openPortal} sx={{ alignSelf: 'flex-start' }}>
+                  Manage billing
+                </Button>
               )}
             </Box>
           )}
 
           {showPayment && clientSecret && (
-            <Box sx={{ mt: 2 }}>
+            <Box ref={paymentRef} sx={{ mt: 2, maxWidth: 600 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">
+                  Checkout for {selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)} Tier
+                </Typography>
+                <Button size="small" onClick={() => setShowPayment(false)}>Cancel</Button>
+              </Box>
               <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <EmbeddedCheckoutForm onSuccess={() => { setShowPayment(false); setMessage('Subscription started!'); setSubJustStarted(true); openPortal(); }} />
+                <EmbeddedCheckoutForm
+                  tier={selectedTier}
+                  onSuccess={() => {
+                    setShowPayment(false);
+                    setSuccessMessage('Successfully upgraded! Your plan has been updated.');
+                    setSubJustStarted(true);
+                    fetchSubscription();
+                  }}
+                />
               </Elements>
             </Box>
           )}
         </Paper>
+        )}
       </Box>
     </Container>
   );

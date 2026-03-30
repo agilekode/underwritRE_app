@@ -1120,7 +1120,7 @@ const isStepComplete = (step: number) => {
       state: modelDetails.state,
       zip_code: modelDetails.zip_code,
       model_type_id: selectedModelType,
-      user_id: user.id, // Use actual user ID from context
+      user_id: user?.id, // Use actual user ID from context
       google_sheet_url: modelDetails.google_sheet_url,
       id: existingModel ? modelDetails.id : null
     };
@@ -1385,7 +1385,7 @@ const isStepComplete = (step: number) => {
     setVariableMapping({});
     try {
       const token = await getAccessTokenSilently();
-      const userId = user.id;
+      const userId = user?.id;
 
       const response = await fetch(BACKEND_URL + `/api/model_types/${selectedModelType}/generate_sheet`, {
         method: 'POST',

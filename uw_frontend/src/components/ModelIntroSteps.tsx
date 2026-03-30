@@ -10,6 +10,9 @@ import {
     StepLabel,
   } from "@mui/material";
   import { useEffect, useState } from "react";
+  import { usePlanTier, PlanTier } from "../context/UserContext";
+  import { Snackbar, Alert, Chip } from "@mui/material";
+  import { useNavigate } from "react-router-dom";
   
   const steps = [
     "Select a Model Type",
@@ -40,6 +43,26 @@ import {
   
     const [propertyType, setPropertyType] = useState("");
     const [financingType, setFinancingType] = useState("");
+    const planTier = usePlanTier();
+    const navigate = useNavigate();
+
+    const [upgradeSnackbar, setUpgradeSnackbar] = useState<{ open: boolean; tier: string }>({
+      open: false,
+      tier: "",
+    });
+
+    const getRequiredTier = (typeName: string): PlanTier => {
+      if (typeName.toLowerCase().includes("development")) return "max";
+      if (typeName === "Mixed-Use" || typeName === "Industrial / Retail") return "pro";
+      return "freemium";
+    };
+
+    const isLocked = (typeName: string): boolean => {
+      const required = getRequiredTier(typeName);
+      if (required === "max") return planTier !== "max";
+      if (required === "pro") return planTier === "freemium";
+      return false;
+    };
 
     const getFieldValue = (field_key: string, defaultValue: any) => {
       const field = modelDetails?.user_model_field_values?.find((f: any) => f.field_key === field_key);
@@ -76,75 +99,170 @@ import {
                 {[...modelTypes]
                   .filter((type) => type.is_active === true)
                   .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
-                  .map((type) => (
+                  .map((type) => {
+                    const locked = isLocked(type.name);
+                    const requiredTier = getRequiredTier(type.name);
+                    
+                    return (
+                      <Box
+                        key={type.id}
+                        sx={{
+                          border: 2,
+                          borderColor: selectedModelType === type.id ? "primary.main" : "grey.300",
+                          borderRadius: 2,
+                          p: 1,
+                          mb: 2,
+                          width: "100%",
+                          maxWidth: '100%',
+                          boxSizing: 'border-box',
+                          display: "flex",
+                          alignItems: "center",
+                          cursor: locked ? "not-allowed" : "pointer",
+                          transition: "border-color 0.2s",
+                          opacity: locked ? 0.6 : 1,
+                          position: 'relative',
+                        }}
+                        onClick={() => {
+                          if (locked) {
+                            setUpgradeSnackbar({ open: true, tier: requiredTier });
+                          } else {
+                            handleModelTypeChange({ target: { value: type.id } } as React.ChangeEvent<HTMLInputElement>);
+                          }
+                        }}
+                      >
+                        <Box sx={{ flex: 1, width: '100%' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <FormControlLabel
+                              value={type.id}
+                              control={<Radio checked={selectedModelType === type.id} disabled={locked} />}
+                              label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="body1" sx={{ fontWeight: 600, fontSize: '18px' }}>
+                                    {type.name}
+                                  </Typography>
+                                  {locked && (
+                                    <Chip 
+                                      label={requiredTier === 'max' ? 'Max' : 'Pro'} 
+                                      size="small" 
+                                      color="primary" 
+                                      variant="outlined"
+                                      sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase' }}
+                                    />
+                                  )}
+                                </Box>
+                              }
+                              sx={{ m: 0, width: '100%', alignItems: 'center' }}
+                            />
+                          </Box>
+                          {type.description && (
+                            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0, mb: 1, pl: 5 }}>
+                              {type.description}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    );
+                  })}
+
+                  {/* Multifamily and Mixed-Use Development (Hardcoded if not in modelTypes) */}
+                  {!modelTypes.some(t => t.name.toLowerCase().includes("development")) && (
                     <Box
-                      key={type.id}
                       sx={{
                         border: 2,
-                        borderColor: selectedModelType === type.id ? "primary.main" : "grey.300",
+                        borderColor: selectedModelType === "multifamily-mixed-use" ? "primary.main" : "grey.300",
                         borderRadius: 2,
                         p: 1,
                         mb: 2,
-                        width: "100%",
+                        width: '100%',
                         maxWidth: '100%',
                         boxSizing: 'border-box',
-                        display: "flex",
-                        alignItems: "center",
-                        cursor: "pointer",
+                        display: 'flex',
+                        alignItems: 'center',
+                        cursor: planTier !== 'max' ? 'not-allowed' : 'pointer',
+                        opacity: planTier !== 'max' ? 0.6 : 1,
                         transition: "border-color 0.2s",
                       }}
-                      onClick={() => handleModelTypeChange({ target: { value: type.id } } as React.ChangeEvent<HTMLInputElement>)}
+                      onClick={() => {
+                        if (planTier !== 'max') {
+                          setUpgradeSnackbar({ open: true, tier: 'max' });
+                        } else {
+                          handleModelTypeChange({ target: { value: "multifamily-mixed-use" } } as React.ChangeEvent<HTMLInputElement>);
+                        }
+                      }}
                     >
                       <Box sx={{ flex: 1, width: '100%' }}>
                         <FormControlLabel
-                          value={type.id}
-                          control={<Radio checked={selectedModelType === type.id} />}
-                          label={<Typography variant="body1" sx={{ fontWeight: 600, fontSize: '18px' }}>{type.name}</Typography>}
+                          value="multifamily-mixed-use"
+                          control={<Radio checked={selectedModelType === "multifamily-mixed-use"} disabled={planTier !== 'max'} />}
+                          label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body1" sx={{ fontWeight: 600, fontSize: '18px' }}>
+                                Multifamily and Mixed-Use Development
+                              </Typography>
+                              {planTier !== 'max' && (
+                                <Chip 
+                                  label="Max" 
+                                  size="small" 
+                                  color="primary" 
+                                  variant="outlined"
+                                  sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase' }}
+                                />
+                              )}
+                            </Box>
+                          }
                           sx={{ m: 0, width: '100%', alignItems: 'center' }}
                         />
-                        {type.description && (
-                          <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0, mb: 1, pl: 5 }}>
-                            {type.description}
-                          </Typography>
-                        )}
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0, mb: 1, pl: 5 }}>
+                          Comprehensive development modeling for ground-up projects.
+                        </Typography>
                       </Box>
                     </Box>
-                  ))}
-                  {/* <Box
-                    sx={{
-                      border: 2,
-                      borderColor: 'grey.300',
-                      borderRadius: 2,
-                      p: 1,
-                      mb: 2,
-                      width: '100%',
-                      maxWidth: '100%',
-                      boxSizing: 'border-box',
-                      display: 'flex',
-                      alignItems: 'center',
-                      cursor: 'not-allowed',
-                      opacity: 0.7,
-                      backgroundColor: '#fafafa',
-                    }}
-                  >
-                    <Box sx={{ flex: 1, width: '100%' }}>
-                      <FormControlLabel
-                        value="multifamily-mixed-use"
-                        disabled
-                        control={<Radio disabled />}
-                        label={
-                          <Typography variant="body1" sx={{ fontWeight: 600, fontSize: '18px' }}>
-                            Multifamily and Mixed-Use Development
-                          </Typography>
-                        }
-                        sx={{ m: 0, width: '100%', alignItems: 'center' }}
-                      />
-                      <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0, mb: 1, pl: 5 }}>
-                        COMING SOON
-                      </Typography>
-                    </Box>
-                  </Box> */}
+                  )}
               </RadioGroup>
+
+              <Snackbar
+                open={upgradeSnackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setUpgradeSnackbar({ ...upgradeSnackbar, open: false })}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+              >
+                <Alert
+                  onClose={() => setUpgradeSnackbar({ ...upgradeSnackbar, open: false })}
+                  severity="info"
+                  variant="filled"
+                  sx={{ 
+                    width: '100%', 
+                    alignItems: 'center',
+                    borderRadius: 2,
+                    px: 3,
+                    py: 1,
+                    boxShadow: 3
+                  }}
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      onClick={() => navigate(`/settings?upgrade=${upgradeSnackbar.tier.toLowerCase()}`)}
+                      sx={{ 
+                        ml: 2, 
+                        fontWeight: 700, 
+                        textTransform: 'none',
+                        borderColor: 'rgba(255,255,255,0.5)',
+                        '&:hover': {
+                          borderColor: '#fff',
+                          backgroundColor: 'rgba(255,255,255,0.1)'
+                        }
+                      }}
+                    >
+                      Upgrade
+                    </Button>
+                  }
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: 'white' }}>
+                    Available on the {upgradeSnackbar.tier === 'max' ? 'Max' : 'Pro'} plan
+                  </Typography>
+                </Alert>
+              </Snackbar>
             </>
           );
         //   case 1:
@@ -311,9 +429,15 @@ import {
     };
   
     const isNextDisabled = () => {
-      if (activeStep === 0) return !selectedModelType;
-    //   if (activeStep === 1) return !financingType;
-      // if (activeStep === 1) return !expectsRefinance;
+      if (activeStep === 0) {
+        if (!selectedModelType) return true;
+        
+        // Find the selected model type in modelTypes or check if it's the hardcoded development model
+        const selectedType = modelTypes.find(t => t.id === selectedModelType);
+        const typeName = selectedType ? selectedType.name : (selectedModelType === "multifamily-mixed-use" ? "Multifamily and Mixed-Use Development" : "");
+        
+        return isLocked(typeName);
+      }
       return false;
     };
   

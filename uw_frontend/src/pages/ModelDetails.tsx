@@ -23,6 +23,7 @@ import {
   FormGroup,
   FormControlLabel,
   Checkbox,
+  Alert,
 } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { pdf } from "@react-pdf/renderer";
@@ -42,11 +43,19 @@ import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import DownloadIcon from "@mui/icons-material/Download";
 import RetailSummary from "../components/RetailSummary";
 import DevelopmentRentalAssumptionsReadOnly from "../components/DevelopmentRentalAssumptionsReadOnly";
+import { Link } from "react-router-dom";
+import { usePlanTier, useUser } from "../context/UserContext";
 
 const ModelDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getAccessTokenSilently, user: auth0User } = useAuth0();
+  const planTier = usePlanTier();
+  const isFreemium = planTier === 'freemium';
+  const { user } = useUser();
+  const subStatus = user?.subscription_status;
+  const isPaymentIssue = ['past_due', 'unpaid'].includes(subStatus || '');
+  const isExplicitlyCanceled = subStatus === 'canceled';
   const [modelDetails, setModelDetails] = useState<any>(null);
   const [tabIndex, setTabIndex] = useState(0);
   const [downloading, setDownloading] = useState(false);
@@ -813,6 +822,7 @@ const ModelDetails = () => {
   const hasCompanyLogo = !!(companyInfo && companyInfo.company_logo_url);
 
   const handleDownloadPdf = async () => {
+    if (isFreemium) return;
     try {
       setDownloadingPDF(true);
       const today = new Date();
@@ -976,6 +986,7 @@ const ModelDetails = () => {
     getAccessTokenSilently: () => Promise<string>,
     modelDetails: any
   ) => {
+    if (isFreemium) return;
     setDownloading(true);
     try {
       const token = await getAccessTokenSilently();
@@ -1350,6 +1361,31 @@ const ModelDetails = () => {
           padding: 0,
         }}
       >
+        {(isPaymentIssue || isExplicitlyCanceled || (isFreemium && modelDetails && ['Mixed-Use', 'Industrial / Retail', 'Development'].includes(modelDetails.model_type?.name || ''))) && (
+          <Alert 
+            severity="warning" 
+            sx={{ 
+              borderRadius: 0, 
+              backgroundColor: '#FEF3C7', 
+              color: '#B45309',
+              '& .MuiAlert-icon': { color: '#F59E0B' },
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {isPaymentIssue 
+              ? "Your payment didn't go through. Your existing models are safe, but downloads and new Pro/Max models are paused. "
+              : "Your Pro/Max subscription was canceled or expired. Your existing models are safe, but downloads and new Pro/Max models are paused. "}
+            <Link 
+              to="/settings?upgrade=pro" 
+              style={{ color: '#B45309', fontWeight: 700, textDecoration: 'underline' }}
+            >
+              {isPaymentIssue ? "Update Payment Method →" : "Reactivate Subscription →"}
+            </Link>
+          </Alert>
+        )}
         {/* Top navy bar — matches sidebar logo height */}
         <Box
           sx={{
@@ -1448,34 +1484,85 @@ const ModelDetails = () => {
               </Button>
             </Tooltip>
 
-            <Tooltip title="Download PDF Summary">
-              <Button
-                size="small"
-                variant="contained"
-                startIcon={<PictureAsPdfIcon fontSize="small" />}
-                onClick={() => setDownloadOptionsOpen(true)}
-                disabled={downloadingPDF || downloading}
-                sx={{
-                  backgroundColor: colors.blue,
-                  color: "#fff",
-                  textTransform: "none",
-                  fontSize: "0.8125rem",
-                  fontWeight: 500,
-                  "&:hover": { backgroundColor: colors.blueDark },
-                  "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
-                }}
-              >
-                PDF Summary
-              </Button>
+            <Tooltip 
+              title={
+                isFreemium ? (
+                  <Box sx={{ p: 0.5 }}>
+                    <Typography variant="body2" sx={{ fontSize: '0.75rem', mb: 0.5, color: 'white' }}>
+                      Excel/PDF downloads are available on the Pro plan.
+                    </Typography>
+                    <Link 
+                      to="/settings?upgrade=pro" 
+                      style={{ 
+                        color: '#60a5fa', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        textDecoration: 'none',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                    >
+                      Upgrade to Pro →
+                    </Link>
+                  </Box>
+                ) : "Download PDF Summary"
+              }
+              disableInteractive={!isFreemium}
+            >
+              <span>
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<PictureAsPdfIcon fontSize="small" />}
+                  sx={{
+                    backgroundColor: colors.blue,
+                    color: "#fff",
+                    textTransform: "none",
+                    fontWeight: 600,
+                    px: 2.5,
+                    minWidth: "auto",
+                    "&:hover": { backgroundColor: colors.blueDark },
+                    "&:disabled": { backgroundColor: "grey.400", color: "grey.600" },
+                  }}
+                  onClick={() => setDownloadOptionsOpen(true)}
+                  disabled={isFreemium || downloadingPDF || downloading || isCalculating}
+                >
+                  PDF
+                </Button>
+              </span>
             </Tooltip>
 
-            <Tooltip title={
-              modelDetails.sensitivity_tables && isCalculating
-                ? "Generating..."
-                : downloading
-                ? "Downloading..."
-                : "Download Worksheet"
-            }>
+            <Tooltip 
+              title={
+                isFreemium ? (
+                  <Box sx={{ p: 0.5 }}>
+                    <Typography variant="body2" sx={{ fontSize: '0.75rem', mb: 0.5, color: 'white' }}>
+                      Excel/PDF downloads are available on the Pro plan.
+                    </Typography>
+                    <Link 
+                      to="/settings?upgrade=pro" 
+                      style={{ 
+                        color: '#60a5fa', 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        textDecoration: 'none',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                    >
+                      Upgrade to Pro →
+                    </Link>
+                  </Box>
+                ) : (
+                  modelDetails.sensitivity_tables && isCalculating
+                    ? "Generating..."
+                    : downloading
+                    ? "Downloading..."
+                    : "Download Worksheet"
+                )
+              }
+              disableInteractive={!isFreemium}
+            >
               <span>
                 <Button
                   size="small"
@@ -1498,7 +1585,7 @@ const ModelDetails = () => {
                     )
                   }
                   onClick={() => downloadWorksheet(getAccessTokenSilently, modelDetails)}
-                  disabled={downloadingPDF || downloading || isCalculating}
+                  disabled={isFreemium || downloadingPDF || downloading || isCalculating}
                   sx={{
                     backgroundColor: colors.blue,
                     color: "#fff",
@@ -1627,7 +1714,11 @@ const ModelDetails = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setDownloadOptionsOpen(false)}>Cancel</Button>
-            <Button variant="contained" onClick={handleDownloadPdf} disabled={downloadingPDF}>
+            <Button 
+              variant="contained" 
+              onClick={handleDownloadPdf} 
+              disabled={isFreemium || downloadingPDF}
+            >
               {downloadingPDF ? "Preparing..." : "Download"}
             </Button>
           </DialogActions>

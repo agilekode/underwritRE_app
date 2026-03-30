@@ -61,14 +61,11 @@ const Home = () => {
 
   const [subLoading, setSubLoading] = useState(true);
   const [isSubActive, setIsSubActive] = useState<boolean>(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [eligibleForTrial, setEligibleForTrial] = useState<boolean>(true);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean>(false);
   const [onboardingData, setOnboardingData] = useState<any>(null);
   const [onboardingStep, setOnboardingStep] = useState<number>(1);
-  const [promoOpen, setPromoOpen] = useState(false);
-  const [promoCode, setPromoCode] = useState<string>("");
-  const [promoSubmitting, setPromoSubmitting] = useState(false);
-  const [promoError, setPromoError] = useState<string>("");
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [tagTargetModelId, setTagTargetModelId] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState<string>("");
@@ -106,7 +103,7 @@ const Home = () => {
       const token = await getAccessTokenSilently({ authorizationParams: { audience: process.env.REACT_APP_AUTH0_AUDIENCE } });
       await fetch(`${BACKEND_URL}/api/user_info`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-User-Email': user.email },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'X-User-Email': user?.email || '' },
         credentials: 'include',
         body: JSON.stringify({
           job_role: data.jobRole || '',
@@ -146,6 +143,7 @@ const Home = () => {
         }
         if (r.ok && data) {
           const status = data.status as string | undefined;
+          setSubscriptionStatus(status || null);
           setIsSubActive(status === 'active' || status === 'trialing');
           setEligibleForTrial(Boolean(data.eligible_for_trial));
         } else {
@@ -158,6 +156,7 @@ const Home = () => {
         }
       } catch {
         setIsSubActive(false);
+        setSubscriptionStatus(null);
         setEligibleForTrial(true);
       } finally {
         setSubLoading(false);
@@ -171,7 +170,7 @@ const Home = () => {
       if (!user) return;
       try {
         const token = await getAccessTokenSilently();
-        const response = await fetch(BACKEND_URL + `/api/user_models?user_id=${user.id}`, {
+        const response = await fetch(BACKEND_URL + `/api/user_models?user_id=${user?.id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -535,31 +534,8 @@ const Home = () => {
     setPendingDeleteName(null);
   };
 
-  const renderCta = () => {
-    const title = eligibleForTrial ? 'Ready to Create Models?' : 'Welcome Back';
-    const body = eligibleForTrial
-      ? 'Start your 14‑day free trial to create and view models.'
-      : 'Renew your subscription to view past models or create new ones.';
-    const button = eligibleForTrial ? 'Start 14‑Day Free Trial' : 'Renew Subscription';
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 220 }}>
-        <Paper sx={{ p: 4, maxWidth: 640, textAlign: 'center' }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>{title}</Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>{body}</Typography>
-          <Button variant="contained" onClick={() => navigate('/settings')}>{button}</Button>
-          {eligibleForTrial && (
-            <Box sx={{ mt: 1.5 }}>
-              <Button variant="text" size="small" onClick={() => { setPromoError(''); setPromoCode(''); setPromoOpen(true); }}>
-                Promo code? Click here
-              </Button>
-            </Box>
-          )}
-        </Paper>
-      </Box>
-    );
-  };
 
-  const showModelsUi = !needsOnboarding && isSubActive;
+  const showModelsUi = !needsOnboarding;
   const isFiltering = (tagFilter.length > 0 || searchText.trim().length > 0) && filteredModels.length !== models.length;
 
   return (
@@ -806,7 +782,6 @@ const Home = () => {
           </Box>
         )}
 
-        {!subLoading && !needsOnboarding && !isSubActive && renderCta()}
 
         {showModelsUi && models.length == 0 && (
           <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 4 }}>
@@ -901,6 +876,22 @@ const Home = () => {
                     }}>
                       <Typography variant="caption" sx={{ fontSize: '0.72rem', color: colors.grey[700], whiteSpace: 'nowrap', fontWeight: 500 }}>
                         {model.model_type}
+                      </Typography>
+                    </Box>
+                  )}
+                  {user?.plan_tier === 'freemium' && 
+                   ['past_due', 'canceled', 'unpaid'].includes(subscriptionStatus || '') && 
+                   ['Mixed-Use', 'Industrial / Retail', 'Development'].includes(model.model_type) && (
+                    <Box sx={{
+                      px: 1,
+                      py: 0.25,
+                      borderRadius: 1,
+                      backgroundColor: '#FEF3C7', // amber-100
+                      border: '1px solid #F59E0B', // amber-500
+                      flexShrink: 0,
+                    }}>
+                      <Typography variant="caption" sx={{ fontSize: '0.72rem', color: '#B45309', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                        Payment issue
                       </Typography>
                     </Box>
                   )}
@@ -1248,68 +1239,6 @@ const Home = () => {
         <DialogActions>
           <Button onClick={handleCancelDelete}>Cancel</Button>
           <Button color="error" variant="contained" onClick={handleConfirmDelete}>Remove</Button>
-        </DialogActions>
-      </Dialog>
-      <Dialog open={promoOpen} onClose={() => setPromoOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Enter Promo Code</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Promo code"
-            type="text"
-            fullWidth
-            value={promoCode}
-            onChange={(e) => setPromoCode(e.target.value)}
-            disabled={promoSubmitting}
-          />
-          {promoError && (
-            <Typography color="error" variant="body2" sx={{ mt: 1 }}>
-              {promoError}
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPromoOpen(false)} disabled={promoSubmitting}>Cancel</Button>
-          <Button
-            variant="contained"
-            disabled={promoSubmitting || !promoCode.trim()}
-            onClick={async () => {
-              try {
-                setPromoSubmitting(true);
-                setPromoError('');
-                const token = await getAccessTokenSilently({
-                  authorizationParams: { audience: process.env.REACT_APP_AUTH0_AUDIENCE }
-                });
-                const r = await fetch(`${BACKEND_URL}/api/billing/start-promo-subscription`, {
-                  method: 'POST',
-                  headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                  },
-                  credentials: 'include',
-                  body: JSON.stringify({ promo_code: promoCode.trim() })
-                });
-                if (!r.ok) {
-                  let msg = 'Unable to apply promo.';
-                  try {
-                    const d = await r.json();
-                    msg = d?.error || msg;
-                  } catch {}
-                  setPromoError(msg);
-                  return;
-                }
-                setPromoOpen(false);
-                navigate('/settings?from=promo');
-              } catch (e: any) {
-                setPromoError('Something went wrong. Please try again.');
-              } finally {
-                setPromoSubmitting(false);
-              }
-            }}
-          >
-            Apply
-          </Button>
         </DialogActions>
       </Dialog>
       <Dialog open={tagDialogOpen} onClose={closeAddTag} maxWidth="xs" fullWidth>
