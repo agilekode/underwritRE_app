@@ -1361,7 +1361,7 @@ const ModelDetails = () => {
           padding: 0,
         }}
       >
-        {(isPaymentIssue || isExplicitlyCanceled || (isFreemium && modelDetails && ['Mixed-Use', 'Industrial / Retail', 'Development'].includes(modelDetails.model_type?.name || ''))) && (
+        {(isPaymentIssue || isExplicitlyCanceled || (isFreemium && modelDetails && ['Mixed-Use', 'Industrial / Retail', 'Multifamily and Mixed-Use Development'].includes(modelDetails.model_type?.name || ''))) && (
           <Alert 
             severity="warning" 
             sx={{ 

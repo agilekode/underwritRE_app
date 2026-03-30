@@ -18,6 +18,7 @@ except Exception:
 import base64
 from urllib.parse import urlparse, unquote
 import requests
+from app.routes.billing import ensure_freemium_subscription
 
 
 user_bp = Blueprint('user', __name__)
@@ -468,9 +469,12 @@ def check_user():
                     raise
                 # Refresh from Stripe if we already have a customer
                 try:
-                    refresh_user_subscription_from_stripe(session, user)
+                    ensure_freemium_subscription(auth0_user_id or user.auth0_user_id, email or user.email)
                 except Exception:
-                    pass
+                    try:
+                        refresh_user_subscription_from_stripe(session, user)
+                    except Exception:
+                        pass
                 return jsonify({
                     'message': 'User exists',
                     'id': str(user.id),
@@ -486,9 +490,12 @@ def check_user():
                 }), 200
         # Refresh from Stripe on login if we have a customer id
         try:
-            refresh_user_subscription_from_stripe(session, user)
+            ensure_freemium_subscription(auth0_user_id, email)
         except Exception:
-            pass
+            try:
+                refresh_user_subscription_from_stripe(session, user)
+            except Exception:
+                pass
         return jsonify({
             'message': 'User exists',
             'id': str(user.id),
