@@ -41,7 +41,7 @@ SCOPES = [
 
 
 PARENT_FOLDER_ID = os.getenv("GOOGLE_PARENT_FOLDER_ID")
-PARENT_FOLDER_ID = '14dBWRN-2ItiRLRy9HWfy1U3oF_p7MzPt'
+# PARENT_FOLDER_ID = '14dBWRN-2ItiRLRy9HWfy1U3oF_p7MzPt'
 # PARENT_FOLDER_ID = '1xoc6MuOW8ULr3PIucwoEhG0hwpWeIxdk'
 
 # Long-timeout transport for Sheets API (avoids "read operation timed out" on batchGet)

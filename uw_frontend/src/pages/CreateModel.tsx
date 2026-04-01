@@ -936,6 +936,15 @@ export const CreateModel = ({ existingModel, modelId }: CreateModelProps) => {
                     value: field.default_value
                   });
                 }
+                else if (field.field_key === 'Loan Name' || field.field_key === 'Pref. Equity / Mezz. Loan Amount') {         
+                  fieldValues.push({
+                    field_id: field.id,
+                    field_key: field.field_key,
+                    field_title: field.field_title,
+                    field_type: field.field_type,
+                    value: field.default_value
+                  });
+                }
               }
             }
             setModelDetails(prevDetails => ({ ...prevDetails, user_model_field_values: fieldValues }));
